@@ -14,6 +14,7 @@ import { VERSION_LABEL } from '../../shared/version.js';
 import { asset } from './ui.js';
 import { ITEM_ICON, MACHINE_ICON, MD_ICON, ICON_COLS } from './item-sprites.js';
 import { PORTRAIT, PORTRAIT_COLS } from './portraits.js';
+import { DTEF_SLOT, DUNGEON_TILESET } from './tilesets.js';
 import { contactStatus, floorWeather, activeIQ, iqSkillsFor, ABILITY_ES, ABILITY_DESC, abilitiesOf, has as hasAbility } from '../../shared/abilities.js';
 
 // ---------- sprites ----------
@@ -51,6 +52,11 @@ const Sprites = {
     if (mini) for (const [key, v] of Object.entries(mini)) this.mons[key] = { ...v };
   },
   lazyImages: {},
+  // animaciones de combate (Attack, Shoot, Hurt, Sleep, Faint): se descargan la primera vez que se usan
+  ensureAnim(m, name) {
+    const a = m.anims?.[name]; if (!a || (m.animImg ||= {})[name] !== undefined) return;
+    m.animImg[name] = null; const img = new Image(); img.onload = () => { m.animImg[name] = img; scheduleRender(); }; img.src = a.sheet;
+  },
   // descarga (una sola vez) las hojas de un Pokémon; al llegar, se vuelve a dibujar
   ensure(m) {
     if (m.requested) return; m.requested = true;
@@ -66,6 +72,22 @@ const Sprites = {
   drawMon(ctx, mon, px, py, tile) {
     const m = this.mons[mon.species]; if (!m) return this.draw(ctx, mon.species, px, py, tile);
     if (!m.sheetImg && !m.idleImg) { this.ensure(m); return false; }   // aún descargando: círculo de reserva
+    const now = performance.now(), act = mon.anim && now - mon.anim.t0 < mon.anim.dur ? mon.anim : null;
+    const animName = act ? act.name : ((mon.asleep || mon.status?.kind === 'sleep') && m.anims?.Sleep ? 'Sleep' : null);
+    if (animName && m.anims?.[animName]) {
+      const a = m.anims[animName], aimg = m.animImg?.[animName];
+      if (aimg) {
+        const [fw, fh] = a.frame, rows = Math.max(1, Math.round(aimg.height / fh)), dur = a.durations?.length ? a.durations : [8];
+        const total = dur.reduce((s, d) => s + d, 0), t0 = act ? act.t0 : 0;
+        let f = (now - t0) / (1000 / 60); f = act ? Math.min(f, total - 0.01) : f % total;   // una vez (golpes) o en bucle (dormir)
+        let col = 0; for (let acc = 0; col < dur.length - 1 && (acc += dur[col]) <= f; col++);
+        const row = rows === 1 ? 0 : (DIR_ROW[`${mon.facing?.[0] ?? 0},${mon.facing?.[1] ?? 1}`] ?? 0);
+        const scale = tile / 24, feet = py + tile - 2 * scale;
+        ctx.imageSmoothingEnabled = false; ctx.drawImage(aimg, col * fw, row * fh, fw, fh, px + tile / 2 - fw * scale / 2, feet - fh * scale * 0.62, fw * scale, fh * scale); ctx.imageSmoothingEnabled = true;
+        return true;
+      }
+      this.ensureAnim(m, animName);
+    }
     const moving = mon.movedAt && performance.now() - mon.movedAt < 250;
     const img = moving && m.sheetImg ? m.sheetImg : m.idleImg || m.sheetImg; if (!img) return false;
     const [fw, fh] = moving && m.sheetImg ? m.frame : m.idleFrame || m.frame;
@@ -176,7 +198,7 @@ const canLeaderChoice = () => rankOf(meta.rankPts) >= CFG.leaderChoiceRank;
 export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
   setupScaleSelector(); requestAnimationFrame(applyScale);
-  window.__mmHUB = HUB; window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
+  window.__mmHUB = HUB; window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => DUNGEON_TILESET[state.era || state.dungeonDef?.id]?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
   window.__mmGainExp = (m, n) => gainExp(m, n); window.__mmExpToNext = expToNext; window.__mmBag = () => openBagMenu(); window.__mmIconOf = t => itemInText(t);
   window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
   window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l);
@@ -853,6 +875,7 @@ function findTargets(userMon, move) {
   return [];
 }
 function useMove(userMon, move) {
+  playAnim(userMon, move.cat === 'spec' && Sprites.mons[userMon.species]?.anims?.Shoot ? 'Shoot' : 'Attack');   // animación de ataque
   const ally = isAlly(userMon), targets = findTargets(userMon, move), who = ally ? userMon.name : `${userMon.name} salvaje`;
   if (!targets.length) { say(`${who} usa ${move.name}, pero no acierta a nadie.`); return; }
   if (targets.length > 1) say(`${who} usa ${move.name} contra ${targets.length} objetivos.`);
@@ -878,6 +901,7 @@ function useMove(userMon, move) {
       state.effects.push({ x: target.x, y: target.y, text: `+${dmg}`, t: performance.now(), color: '#7fd67f' }); continue;
     }
     if (move.power) {
+      if (dmg > 0) playAnim(target, 'Hurt');
       if (isVisibleNow(target.x, target.y)) playSfx(!ally ? 'hurt' : crit ? 'crit' : eff > 1 ? 'hitSuper' : eff < 1 ? 'hitWeak' : 'hit');   // sonido según el golpe
       target.hp = Math.max(0, target.hp - dmg);
       const note = (crit ? ' ¡Golpe crítico!' : '') + (eff === 0 ? ' Apenas afecta.' : eff > 1 ? ' ¡Es muy eficaz!' : eff < 1 ? ' No es muy eficaz…' : '');
@@ -953,7 +977,7 @@ function spawnWild() {
 
 // ---------- derrotas, experiencia, reclutamiento ----------
 function defeatEnemy(e, by) {
-  playSfx('faint');
+  playSfx('faint'); addFading(e);
   state.enemies = state.enemies.filter(x => x !== e);
   const p = e.shopkeeper ? 0 : pokesFor(e.species, state.floor); state.runPokes += p; if (p) setTimeout(() => playSfx('coin'), 180);
   say(e.shopkeeper ? `¡${e.name} derrotado! (Un Kecleon nunca lleva Pokés encima…)` : `¡${e.name} derrotado! +${p} Pokés.`);
@@ -1045,7 +1069,7 @@ function offerMove(name, permanent, then) {
   openMenu({ title: `Aprender ${name}`, items: [...p.moves.map(m => m.name), 'No aprender'], icons: p.moves.map(m => MOVES[m.name].type), onCancel: () => { state.menu = null; say(`${p.name} no aprende ${name}.`); render(); then?.(); }, onSelect: i => { if (i < 4) { say(`${p.name} olvida ${p.moves[i].name} y aprende ${name}.`); p.moves[i] = entry; } else say(`${p.name} no aprende ${name}.`); state.menu = null; render(); then?.(); } });
 }
 function downed(mon) {
-  playSfx('faint');
+  playSfx('faint'); if (mon !== state.player) addFading(mon);
   if (mon === state.player) {
     const i = state.inventory.indexOf('Semilla Reviver');
     if (i >= 0) { state.inventory.splice(i, 1); mon.hp = mon.maxHp; mon.status = null; say('¡La Semilla Reviver te revive!'); return; }
@@ -1081,6 +1105,63 @@ function useMachine(index) {
     } });
 }
 
+// ---------- animaciones de combate ----------
+function playAnim(mon, name) {
+  const m = Sprites.mons[mon?.species], a = m?.anims?.[name]; if (!a) return false;
+  Sprites.ensureAnim(m, name);
+  mon.anim = { name, t0: performance.now(), dur: (a.durations?.length ? a.durations.reduce((s, d) => s + d, 0) : 24) * 1000 / 60 };
+  return true;
+}
+// Pokémon que caen: se quedan un momento haciendo su animación (o desvaneciéndose) antes de desaparecer
+function addFading(mon) {
+  if (state.scene !== 'dungeon' || !isVisibleNow(mon.x, mon.y)) return;
+  const f = { species: mon.species, x: mon.x, y: mon.y, facing: mon.facing, fading: performance.now() };
+  if (!playAnim(f, 'Faint')) { playAnim(f, 'Hurt'); f.fadeOut = true; }
+  f.until = performance.now() + Math.max(650, f.anim?.dur || 0) + 250;
+  (state.fading ||= []).push(f); scheduleRender();
+}
+
+// ---------- tilesets de las mazmorras originales (formato DTEF, de PMDCollab/RawAsset) ----------
+// Cada hoja (tileset_0/1/2 = variantes) lleva los tres terrenos lado a lado: paredes (columnas 0–5), agua o lava (6–11)
+// y suelo (12–17), con 6×8 piezas de 24 px. La pieza se elige por qué vecinas son del mismo terreno (DTEF_SLOT).
+const TILESETS = {};
+function tileset(name) {
+  if (TILESETS[name]) return TILESETS[name].ready ? TILESETS[name] : null;
+  const ts = TILESETS[name] = { ready: false, img: [], empty: [] }; let left = 3;
+  [0, 1, 2].forEach(v => {
+    const im = new Image();
+    im.onload = () => {
+      ts.img[v] = im;
+      if (v > 0) {   // qué piezas trae cada variante alternativa (las vacías se toman de la principal)
+        const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const cx = c.getContext('2d'); cx.drawImage(im, 0, 0);
+        const d = cx.getImageData(0, 0, im.width, im.height).data;
+        ts.empty[v] = [...Array(18 * 8)].map((_, i) => { const X = (i % 18) * 24, Y = Math.floor(i / 18) * 24; for (let yy = 0; yy < 24; yy += 3) for (let xx = 0; xx < 24; xx += 3) if (d[((Y + yy) * im.width + X + xx) * 4 + 3] > 0) return false; return true; });
+      }
+      if (--left === 0) { ts.ready = true; scheduleRender(); }
+    };
+    im.onerror = () => { if (v === 0) ts.failed = true; else if (--left === 0) { ts.ready = !!ts.img[0]; scheduleRender(); } };
+    im.src = asset(`tiles_${name}_${v}`, `client/assets/tilesets/${name}/tileset_${v}.png`);
+  });
+  return null;
+}
+const terrainOf = (x, y) => { if (y < 0 || x < 0 || y >= CFG.map.h || x >= CFG.map.w) return 'wall'; const t = state.dungeon.tiles[y][x]; return t === T.WALL ? 'wall' : t === T.WATER ? 'water' : t === T.LAVA ? 'lava' : 'floor'; };
+const NB = [[0, 1, 0x01], [1, 1, 0x02], [1, 0, 0x04], [1, -1, 0x08], [0, -1, 0x10], [-1, -1, 0x20], [-1, 0, 0x40], [-1, 1, 0x80]];
+function drawDtef(t, x, y, px, py, tile) {
+  if (state.dungeon?.restArea) return false;
+  // las mazmorras sin fin viajan por las eras de las demás (su escenario); en las salas de jefe, el suyo propio
+  const own = DUNGEON_TILESET[state.dungeonDef?.id], cfg = (state.dungeon?.arena && own) ? own : DUNGEON_TILESET[state.era || state.dungeonDef?.id]; if (!cfg) return false;
+  const terr = terrainOf(x, y), setName = terr === 'lava' ? (cfg.lava || cfg.set) : cfg.set, ts = tileset(setName);
+  if (!ts) return false;
+  const same = terr === 'floor' ? (a => a !== 'wall') : (a => a === terr);   // el suelo casa con todo lo que no es pared
+  let mask = 0; for (const [dx, dy, bit] of NB) if (same(terrainOf(x + dx, y + dy))) mask |= bit;
+  const slot = DTEF_SLOT[mask], col0 = terr === 'wall' ? 0 : terr === 'floor' ? 12 : 6;
+  const h = ((x * 73856093) ^ (y * 19349663)) >>> 0, cell = Math.floor(slot / 6) * 18 + col0 + slot % 6;
+  let v = h % 9 === 0 ? 1 : h % 9 === 1 ? 2 : 0; if (v && (!ts.img[v] || ts.empty[v]?.[cell])) v = 0;   // de vez en cuando, una variante
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(ts.img[v], (col0 + slot % 6) * 24, Math.floor(slot / 6) * 24, 24, 24, px, py, tile, tile);
+  ctx.imageSmoothingEnabled = prev; return true;
+}
+
 // ---------- ganchos del motor: flechas de estadística (▲ verde / ▼ azul) y sonido de los estados ----------
 engineHooks.onStage = (mon, stat, d) => {
   if (state.scene !== 'dungeon' || !isVisibleNow(mon.x, mon.y)) return;
@@ -1094,7 +1175,21 @@ const portraitAtlas = new Image(); portraitAtlas.src = asset('portraits_atlas', 
 // emociones parecidas por si falta la pedida
 const MOOD_FALLBACK = { Joyous: ['Happy'], Inspired: ['Happy', 'Determined'], Shouting: ['Angry', 'Determined'], Crying: ['Sad', 'Teary-Eyed', 'Worried'], 'Teary-Eyed': ['Sad', 'Worried'],
   Sigh: ['Worried', 'Sad'], Stunned: ['Surprised'], Dizzy: ['Pain', 'Worried'], Pain: ['Worried'], Determined: ['Angry'], Worried: ['Sad'], Surprised: ['Happy'] };
+// Web completa: todas las emociones de cada especie en una tira (client/assets/portraits/full), bajo demanda.
+// En la versión ligera ese índice no existe y se usa el atlas.
+let PORTRAIT_FULL = null; const portraitStrips = {};
+fetch('client/assets/portraits/full/index.json').then(r => r.ok ? r.json() : null).then(j => { PORTRAIT_FULL = j; }).catch(() => {});
 function drawPortrait(c, sp, mood, x, y, size) {
+  const list = PORTRAIT_FULL?.[sp];
+  if (list) {
+    let im = portraitStrips[sp];
+    if (!im) { im = portraitStrips[sp] = new Image(); im.onload = () => scheduleRender(); im.src = `client/assets/portraits/full/${sp}.png`; }
+    if (im.complete && im.naturalWidth) {
+      const emo = [mood, ...(MOOD_FALLBACK[mood] || []), 'Normal'].find(e => list.includes(e)) ?? list[0], i = list.indexOf(emo);
+      const prev = c.imageSmoothingEnabled; c.imageSmoothingEnabled = false; c.drawImage(im, i * 40, 0, 40, 40, x, y, size, size); c.imageSmoothingEnabled = prev;
+      return true;
+    }   // mientras llega la tira, el atlas
+  }
   const set = PORTRAIT[sp]; if (!set || !portraitAtlas.complete || !portraitAtlas.naturalWidth) return false;
   const emo = [mood, ...(MOOD_FALLBACK[mood] || []), 'Normal'].find(e => set[e] !== undefined); if (emo === undefined) return false;
   const i = set[emo], prev = c.imageSmoothingEnabled; c.imageSmoothingEnabled = false;
@@ -1955,7 +2050,8 @@ function renderDungeon() {
     const x = ox + vx, y = oy + vy;
     if (y < 0 || y >= CFG.map.h || x < 0 || x >= CFG.map.w || !state.seen[y][x]) continue;
     const t = state.dungeon.tiles[y][x], px = vx * tile, py = vy * tile;
-    if (!drawTile(TILE_KEYS[t], x, y, px, py, tile)) {
+    if (drawDtef(t, x, y, px, py, tile)) { if (t === T.STAIRS) drawTile('stairs', x, y, px, py, tile); }   // tileset del original (PMDCollab)
+    else if (!drawTile(TILE_KEYS[t], x, y, px, py, tile)) {
       ctx.fillStyle = TILE_COLORS[t]; ctx.fillRect(px, py, tile, tile);
       if (t === T.FLOOR) { ctx.fillStyle = '#7d6a4e'; ctx.fillRect(px + 1, py + 1, tile - 2, tile - 2); }
       if (t === T.WATER) { ctx.fillStyle = '#3d86c4'; ctx.fillRect(px + 3, py + 8, tile - 6, 2); ctx.fillRect(px + 6, py + 16, tile - 12, 2); }
@@ -1987,6 +2083,10 @@ function renderDungeon() {
   for (const n of state.npcs) drawEntity(n, n.keeper ? '#4caf6d' : '#d98cb3', '#f2b544');
   for (const e of state.enemies) drawEntity(e, e.mega ? '#b060e0' : e.isLegendary ? '#5b8def' : e.isBoss || e.minion ? '#8b3a3a' : e.missionId ? '#d98cb3' : '#c95c5c');
   for (const a of state.team) drawEntity(a, '#e0b060', '#8fd0e6');
+  if (state.fading?.length) {   // los que acaban de caer
+    const now = performance.now(); state.fading = state.fading.filter(f => now < f.until);
+    for (const f of state.fading) { ctx.save(); if (f.fadeOut) ctx.globalAlpha = Math.max(0, (f.until - now) / 650); drawEntity(f, '#c95c5c'); ctx.restore(); animating = true; }
+  }
   drawEntity(p, '#f2b544');
   if (held.has('Y') && !state.menu && !state.dialog && !state.dead) { const pvx = p.x - ox, pvy = p.y - oy; drawTurnArrows(pvx * tile + tile / 2, pvy * tile + tile / 2, p.facing, tile); }
   const now = performance.now();

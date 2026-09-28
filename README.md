@@ -2,6 +2,8 @@
 
 Fan game de **Pokémon Mundo Misterioso**: un roguelike por turnos que se juega en el navegador. Explora mazmorras, recluta Pokémon, cumple misiones del tablón y sube de rango en el Gremio de Pidgeot.
 
+Escenarios, sprites, animaciones y retratos del juego original, con más de 4.400 retratos con emociones.
+
 ## ▶ Jugar
 
 **https://purupurpito.github.io/PMDTimeless/**
@@ -21,6 +23,7 @@ Funciona sin instalar nada. Tu partida se guarda en el navegador: al volver, pul
 ## Créditos
 
 - Retratos y sprites de Pokémon: [PMDCollab/SpriteCollab](https://github.com/PMDCollab/SpriteCollab) y sus colaboradores.
+- Escenarios de mazmorra: [PMDCollab/RawAsset](https://github.com/PMDCollab/RawAsset) (tilesets originales, © Chunsoft), en formato DTEF de [SkyTemple](https://github.com/SkyTemple/skytemple-dtef).
 - Iconos de objetos: [PMDCollab/RawAsset](https://github.com/PMDCollab/RawAsset) (gráficos de Pokémon Mundo Misterioso, © Chunsoft).
 - Datos del juego original: proyectos de la comunidad Explorers-Data y pmdsky-debug.
 
