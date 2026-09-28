@@ -8,7 +8,7 @@ Escenarios, sprites, animaciones y retratos del juego original, con más de 4.40
 
 **https://purupurpito.github.io/PMDTimeless/**
 
-Funciona sin instalar nada. Tu partida se guarda en el navegador: al volver, pulsa «Continuar» y entra con tu nombre y tu código secreto.
+Funciona sin instalar nada. Tu partida se guarda en la nube: pulsa «Continuar» y entra con tu nombre y tu código secreto desde cualquier dispositivo. Si el servidor no responde, puedes jugar sin conexión (la partida se guarda en ese navegador).
 
 ## Controles
 

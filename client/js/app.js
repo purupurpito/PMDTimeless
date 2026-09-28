@@ -10,6 +10,18 @@ import { VERSION_LABEL } from '../../shared/version.js';
 const $ = s => document.querySelector(s);
 const show = id => { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); $(id).classList.remove('hidden'); document.body.classList.toggle('in-game', id === '#screen-game'); if (id === '#screen-auth') playTrack('menu'); }; // música del menú (suena tras la primera pulsación, como exige el navegador)
 const msg = (el, text, ok = false) => { el.textContent = text; el.classList.toggle('ok', ok); };
+// Web: si el servidor no responde, se ofrece jugar sin conexión (y en ese modo, volver al servidor)
+const offerOffline = e => { if (e?.status === 0 && window.__netMode?.current() === 'server') document.getElementById('net-offline')?.classList.remove('hidden'); };
+if (window.__netMode) {
+  document.getElementById('btn-offline')?.addEventListener('click', () => window.__netMode.setLocal());
+  document.getElementById('btn-online')?.addEventListener('click', () => window.__netMode.setServer());
+  if (window.__netMode.current() === 'local') document.getElementById('net-local')?.classList.remove('hidden');
+  // partida de antes guardada en este navegador (sin conexión): que no se pierda de vista
+  else if ((() => { try { return !!localStorage.getItem('pmdt_save'); } catch { return false; } })()) {
+    const box = document.getElementById('net-offline'); box?.classList.remove('hidden');
+    const p = box?.querySelector('.joke'); if (p) p.textContent = 'Tienes una partida guardada sin conexión en este navegador.';
+  }
+}
 let toastTimer;
 export function toast(text, ms = 2500) { const t = $('#toast'); t.textContent = text; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), ms); }
 const waking = () => toast('Despertando a Kecleon… el servidor gratuito tarda un poco en abrir la tienda.', 8000);
@@ -29,7 +41,7 @@ $('#auth-login').addEventListener('submit', async ev => {
   try {
     const r = await api('/auth/login', { name: f.get('name'), password: f.get('password') }, { onWaking: waking });
     setToken(r.token); await enterGame();
-  } catch (e) { msg($('#auth-msg'), e.message); }
+  } catch (e) { (offerOffline(e), msg($('#auth-msg'), e.message)); }
   finally { btn.disabled = false; }
 });
 
@@ -62,7 +74,7 @@ async function startQuiz() {
   playTrack('quiz'); // suena durante el test y las escenas de Diglett y Chatot; en la aldea se funde con su música
   const box = $('#quiz-box'), prog = $('#quiz-progress');
   prog.textContent = '';
-  const loading = api('/quiz', undefined, { onWaking: waking });
+  const loading = api('/quiz', undefined, { onWaking: waking }); loading.catch(() => {});   // el error se trata al esperar el test
   await dialog(box, [{ text: 'Hola.' }, { text: '¿Hola…? ¿Estás ahí?' }, { text: '¡Despierta, que te estoy hablando!' },
     // antes de las preguntas: explicar al jugador por qué se las hacemos
     { text: '…Bien. Ya me oyes.' },
@@ -70,7 +82,7 @@ async function startQuiz() {
     { text: 'Te haré unas preguntas. No hay respuestas buenas ni malas: responde lo primero que sientas.' },
     { text: 'Tus respuestas decidirán en qué te convertirás cuando abras los ojos.' },
     { text: '¿Preparado? Empecemos.' }]);
-  try { quiz.questions = (await loading).questions; } catch (e) { writeText(box, e.message); return; }
+  try { quiz.questions = (await loading).questions; } catch (e) { writeText(box, e.message); if (window.__netMode) { await new Promise(r => setTimeout(r, 2500)); show('#screen-auth'); offerOffline(e); msg($('#auth-msg'), e.message); } return; }
   quiz.answers = [];
   for (let i = 0; i < quiz.questions.length; i++) {
     const qu = quiz.questions[i];
@@ -151,7 +163,7 @@ async function enterGame() {
     show('#screen-game');
     startGame(me);
   } catch (e) {
-    setToken(null); show('#screen-auth'); msg($('#auth-msg'), e.message);
+    setToken(null); show('#screen-auth'); (offerOffline(e), msg($('#auth-msg'), e.message));
   }
 }
 $('#logout').addEventListener('click', async () => { try { await api('/auth/logout', {}); } catch {} setToken(null); location.reload(); });
