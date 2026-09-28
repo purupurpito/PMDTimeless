@@ -1,6 +1,9 @@
 // Habilidades (de la especie) y habilidades IQ (se desbloquean con el IQ que dan las gominolas).
 // Datos de la ROM en iq-abil-data.js; aquí los nombres en castellano y los efectos que usa el motor.
 import { SPECIES_ABILITIES, SPECIES_IQ_GROUP, IQ_GROUPS } from './iq-abil-data.js';
+// Especies añadidas que no existen en Exploradores del Cielo (sin datos de la ROM): habilidad e IQ asignados a mano
+Object.assign(SPECIES_ABILITIES, { rowlet: ['OVERGROW'] });   // Espesura, como los demás iniciales de tipo Planta
+Object.assign(SPECIES_IQ_GROUP, { rowlet: SPECIES_IQ_GROUP.chikorita });
 
 export const ABILITY_ES = {
   ADAPTABILITY: 'Adaptable', AIR_LOCK: 'Esclusa de Aire', ANGER_POINT: 'Irascible', ARENA_TRAP: 'Trampa Arena', BAD_DREAMS: 'Mal Sueño',

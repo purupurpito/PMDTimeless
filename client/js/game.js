@@ -199,7 +199,7 @@ export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
-  window.__mmHUB = HUB; window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => DUNGEON_TILESET[state.era || state.dungeonDef?.id]?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
+  window.__mmHUB = HUB; window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
   window.__mmGainExp = (m, n) => gainExp(m, n); window.__mmExpToNext = expToNext; window.__mmBag = () => openBagMenu(); window.__mmIconOf = t => itemInText(t);
   window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
   window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l);
@@ -621,6 +621,7 @@ function openRankMenu() {
 // RUN
 // =====================================================================
 async function startRun(def) {
+  if (!state.player) state.player = createPlayer(meta.starters[0]);   // por si la aldea aún no había terminado de cargar
   const r = await call('/run/start', { dungeonId: def.id, starter: state.player.species });
   if (!r) return closeHub();
   meta = r.meta;
@@ -1015,7 +1016,7 @@ function tryRecruit(e, by) {
   if (rankOf(meta.rankPts) < RECRUIT_MIN_RANK) { if (!state.recruitHintShown) { state.recruitHintShown = true; say(`(Los Pokémon aún no confían en ti: podrás reclutar a partir de rango ${RANKS[RECRUIT_MIN_RANK].name}.)`); } return; }
   const chance = recruitChance(state.player, e, meta.starters.includes(e.species) || state.team.some(a => a.species === e.species)) + (state.player.iqSkills?.includes('Fast Friend') ? 1 : 0);
   if (chance <= 0 || state.rng.random() * 100 >= chance) return;
-  const recruit = createMon(e.species, e.level, { x: e.x, y: e.y, tactic: 'seguir', floors: 0, held: null });
+  const recruit = createMon(e.species, e.level, { x: e.x, y: e.y, tactic: 'seguir', floors: 1, held: null });   // el piso en que se une ya cuenta
   if (e.shopkeeper) say('Kecleon: "…Vale. Tienes agallas. Me apunto, pero de esto ni una palabra a mi hermano."');
   recruit.hp = Math.ceil(recruit.maxHp / 2);
   openMenu({ title: `¡${e.name} quiere unirse al equipo! (${chance.toFixed(0)} %)`, items: ['Aceptar', 'Rechazar'], onSelect: i => {
@@ -1153,10 +1154,14 @@ function tileset(name) {
 }
 const terrainOf = (x, y) => { if (y < 0 || x < 0 || y >= CFG.map.h || x >= CFG.map.w) return 'wall'; const t = state.dungeon.tiles[y][x]; return t === T.WALL ? 'wall' : t === T.WATER ? 'water' : t === T.LAVA ? 'lava' : 'floor'; };
 const NB = [[0, 1, 0x01], [1, 1, 0x02], [1, 0, 0x04], [1, -1, 0x08], [0, -1, 0x10], [-1, -1, 0x20], [-1, 0, 0x40], [-1, 1, 0x80]];
+// escenario del piso: las mazmorras sin fin viajan por las eras de las demás (su escenario); en las salas de jefe, el suyo propio
+function currentTileset() {
+  const own = DUNGEON_TILESET[state.dungeonDef?.id];
+  return (state.dungeon?.arena && own) ? own : DUNGEON_TILESET[state.era || state.dungeonDef?.id];
+}
 function drawDtef(t, x, y, px, py, tile) {
   if (state.dungeon?.restArea) return false;
-  // las mazmorras sin fin viajan por las eras de las demás (su escenario); en las salas de jefe, el suyo propio
-  const own = DUNGEON_TILESET[state.dungeonDef?.id], cfg = (state.dungeon?.arena && own) ? own : DUNGEON_TILESET[state.era || state.dungeonDef?.id]; if (!cfg) return false;
+  const cfg = currentTileset(); if (!cfg) return false;
   const terr = terrainOf(x, y), setName = terr === 'lava' ? (cfg.lava || cfg.set) : cfg.set, ts = tileset(setName);
   if (!ts) return false;
   const same = terr === 'floor' ? (a => a !== 'wall') : (a => a === terr);   // el suelo casa con todo lo que no es pared
@@ -1566,9 +1571,11 @@ function checkShopExit() {
 function descend() {
   playSfx('stairs');
   const def = state.dungeonDef;
-  for (const a of state.team) { a.floors++; if (a.floors === CFG.bondFloors) say(`¡Vínculo forjado con ${a.name}!`); }
-  if (state.dungeon?.restArea) return newFloor();   // desde la sala de descanso se sigue al piso que tocaba
+  if (state.dungeon?.restArea) return newFloor();   // desde la sala de descanso se sigue al piso que tocaba (no es un piso nuevo)
   if (state.floor >= def.floors) { playOnce('clear'); return endRun('clear'); }
+  // los compañeros cuentan pisos solo al bajar de verdad (antes, salir de cada sala de descanso sumaba uno de más,
+  // y en mazmorras largas el servidor rechazaba el vínculo por tener más pisos juntos que la propia mazmorra)
+  for (const a of state.team) { a.floors++; if (a.floors === CFG.bondFloors) say(`¡Vínculo forjado con ${a.name}!`); }
   state.floor++;
   const kindNext = floorKind(def, state.floor, state.flags);
   if (((state.floor - 1) % CFG.checkpointEvery === 0 && kindNext === 'normal') || ['legendary', 'bigLegendary', 'jirachi'].includes(kindNext)) return newRestArea();   // antes de cualquier jefe legendario
