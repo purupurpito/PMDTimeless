@@ -1,3 +1,4 @@
+import { setTouchVisible } from './touch.js';
 // =====================================================================
 // JUEGO — escenas Base y Mazmorra. Lo persistente pasa por la API; la mazmorra se juega en local con RNG sembrado.
 // =====================================================================
@@ -135,6 +136,33 @@ const Hub = {
 
 // ---------- tarjetas de transición (pantalla negra con texto, como al entrar en un piso en PMD) ----------
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Ritmo de la mazmorra, como en el original: los pasos se deslizan (STEP_MS) y cada ataque se ve por separado.
+// Las pruebas automáticas activan window.__mmFast para ir sin pausas.
+const FAST = () => !!window.__mmFast;
+const STEP_MS = () => FAST() ? 0 : 110;                 // deslizarse de una casilla a la siguiente
+const ATTACK_PAUSE = () => FAST() ? 0 : 300;            // tras un ataque, antes de que actúe el siguiente
+const pace = ms => FAST() || ms <= 0 ? Promise.resolve() : sleep(ms);
+// posición visual (con decimales) de un Pokémon: se desliza de la casilla anterior a la actual
+function vpos(e) {
+  const now = performance.now(); let tw = e._tw;
+  if (!tw || tw.tx !== e.x || tw.ty !== e.y) {
+    const cur = tw ? twAt(tw, now) : { x: e.x, y: e.y };
+    const far = Math.abs(cur.x - e.x) > 1.5 || Math.abs(cur.y - e.y) > 1.5;   // teletransporte o piso nuevo: sin deslizar
+    tw = e._tw = { fx: far ? e.x : cur.x, fy: far ? e.y : cur.y, tx: e.x, ty: e.y, t0: now };
+  }
+  return twAt(tw, now);
+}
+function twAt(tw, now) {
+  const d = STEP_MS(), k = d ? Math.min(1, (now - tw.t0) / d) : 1;
+  if (k < 1) sliding = true;
+  return { x: tw.fx + (tw.tx - tw.fx) * k, y: tw.fy + (tw.ty - tw.fy) * k };
+}
+let sliding = false, lastCam = null;
+// espera a que terminen de caer los Pokémon derrotados (nadie pisa a uno que se está debilitando)
+async function waitFading(max = 1000) {
+  const t0 = performance.now();
+  while (!FAST() && state.fading?.some(f => performance.now() < f.until) && performance.now() - t0 < max) await sleep(40);
+}
 async function showCard(title, sub = '', ms = 1400) {
   const card = document.getElementById('card'); if (!card) return;
   card.classList.remove('fast');
@@ -199,7 +227,7 @@ export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
-  window.__mmHUB = HUB; window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
+  window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
   window.__mmGainExp = (m, n) => gainExp(m, n); window.__mmExpToNext = expToNext; window.__mmBag = () => openBagMenu(); window.__mmIconOf = t => itemInText(t);
   window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
   window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l);
@@ -883,6 +911,7 @@ function findTargets(userMon, move) {
   return [];
 }
 function useMove(userMon, move) {
+  state.attacked = true;   // el turno hará una pausa para que se vea
   playAnim(userMon, move.cat === 'spec' && Sprites.mons[userMon.species]?.anims?.Shoot ? 'Shoot' : 'Attack');   // animación de ataque
   const ally = isAlly(userMon), targets = findTargets(userMon, move), who = ally ? userMon.name : `${userMon.name} salvaje`;
   if (!targets.length) { say(`${who} usa ${move.name}, pero no acierta a nadie.`); return; }
@@ -1586,7 +1615,8 @@ function askStairs() {
   if (stairsSealed()) { say('Las escaleras están selladas mientras el guardián siga en pie.'); return; }
   openMenu({ title: 'Escaleras', items: ['Bajar', 'Quedarse'], onSelect: i => { if (i === 0) descend(); } });
 }
-function endTurn(playerActed = false) {
+function endTurn(playerActed = false) { return (state.turnP = resolveTurn(playerActed)); }
+async function resolveTurn(playerActed) {
   if (state.dead) { render(); return; }
   state.turn++;
   const p = state.player;
@@ -1598,11 +1628,31 @@ function endTurn(playerActed = false) {
   if (p.belly > 0) { if (state.turn % bellyEvery === 0) { p.belly--; if (p.belly === 20) { say(`¡${p.name} tiene hambre!`); playSfx('hunger'); } if (p.belly === 10) { say(`¡${p.name} tiene muchísima hambre! Come algo pronto.`); playSfx('hunger'); } if (p.belly === 0) { say(`¡La barriga de ${p.name} está vacía! Pierde PS en cada turno.`); playSfx('hunger'); openDialog([{ who: p.name, sp: p.species, mood: 'Pain', text: `¡La barriga de ${p.name} está vacía! Si no come algo, irá perdiendo PS.` }]); } } regen(p); }
   else { p.hp = Math.max(0, p.hp - 1); if (state.turn % 10 === 0) say('El hambre te va quitando PS…'); if (p.hp <= 0) { downed(p); if (state.dead) return; } }
   weatherTick();
-  for (const a of [...state.team]) { if (state.dead) break; regen(a); allyTurn(a); }
-  if (!floorClock()) return;
-  updateDungeonMusic(); turnTraits();
-  for (const e of [...state.enemies]) { if (state.dead) break; enemyTurn(e); }
-  updateVisibility(); render();
+  state.resolving = true;
+  try {
+    // tu acción primero: si has atacado, se ve antes de que responda nadie
+    const moved0 = !state.attacked;
+    if (state.attacked) { render(); await pace(ATTACK_PAUSE()); }
+    state.attacked = false;
+    await waitFading();
+    const alive = () => !state.dead && state.scene === 'dungeon';
+    for (const a of [...state.team]) {
+      if (!alive()) return; regen(a); allyTurn(a);
+      if (state.attacked) { state.attacked = false; render(); await pace(ATTACK_PAUSE()); await waitFading(); }
+    }
+    if (!alive()) return;
+    if (!floorClock()) return;
+    updateDungeonMusic(); turnTraits();
+    // los enemigos: se mueven a la vez, pero cada ataque se ve por separado
+    let first = true;
+    for (const e of [...state.enemies]) {
+      if (!alive()) return;
+      if (first && moved0 && cheb(e, p) <= 2 && e.hp > 0) { first = false; await pace(STEP_MS()); }   // que termine tu paso antes de que te ataquen
+      enemyTurn(e);
+      if (state.attacked) { state.attacked = false; render(); await pace(ATTACK_PAUSE()); await waitFading(); }
+    }
+    updateVisibility(); render();
+  } finally { state.resolving = false; }
 }
 function stepAway(mon, tx, ty) {
   const dx = Math.sign(mon.x - tx) || (Math.random() < 0.5 ? 1 : -1), dy = Math.sign(mon.y - ty) || (Math.random() < 0.5 ? 1 : -1);
@@ -2059,8 +2109,11 @@ function renderDungeon() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, LOG.w, LOG.h);
   // zoom centrado en el jugador (en móvil la vista completa quedaría diminuta); los menús no se escalan
   const zoom = DUNGEON_ZOOM(), pcx = Math.floor(CFG.view.w / 2) * tile + tile / 2, pcy = Math.floor(CFG.view.h / 2) * tile + tile / 2;
-  ctx.save(); ctx.translate(LOG.w / 2, LOG.h / 2); ctx.scale(zoom, zoom); ctx.translate(-pcx, -pcy);
-  for (let vy = 0; vy < CFG.view.h; vy++) for (let vx = 0; vx < CFG.view.w; vx++) {
+  // cámara: sigue la posición deslizada del jugador (entre dos casillas mientras camina)
+  sliding = false; const pv = vpos(p), camX = (pv.x - p.x) * tile, camY = (pv.y - p.y) * tile;
+  ctx.save(); ctx.translate(LOG.w / 2, LOG.h / 2); ctx.scale(zoom, zoom); ctx.translate(-pcx - camX, -pcy - camY);
+  lastCam = { ox, oy, zoom, pcx, pcy, camX, camY };   // para convertir un toque en pantalla en una casilla
+  for (let vy = -1; vy <= CFG.view.h; vy++) for (let vx = -1; vx <= CFG.view.w; vx++) {
     const x = ox + vx, y = oy + vy;
     if (y < 0 || y >= CFG.map.h || x < 0 || x >= CFG.map.w || !state.seen[y][x]) continue;
     const t = state.dungeon.tiles[y][x], px = vx * tile, py = vy * tile;
@@ -2084,8 +2137,8 @@ function renderDungeon() {
   if (state.dungeon.restArea) drawRestArea(ox, oy, tile);   // sala de descanso: imagen (si existe) y estatua
   let animating = false;
   const drawEntity = (e, color, ring) => {
-    const vx = e.x - ox, vy = e.y - oy;
-    if (vx < 0 || vy < 0 || vx >= CFG.view.w || vy >= CFG.view.h || !isVisibleNow(e.x, e.y)) return;
+    const v = e.fading ? { x: e.x, y: e.y } : vpos(e), vx = v.x - ox, vy = v.y - oy;   // posición deslizada
+    if (vx < -1 || vy < -1 || vx > CFG.view.w || vy > CFG.view.h || !isVisibleNow(e.x, e.y)) return;
     const px = vx * tile, py = vy * tile, cx = px + tile / 2, cy = py + tile / 2;
     if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, tile / 2 - 2, 0, Math.PI * 2); ctx.stroke(); }
     if (!Sprites.drawMon(ctx, e, px, py, tile)) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy, e.isBoss ? tile / 2 - 1 : tile / 2 - 4, 0, Math.PI * 2); ctx.fill(); drawFacingMark(cx, cy, e.facing, tile); }
@@ -2114,7 +2167,7 @@ function renderDungeon() {
   drawWeather();
   if (state.showMap !== false && !state.dungeon.arena) drawMinimap();
   if (held.has('L') && !state.menu && !state.dialog) drawMoveHints();
-  if (state.effects.length || animating || (state.weather && state.weather !== 'none')) scheduleRender();
+  if (state.effects.length || animating || sliding || (state.weather && state.weather !== 'none')) scheduleRender();   // sliding: alguien se está deslizando
   if (state.dead) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, LOG.w, LOG.h); }
 }
 // triángulo que indica hacia dónde mira (para los círculos sin sprite)
@@ -2328,6 +2381,11 @@ function bindInput() {
   document.addEventListener('click', ev => { const el = ev.target.closest?.('[data-move]'); if (el) { ev.preventDefault(); useMoveSlot(+el.dataset.move); } });
   // un clic (o toque) sobre la pantalla del juego con un diálogo abierto equivale a pulsar A
   document.getElementById('game')?.addEventListener('click', () => { if (state.dialog) dialogAdvance(); });
+  // tocar la mazmorra para moverse (con el dedo; con ratón también funciona)
+  document.getElementById('game')?.addEventListener('pointerdown', ev => {
+    if (state.scene !== 'dungeon' || state.dialog || state.menu || state.busy || state.resolving || state.dead || !state.player) return;
+    const t = tileAtScreen(ev.clientX, ev.clientY); if (t) { ev.preventDefault(); tapTo(t); }
+  });
   window.addEventListener('keyup', ev => { const b = BTN[ev.key.toLowerCase()]; held.delete(b); if (b === 'A' || b === 'B') stopPassing(); if (b === 'L' || b === 'Y') render(); });
   window.addEventListener('keydown', ev => {
     if (ev.key.toLowerCase() === 'm' && state.scene === 'dungeon' && ev.target?.tagName !== 'INPUT' && !state.menu) { state.showMap = state.showMap === false; render(); return; }
@@ -2336,7 +2394,7 @@ function bindInput() {
     const btn = BTN[ev.key.toLowerCase()]; if (!btn) return;
     ev.preventDefault(); if (ev.repeat && !ARROW_VEC[btn]) return;
     held.add(btn);
-    if (state.busy) return;
+    if (state.busy || state.resolving) return;
     // Start termina el tutorial en cualquier momento (también con un diálogo abierto)
     if (state.tour && btn === 'START') { state.tour.skip = true; const d = state.dialog; state.dialog = null; d?.onDone?.(); render(); return; }
     if (state.dialog) { if (btn === 'A' || btn === 'START') dialogAdvance(); render(); return; }
@@ -2361,7 +2419,7 @@ function bindInput() {
         pendingMove = null;
         const [dx, dy] = heldArrowVector();
         const v = dx || dy ? [dx, dy] : ARROW_VEC[btn];
-        if (state.menu || state.dialog || state.busy || state.dead) return;
+        if (state.menu || state.dialog || state.busy || state.resolving || state.dead) return;
         if (held.has('B')) runFrom(v); else playerAction('move', ...v);   // B + dirección = correr
       }, 55);
     }
@@ -2370,7 +2428,7 @@ function bindInput() {
     else if (btn === 'A') {
       // se espera un instante por si llega B (A+B = pasar turno, como en PMD); si no llega, se ataca
       clearTimeout(pendingAttack);
-      pendingAttack = setTimeout(() => { pendingAttack = null; if (!held.has('B') && !state.menu && !state.dialog && !state.busy && !state.dead) playerAction('attack'); }, 90);
+      pendingAttack = setTimeout(() => { pendingAttack = null; if (!held.has('B') && !state.menu && !state.dialog && !state.busy && !state.resolving && !state.dead) playerAction('attack'); }, 90);
     }
     else if (btn === 'L' || btn === 'Y') render(); // chuleta de movimientos / flechas de giro
     else if (btn === 'X' || btn === 'SELECT' || btn === 'START') openDungeonMainMenu();
@@ -2397,7 +2455,7 @@ function setupMusicControl() {
   btn.addEventListener('click', ev => { ev.stopPropagation(); setOpen(panel.classList.contains('hidden')); btn.blur(); });
   document.addEventListener('click', ev => { if (!panel.classList.contains('hidden') && !ev.target.closest('.settings')) setOpen(false); });
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !panel.classList.contains('hidden')) setOpen(false); });
-  document.getElementById('opt-touch').addEventListener('change', ev => { const cur = document.body.classList.contains('touch-on'); if (cur !== ev.target.checked) document.getElementById('touch-toggle')?.click(); ev.target.blur(); });
+  document.getElementById('opt-touch').addEventListener('change', ev => { setTouchVisible(ev.target.checked); ev.target.blur(); });   // mostrar u ocultar el mando en pantalla
   document.getElementById('scale').addEventListener('change', ev => ev.target.blur());
   document.getElementById('set-version').textContent = VERSION_LABEL;
   const dv = document.getElementById('opt-dview');
@@ -2428,7 +2486,7 @@ async function runFrom([dx, dy]) {
     for (let step = 0; step < 60; step++) {
       if (state.menu || state.dialog || state.busy || state.dead || state.scene !== 'dungeon') break;
       const x0 = p.x, y0 = p.y, hp0 = p.hp, room0 = inRoom(), floor0 = state.floor, items0 = state.groundItems.length, inv0 = state.inventory.length;
-      playerAction('move', dx, dy);
+      playerAction('move', dx, dy); await state.turnP;
       if (p.x === x0 && p.y === y0) break;                                   // se ha chocado
       if (state.floor !== floor0 || state.menu || state.dialog) break;
       if (p.hp < hp0) break;                                                  // le han hecho daño
@@ -2443,9 +2501,42 @@ async function runFrom([dx, dy]) {
       if (!inRoom() && others.filter(([x, y]) => (x === p.x || y === p.y) && openAt(x, y)).length) break;   // en un pasillo: una bifurcación a un lado
       if (state.groundItems.some(g => Math.max(Math.abs(g.x - p.x), Math.abs(g.y - p.y)) <= 1)) break;   // un objeto al lado
       if (!openAt(p.x + dx, p.y + dy)) break;                                 // lo siguiente es pared
-      await sleep(45);
+      await sleep(Math.max(45, STEP_MS() * 0.8));   // corriendo, un paso detrás de otro (deslizándose)
     }
   } finally { running = false; render(); }
+}
+
+// ---- tocar la pantalla para moverse (como en la DS) ----
+// Casilla vecina: un paso (o atacar si hay un enemigo). Más lejos: caminar hasta ella por casillas ya vistas,
+// parando si aparece un enemigo, si alguno se pone al lado, si te dañan o al pisar un objeto o la escalera.
+let tapWalk = 0;
+function tileAtScreen(clientX, clientY) {
+  const cv = document.getElementById('game'), c = lastCam; if (!cv || !c) return null;
+  const r = cv.getBoundingClientRect(), sx = (clientX - r.left) / r.width * LOG.w, sy = (clientY - r.top) / r.height * LOG.h;
+  const wx = (sx - LOG.w / 2) / c.zoom + c.pcx + c.camX, wy = (sy - LOG.h / 2) / c.zoom + c.pcy + c.camY;
+  return { x: c.ox + Math.floor(wx / CFG.tile), y: c.oy + Math.floor(wy / CFG.tile) };
+}
+async function tapTo(t) {
+  const p = state.player, id = ++tapWalk;
+  const dx = t.x - p.x, dy = t.y - p.y; if (!dx && !dy) return;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) === 1) {   // vecina: paso o ataque
+    const foe = state.enemies.find(e => e.x === t.x && e.y === t.y && e.hp > 0);
+    if (foe) { p.facing = [dx, dy]; playerAction('attack'); } else playerAction('move', dx, dy);
+    return;
+  }
+  if (!state.seen[t.y]?.[t.x] || state.dungeon.tiles[t.y]?.[t.x] === T.WALL) return;
+  const seen0 = new Set(foesInView());
+  for (let guard = 0; guard < 80 && id === tapWalk; guard++) {
+    if (state.menu || state.dialog || state.busy || state.dead || state.scene !== 'dungeon') return;
+    if (p.x === t.x && p.y === t.y) return;
+    const path = dungeonPath(p, t); if (!path?.length) return;
+    const hp0 = p.hp, step = path[0];
+    playerAction('move', step.x - p.x, step.y - p.y); await state.turnP;
+    if (p.x !== step.x || p.y !== step.y || p.hp < hp0) return;                                   // bloqueado o te han dañado
+    if (foesInView().some(e => !seen0.has(e)) || state.enemies.some(e => e.hp > 0 && cheb(e, p) <= 1)) return;   // enemigo nuevo o al lado
+    if (itemUnder(p) || state.dungeon.tiles[p.y][p.x] === T.STAIRS) return;
+    await sleep(Math.max(45, STEP_MS() * 0.8));
+  }
 }
 
 // ---- pasar turno: A+B; mantenerlos repite ----
@@ -2458,16 +2549,17 @@ function dialogAdvance() {
   else state.tutorialFocus = d.pages[d.i].focus || null;
   render();
 }
-const canPass = () => state.scene === 'dungeon' && !state.menu && !state.dialog && !state.busy && !state.dead;
+const canPass = () => state.scene === 'dungeon' && !state.menu && !state.dialog && !state.busy && !state.resolving && !state.dead;
 const foesInView = () => state.enemies.filter(e => e.hp > 0 && isVisibleNow(e.x, e.y));
 function startPassing() {
   if (!canPass()) return;
   const seen0 = new Set(foesInView()), hp0 = state.player.hp;
   endTurn(false); say(`${state.player.name} espera un turno.`);
   clearTimeout(passTimer);
-  const tick = () => {
+  const tick = async () => {
+    await state.turnP;
     if (!(held.has('A') && held.has('B') && canPass())) return stopPassing();
-    const hp = state.player.hp; endTurn(false);
+    const hp = state.player.hp; await endTurn(false);
     // se detiene solo si aparece un enemigo nuevo, te hacen daño o salta un aviso
     if (foesInView().some(e => !seen0.has(e)) || state.player.hp < hp || state.dialog || state.menu) return stopPassing();
     passTimer = setTimeout(tick, foesInView().length ? 200 : 70);   // sin nadie a la vista, unas tres veces más rápido
@@ -2477,7 +2569,7 @@ function startPassing() {
 function stopPassing() { clearTimeout(passTimer); passTimer = null; }
 // usar un movimiento desde la interfaz (clic o toque en la lista)
 function useMoveSlot(i) {
-  if (state.scene !== 'dungeon' || !state.player?.moves[i] || state.menu || state.dialog || state.busy || state.dead) return;
+  if (state.scene !== 'dungeon' || !state.player?.moves[i] || state.menu || state.dialog || state.busy || state.resolving || state.dead) return;
   playerAction('skill', 0, 0, i);
 }
 

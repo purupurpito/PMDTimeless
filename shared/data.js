@@ -243,8 +243,8 @@ export const rankOf = pts => { let r = 0; RANKS.forEach((rk, i) => { if (pts >= 
 // Experiencia como en Exploradores del Cielo: cada especie tiene su tabla (acumulada, niveles 1-100).
 // Las especies que no están en el juego original usan la de Bulbasaur, que es la referencia de la mayoría.
 const expTableOf = sp => EOS_EXP[sp] || EOS_EXP[String(sp).replace('mega_', '')] || EOS_EXP.bulbasaur;
-// Experiencia para subir de nivel: la de Exploradores del Cielo ×2 (no hay tope de niveles por exploración)
-export const EXP_MULT = 2;
+// Experiencia para subir de nivel: la de Exploradores del Cielo ×3 (no hay tope de niveles por exploración)
+export const EXP_MULT = 3;
 export const expToNext = (sp, lv) => lv >= 100 ? Infinity : EXP_MULT * (expTableOf(sp)[lv] - expTableOf(sp)[lv - 1]);
 export const expForLevel = lv => expToNext('bulbasaur', lv);
 // Experiencia al derrotar: ⌊⌊Base × (Nv − 1) / 10⌋ + Base⌋ × bonus (×0,5 si solo se usaron ataques normales; ×1 si se usó algún movimiento)

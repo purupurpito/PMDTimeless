@@ -18,15 +18,12 @@ export function initTouchControls() {
   pad.innerHTML = `
     <div class="tp-shoulders"><button data-key="q" class="tp-sh">L</button><div class="tp-mid"><button data-key="Tab" class="tp-sm">SELECT</button><button data-key="Enter" class="tp-sm">START</button></div><button data-key="w" class="tp-sh">R</button></div>
     <div class="tp-main">
-      <div class="tp-dpad">${DPAD.map(([id]) => `<button class="tp-d tp-${id}" data-dir="${id}" ${id === 'c' ? 'tabindex="-1"' : ''}>${{ u: '▲', d: '▼', l: '◀', r: '▶' }[id] || ''}</button>`).join('')}</div>
+      <div class="tp-dpad">${DPAD.map(([id]) => `<span class="tp-d tp-${id}" data-dir="${id}">${{ u: '▲', d: '▼', l: '◀', r: '▶', ul: '◤', ur: '◥', dl: '◣', dr: '◢' }[id] || ''}</span>`).join('')}</div>
       <div class="tp-face">${FACE.map(([label, key]) => `<button data-key="${key}" class="tp-f tp-${label}">${label}</button>`).join('')}</div>
     </div>`;
   document.body.appendChild(pad);
 
-  const toggle = document.createElement('button'); toggle.id = 'touch-toggle'; toggle.className = 'touch-toggle'; toggle.textContent = '🎮';
-  toggle.title = 'Mostrar/ocultar mando';
-  toggle.addEventListener('click', () => setVisible(!document.body.classList.contains('touch-on')));
-  document.body.appendChild(toggle);
+  // mostrar u ocultar el mando: casilla «Mando en pantalla» del menú ☰ (antes también había un botón flotante junto a A/B que se pulsaba sin querer)
 
   // botones simples: pulsar = keydown, soltar = keyup
   pad.querySelectorAll('[data-key]').forEach(b => {
@@ -35,30 +32,41 @@ export function initTouchControls() {
     const up = ev => { if (!b.classList.contains('down')) return; b.classList.remove('down'); send('keyup', key); };
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
   });
-  // cruceta: mantener pulsado repite el paso (como mantener una flecha)
-  pad.querySelectorAll('[data-dir]').forEach(b => {
-    const keys = DPAD.find(([id]) => id === b.dataset.dir)[1]; if (!keys.length) return;
-    let timer = null, rep = null;
-    const diag = keys.length === 2;
-    b.addEventListener('pointerdown', ev => {
-      ev.preventDefault(); try { b.setPointerCapture(ev.pointerId); } catch {} b.classList.add('down');
-      if (diag) send('keydown', 'w');
-      keys.forEach(k => send('keydown', k));
-      timer = setTimeout(() => { rep = setInterval(() => keys.forEach(k => send('keydown', k, true)), 140); }, 320);
-    });
-    const up = () => {
-      if (!b.classList.contains('down')) return; b.classList.remove('down');
-      clearTimeout(timer); clearInterval(rep);
-      keys.forEach(k => send('keyup', k)); if (diag) send('keyup', 'w');
-    };
-    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
-  });
+  // cruceta: la dirección sale del ángulo del dedo respecto al centro (8 direcciones, con zona muerta en el centro);
+  // se puede deslizar sin levantarlo. Mantener pulsado repite el paso (como mantener una flecha).
+  const dpad = pad.querySelector('.tp-dpad');
+  let cur = null, timer = null, rep = null;
+  const dirAt = ev => {
+    const r = dpad.getBoundingClientRect(), x = ev.clientX - (r.left + r.width / 2), y = ev.clientY - (r.top + r.height / 2);
+    if (Math.hypot(x, y) < r.width * 0.14) return null;
+    const a = Math.atan2(y, x), k = (Math.round(a / (Math.PI / 4)) + 8) % 8;   // 0 = derecha, en sentido horario
+    return ['r', 'dr', 'd', 'dl', 'l', 'ul', 'u', 'ur'][k];
+  };
+  const release = () => {
+    clearTimeout(timer); clearInterval(rep);
+    if (!cur) return; const keys = DPAD.find(([id]) => id === cur)[1];
+    keys.forEach(k => send('keyup', k)); if (keys.length === 2) send('keyup', 'w');
+    dpad.querySelector(`[data-dir="${cur}"]`)?.classList.remove('down'); cur = null;
+  };
+  const press = dir => {
+    if (dir === cur) return; release(); if (!dir) return;
+    cur = dir; const keys = DPAD.find(([id]) => id === dir)[1];
+    dpad.querySelector(`[data-dir="${dir}"]`)?.classList.add('down');
+    if (keys.length === 2) send('keydown', 'w');   // diagonal: R + dos flechas, como en el juego
+    keys.forEach(k => send('keydown', k));
+    timer = setTimeout(() => { rep = setInterval(() => keys.forEach(k => send('keydown', k, true)), 140); }, 320);
+  };
+  dpad.addEventListener('pointerdown', ev => { ev.preventDefault(); try { dpad.setPointerCapture(ev.pointerId); } catch {} press(dirAt(ev)); });
+  dpad.addEventListener('pointermove', ev => { if (cur !== null || ev.buttons) press(dirAt(ev)); });
+  dpad.addEventListener('pointerup', release); dpad.addEventListener('pointercancel', release);
 
   const coarse = window.matchMedia?.('(pointer: coarse)').matches;
   let saved = null; try { saved = localStorage.getItem('mm_touch'); } catch {}
   setVisible(saved ? saved === '1' : !!coarse);
 }
+export const setTouchVisible = on => setVisible(on);
 function setVisible(on) {
   document.body.classList.toggle('touch-on', on);
+  const opt = document.getElementById('opt-touch'); if (opt) opt.checked = on;
   try { localStorage.setItem('mm_touch', on ? '1' : '0'); } catch {}
 }

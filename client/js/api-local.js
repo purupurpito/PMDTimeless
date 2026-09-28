@@ -83,7 +83,8 @@ async function localApi(path, body) {
         for (const mv of (body.mdToStorage || [])) { m.storage.push(`MD: ${mv}`); msgs.push(`La MD ${mv} está en el depósito de Kangaskhan.`); }
         m.movepool[r.starter] = m.movepool[r.starter] || []; for (const md of body.earnedMD || []) if (!m.movepool[r.starter].includes(md)) { m.movepool[r.starter].push(md); msgs.push(`${md} pasa al movepool permanente de ${SPECIES[r.starter].name}.`); }
         let rank = 0; for (const id of body.missionsDone || []) { const i = m.active.findIndex(x => x.id === id); if (i < 0) continue; const mis = m.active[i]; m.pokes += mis.pokes; rank += mis.rankPts; m.active.splice(i, 1); msgs.push(`Misión cumplida: +${mis.pokes} Pokés.`); }
-        if (body.outcome === 'clear') { if (!m.cleared.includes(def.id)) { m.cleared.push(def.id); rank += 100; } else rank += 20; msgs.push(`¡Has completado ${def.name}!`); }
+        if (body.outcome === 'clear') { const tut = def.id === 'entrenamiento';   // el Campo de Entrenamiento es un tutorial: no da rango ni desbloquea nada
+      if (!m.cleared.includes(def.id)) { m.cleared.push(def.id); if (!tut) rank += 100; } else if (!tut) rank += 20; msgs.push(`¡Has completado ${def.name}!`); }
         for (const b of (rankOf(m.rankPts) >= 2 ? body.bonds || [] : [])) if ((b.floors | 0) >= CFG.bondFloors && SPECIES[b.species] && !m.starters.includes(b.species)) { m.starters.push(b.species); msgs.push(`¡${SPECIES[b.species].name} se une a tus iniciales!`); }
         for (const id of body.stonesFound || []) { const st = MEGA_STONES.find(x => x.id === id); if (st && !m.stones.includes(id)) { m.stones.push(id); msgs.push(`Has recuperado la ${st.name}. Llévasela al maestro Pidgeot.`); } }
         for (const sp of body.legendaries || []) if (SPECIES[sp]?.legendary && !m.legendaries.includes(sp)) { m.legendaries.push(sp); msgs.push(`¡${SPECIES[sp].name} se une al gremio!`); }

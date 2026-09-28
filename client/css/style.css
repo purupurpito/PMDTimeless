@@ -145,7 +145,7 @@ body.touch-on.in-game .touchpad {
 .tp-main { display: flex; justify-content: space-between; align-items: center; padding: 0 4px; }
 .tp-dpad { display: grid; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); }
 .tp-d { border-radius: 0; font-size: 14px; }
-.tp-ul, .tp-ur, .tp-dl, .tp-dr { background: transparent !important; border-color: transparent !important; } /* diagonales invisibles pero activas */
+.tp-ul, .tp-ur, .tp-dl, .tp-dr { background: transparent !important; border-color: transparent !important; color: rgba(255,255,255,.35); font-size: 12px; } /* diagonales: flechas tenues en las esquinas */
 .tp-c { background: #2a2540 !important; pointer-events: none; }
 .tp-u { border-radius: 8px 8px 0 0; } .tp-d.tp-d { } .tp-l { border-radius: 8px 0 0 8px; } .tp-r { border-radius: 0 8px 8px 0; }
 .tp-dpad .tp-d:nth-child(8) { border-radius: 0 0 8px 8px; }
@@ -319,3 +319,10 @@ body.log-inside #log { display: none; }
 
 /* aviso de Puru (web): cuadro de diálogo con retrato dentro de la pantalla de inicio */
 .puru-notice { position: relative; margin-top: 112px; text-align: left; }
+
+/* cruceta: un solo panel táctil (la dirección sale del ángulo del dedo); las casillas son solo dibujo */
+.tp-dpad { touch-action: none; user-select: none; -webkit-user-select: none; }
+.tp-dpad .tp-d { display: flex; align-items: center; justify-content: center; pointer-events: none; border: 1px solid var(--line); background: #3a3456; color: #f0f0f0; }
+.tp-dpad .tp-d.down { background: #5a4f86; }
+.tp-dpad .tp-ul.down, .tp-dpad .tp-ur.down, .tp-dpad .tp-dl.down, .tp-dpad .tp-dr.down { background: rgba(90,79,134,.8) !important; color: #fff; }
+.touch-toggle { display: none !important; }
