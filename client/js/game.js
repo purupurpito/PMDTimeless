@@ -198,6 +198,7 @@ const canLeaderChoice = () => rankOf(meta.rankPts) >= CFG.leaderChoiceRank;
 export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
   setupScaleSelector(); requestAnimationFrame(applyScale);
+  window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
   window.__mmHUB = HUB; window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => DUNGEON_TILESET[state.era || state.dungeonDef?.id]?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
   window.__mmGainExp = (m, n) => gainExp(m, n); window.__mmExpToNext = expToNext; window.__mmBag = () => openBagMenu(); window.__mmIconOf = t => itemInText(t);
   window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
@@ -720,7 +721,13 @@ async function endRun(outcome) {
     leader: state.player.name, lv0: state.player.runStartLevel ?? state.player.level, lv1: state.player.level,
     team: state.team.map(a => `${a.name} Nv${a.level}`), recruited: state.diary?.recruited || 0, missions: (state.missions || []).filter(m => m.done).length } : null;
   const r = await call('/run/end', { outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] });
-  if (!r) { openMenu({ title: 'No se pudo cerrar la run', items: ['Reintentar'], onSelect: () => endRun(outcome) }); return; }
+  // si el servidor no responde, se reintenta; si rechaza el cierre, reintentar no sirve: se puede volver a la aldea
+  if (!r) { openMenu({ title: 'No se pudo cerrar la exploración', items: ['Reintentar', 'Volver a la aldea'], sticky: true, onSelect: async i => {
+    if (i === 0) return endRun(outcome);
+    await call('/run/abandon', {}); const me = await call('/me');
+    if (me) { meta = me.user.meta; state.pausedRun = me.run; }
+    state.player = null; state.run = null; say('Vuelves a la aldea. Esa exploración no ha contado.'); enterHub();
+  } }); return; }
   const canRescue = r.canRescue; const fellSpot = fell;
   const lost = state.lostRecruits.slice();
   meta = r.meta; state.player = null; state.pausedRun = null;
