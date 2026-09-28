@@ -239,6 +239,8 @@ export async function startGame(me) {
       state.dungeon.tiles[p.y][p.x + 2] = T.FLOOR; state.shop = { carpet, unpaid: [], keeper: { x: p.x, y: p.y - 1 }, room: roomOf(p) || { x: p.x - 1, y: p.y - 1, w: 3, h: 3 }, robbed: false };
       state.enemies = []; state.groundItems = [{ name: 'Semilla Revivir', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
   user = me.user; meta = me.user.meta; state.pausedRun = me.run;
+  state.waitingRescue = !!me.rescue;
+  if (me.rescue) setTimeout(() => showRescueWait(me.rescue), 300);   // tu equipo sigue esperando un rescate
   if (pendingEnd()) flushPendingEnd();   // un resultado que no llegó la última vez (se envía solo)
   document.getElementById('hud-user').textContent = user.name;
   await Sprites.load();
@@ -521,6 +523,7 @@ function hubInteract() {
 const WANDER_LINES = ['¡Buenos días! ¿Eres nuevo en el gremio?', 'Dicen que en el Bosque Frondoso hay un Pokémon verde muy raro.', 'Kecleon sube los precios cada vez que alguien vuelve con una pepita…', 'Mi primo se unió a un equipo de exploración y ya no escribe.', 'Cuidado con las Casas Monstruo. Yo perdí ahí a mi mejor amigo. Bueno, se hizo amigo de ellos.'];
 const CHATOT_IDLE = ['Chatot: "Ser la mano derecha del maestro no es facil, no senor."','Chatot: "El maestro Pidgeot lleva tres dias meditando. Yo creo que duerme."','Chatot: "Sabias que antes repartiamos correo? Otros tiempos."','Chatot: "No toques nada del despacho. Que no. Que no."','Chatot: "Un dia me montan un numero musical en condiciones."'];
 async function checkMyRescue() {
+  if (state.waitingRescue) return;   // la pantalla de espera se encarga (si no, se «comería» el aviso de rescate)
   try { const r = await api('/rescue/status'); if (r.rescued) { const me = await api('/me'); state.pausedRun = me.run; openDialog([{ who: '', text: '¡Buenas noticias! ' + r.by + ' te ha rescatado. Puedes continuar tu run desde donde caiste.' }]); } } catch {}
 }
 async function checkSpecialDay() {
@@ -715,6 +718,64 @@ async function flushPendingEnd(quiet = false) {
   }
 }
 
+// ---------- rescates: al caer, esperar a que otro explorador venga a buscarte (como en el original) ----------
+// Solo con servidor (sin conexión nadie podría rescatarte). Mientras esperas no puedes jugar: pantalla de espera.
+async function deathChoice() {
+  if (window.__netMode?.current() !== 'server') return endRun('death');
+  const where = `${state.dungeonDef.name}, piso B${state.floor}F`;
+  openMenu({ title: `Tu equipo ha caído en ${where}`, items: ['Esperar un rescate', 'Rendirse y volver al gremio'], sticky: true, onSelect: async i => {
+    if (i === 1) return endRun('death');
+    const snap = runSnapshot(); snap.player = { ...snap.player, hp: snap.player.maxHp, status: null };   // si te rescatan, vuelves con fuerzas
+    const r = await call('/rescue/wait', { state: snap, x: state.player.x, y: state.player.y });
+    if (!r?.rescue) return deathChoice();   // sin conexión: volver a preguntar
+    if (state.run) state.run.ending = true; clearBackup();
+    showRescueWait(r.rescue);
+  } });
+}
+let rescuePoll = null;
+function showRescueWait(rescue) {
+  state.waitingRescue = true; state.dead = true; state.menu = null; state.dialog = null; stopMusic?.();
+  document.getElementById('rescue-wait')?.remove();
+  const d = dungeonById(rescue.dungeonId), el = document.createElement('div');
+  el.id = 'rescue-wait'; el.className = 'rescue-wait';
+  el.innerHTML = `<div class="rw-box">
+    <h2>Esperando un rescate…</h2>
+    <p>Tu equipo ha caído en <b>${d?.name || 'la mazmorra'}, piso B${rescue.floor}F</b>, y aguarda en la oscuridad a que alguien venga a buscarlo.</p>
+    <p class="rw-label">Código de rescate</p>
+    <p class="rw-code">${rescue.code}</p>
+    <p>Compártelo con otros exploradores: pueden aceptarlo desde el tablón del gremio. Si te rescatan, seguirás la exploración desde este piso con todo lo que llevabas.</p>
+    <p class="rw-status">Esperando…</p>
+    <button type="button" class="btn rw-giveup">Rendirse y volver al gremio</button>
+  </div>`;
+  document.body.appendChild(el);
+  const status = el.querySelector('.rw-status'), btn = el.querySelector('.rw-giveup');
+  const check = async () => {
+    try {
+      const r = await api('/rescue/status');
+      if (r.rescued) {
+        clearInterval(rescuePoll);
+        status.textContent = `¡${r.by} ha venido a rescatarte!`;
+        btn.textContent = 'Continuar la exploración'; btn.onclick = async () => {
+          btn.disabled = true; const me = await call('/me'); el.remove(); state.dead = false; state.waitingRescue = false;
+          if (me) { meta = me.user.meta; state.pausedRun = me.run; }
+          resumeRun();
+        };
+      } else status.textContent = 'Esperando… (se comprueba solo cada poco)';
+    } catch { status.textContent = 'Sin conexión: se volverá a comprobar en un momento.'; }
+  };
+  clearInterval(rescuePoll); rescuePoll = setInterval(check, 15000); check();
+  btn.onclick = async () => {
+    if (!confirm('¿Seguro que quieres rendirte? Volverás al gremio y perderás parte de lo que llevabas.')) return;
+    btn.disabled = true;
+    let r; try { r = await api('/rescue/giveup', {}); } catch (e) { btn.disabled = false; status.textContent = e.message; return; }
+    clearInterval(rescuePoll); el.remove(); state.waitingRescue = false;
+    const run = r.run, s = run.state || {};
+    Object.assign(state, { run, dungeonDef: dungeonById(run.dungeonId), player: s.player, team: s.team || [], inventory: s.inventory || [], runPokes: s.runPokes || 0,
+      missions: s.missions || [], floor: s.floor || 1, bondedLost: s.bondedLost || [], lostRecruits: [], mdToStorage: s.mdToStorage || [], earnedMD: s.earnedMD || [] });
+    state.dead = false; endRun('death');
+  };
+}
+
 async function pauseRun() {
   const r = await call('/run/pause', { state: runSnapshot() }); if (!r) return;
   state.pausedRun = { dungeonId: state.run.dungeonId, state: runSnapshot() };
@@ -839,7 +900,7 @@ async function endRun(outcome) {
                 { who: 'Chansey', text: '¡Más cuidado la próxima vez!' }], () => playTrack('rest'));   // vuelve la nana de la zona de descanso
   }
   r.messages.forEach(say);
-  if (canRescue) openMenu({ title: 'Has caido. ¿Pedir un rescate?', items: ['Si, enviar peticion de rescate', 'No, dejarlo estar'], onSelect: async i => { if (i === 0) { const rr = await call('/rescue/request', fellSpot); if (rr?.rescue) openDialog([{ who: '', text: 'Peticion enviada. Codigo: ' + rr.rescue.code + '. Comparte el codigo con alguien para que te rescate, o espera a que aparezca en su tablon.' }]); } } });
+  // (el rescate se ofrece al caer, antes de volver al gremio: ver deathChoice)
   if (lost.length) openDialog([{ who: lost.map(s => SPECIES[s].name).join(', '), text: `${lost.length > 1 ? '(Al unísono) ' : ''}Me había equivocado, pensaba que eras más fuerte…`, portraits: lost }]);
 }
 
@@ -1180,7 +1241,7 @@ function downed(mon) {
     state.dead = true; say(`${mon.name} se ha quedado sin PS…`);
     const where = `${state.dungeonDef.name} B${state.floor}F`;
     playOnce('defeat');
-    (async () => { await sleep(700); await showCard('Te han derrotado…', where, 2000); endRun('death'); })();
+    (async () => { await sleep(700); await showCard('Te han derrotado…', where, 2000); deathChoice(); })();
     return;
   }
   state.team = state.team.filter(a => a !== mon);

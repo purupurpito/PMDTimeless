@@ -332,3 +332,12 @@ body.log-inside #log { display: none; }
   background: rgba(16, 32, 74, .94); color: #f0f0f0; border: 1px solid #5070c0; font: 13px/1.35 system-ui, sans-serif; text-align: center; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
 .net-banner[data-kind="retry"] { border-color: #e0b060; }
 .net-banner[data-kind="down"] { border-color: #e04848; background: rgba(74, 16, 24, .94); }
+
+/* pantalla de espera de rescate (tu equipo ha caído y aguarda en la mazmorra) */
+.rescue-wait { position: fixed; inset: 0; z-index: 9000; background: #05060d; color: #e8e8f0; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.rescue-wait .rw-box { max-width: 520px; text-align: center; font: 16px/1.55 system-ui, sans-serif; }
+.rescue-wait h2 { font-size: 22px; margin: 0 0 14px; color: #f8d848; letter-spacing: .02em; }
+.rescue-wait .rw-label { margin: 22px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: #9aa0c0; }
+.rescue-wait .rw-code { margin: 0 0 18px; font: bold 34px/1.2 ui-monospace, monospace; letter-spacing: .12em; color: #fff; user-select: all; -webkit-user-select: all; }
+.rescue-wait .rw-status { margin: 18px 0; color: #9aa0c0; font-size: 14px; }
+.rescue-wait .rw-giveup { margin-top: 6px; }
