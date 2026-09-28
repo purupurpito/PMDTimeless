@@ -89,11 +89,22 @@ function stopQuizBg() { cancelAnimationFrame(quizBg.raf); }
 // ---- quiz ----
 // La Voz (entidad sin nombre) despierta al jugador, le hace el test y le dice su naturaleza sin revelar el Pokémon.
 const quiz = { questions: [], answers: [] };
+// El progreso del test se guarda en el navegador: si la página se recarga (p. ej. en el móvil al cambiar de app),
+// se sigue por la misma pregunta. Se borra al registrarse.
+const QUIZ_KEY = 'pmdt_quiz';
+const savedQuiz = () => { try { const s = JSON.parse(localStorage.getItem(QUIZ_KEY)); return s?.questions?.length && Date.now() - s.t < 3 * 864e5 ? s : null; } catch { return null; } };
+const saveQuiz = () => { try { localStorage.setItem(QUIZ_KEY, JSON.stringify({ questions: quiz.questions, answers: quiz.answers, t: Date.now() })); } catch {} };
+const clearQuiz = () => { try { localStorage.removeItem(QUIZ_KEY); } catch {} };
 async function startQuiz() {
   show('#screen-quiz'); startQuizBg();
   playTrack('quiz'); // suena durante el test y las escenas de Diglett y Chatot; en la aldea se funde con su música
   const box = $('#quiz-box'), prog = $('#quiz-progress');
   prog.textContent = '';
+  const resume = savedQuiz();
+  if (resume) {   // se había quedado a medias: seguir por la misma pregunta
+    quiz.questions = resume.questions; quiz.answers = resume.answers || [];
+    await dialog(box, [{ text: '…Ah, has vuelto.' }, { text: 'Sigamos donde lo dejamos.' }]);
+  } else {
   const loading = api('/quiz', undefined, { onWaking: waking }); loading.catch(() => {});   // el error se trata al esperar el test
   await dialog(box, [{ text: 'Hola.' }, { text: '¿Hola…? ¿Estás ahí?' }, { text: '¡Despierta, que te estoy hablando!' },
     // antes de las preguntas: explicar al jugador por qué se las hacemos
@@ -103,18 +114,24 @@ async function startQuiz() {
     { text: 'Tus respuestas decidirán en qué te convertirás cuando abras los ojos.' },
     { text: '¿Preparado? Empecemos.' }]);
   try { quiz.questions = (await loading).questions; } catch (e) { writeText(box, e.message); if (window.__netMode) { await new Promise(r => setTimeout(r, 2500)); show('#screen-auth'); offerOffline(e); msg($('#auth-msg'), e.message); } return; }
-  quiz.answers = [];
-  for (let i = 0; i < quiz.questions.length; i++) {
+  quiz.answers = []; saveQuiz();
+  }
+  for (let i = quiz.answers.length; i < quiz.questions.length; i++) {
     const qu = quiz.questions[i];
     // la pregunta se distingue: pestaña «Pregunta N de 12» y texto más grande; las respuestas, en su propio panel
     box.classList.add('asking'); $('#quiz-tab').textContent = `Pregunta ${i + 1} de ${quiz.questions.length}`; $('#quiz-tab').classList.remove('hidden');
     writeText(box, qu.q);
     const pick = await menu($('#quiz-answers'), qu.a.map(x => x.t));
     quiz.answers[i] = { id: qu.id, a: qu.a[pick].k }; // la pregunta y la respuesta real (las respuestas vienen barajadas)
+    saveQuiz();
   }
   box.classList.remove('asking'); $('#quiz-tab').classList.add('hidden');
   let result;
-  try { result = await api('/quiz/preview', { answers: quiz.answers }); } catch (e) { writeText(box, e.message); return; }
+  try { result = await api('/quiz/preview', { answers: quiz.answers }, { onWaking: waking }); }
+  catch (e) {   // sin conexión: las respuestas están guardadas; al volver a «Nueva partida» se retoma aquí
+    writeText(box, e.message); await new Promise(r => setTimeout(r, 2500)); stopQuizBg();
+    show('#screen-auth'); offerOffline(e); msg($('#auth-msg'), 'Tus respuestas están guardadas: pulsa «Nueva partida» para seguir.'); return;
+  }
   await dialog(box, [
     { text: 'Ya veo…' },
     { text: `Pareces de naturaleza ${result.name.toLowerCase()}.` },
@@ -168,9 +185,12 @@ async function chatotScene() {
     const password = await keyboard(kb, { label: 'Código secreto', max: 32, min: 4, masked: true });
     try {
       const r = await api('/auth/register', { name, password, answers: quiz.answers }, { onWaking: waking });   // el servidor puede estar despertando
-      setToken(r.token); await enterGame(); return;
+      setToken(r.token); clearQuiz(); await enterGame(); return;
     } catch (e) {
-      await say(e.status === 409 ? '¡Uy! Ese nombre ya lo tiene otro explorador. Dime otro, anda.' : e.message, 'Surprised');
+      // ¿ya existe? Puede ser tu propia cuenta, si el registro llegó pero se perdió la respuesta: se prueba a entrar
+      if (e.status === 409) { try { const r = await api('/auth/login', { name, password }); setToken(r.token); clearQuiz(); await enterGame(); return; } catch { /* es de otro */ } }
+      await say(e.status === 409 ? '¡Uy! Ese nombre ya lo tiene otro explorador. Dime otro, anda.'
+        : e.status === 0 ? '¡Uy! Tu formulario se ha perdido por el camino… No hay conexión con el gremio. Probemos otra vez.' : e.message, 'Surprised');
     }
   }
 }
