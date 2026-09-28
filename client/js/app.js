@@ -129,7 +129,7 @@ async function startQuiz() {
   try { result = await api('/quiz/preview', { answers: quiz.answers }, { onWaking: waking }); }
   catch (e) {   // sin conexión: las respuestas están guardadas; al volver a «Nueva partida» se retoma aquí
     writeText(box, e.message); await new Promise(r => setTimeout(r, 2500)); stopQuizBg();
-    show('#screen-auth'); offerOffline(e); msg($('#auth-msg'), 'Tus respuestas están guardadas: pulsa «Nueva partida» para seguir.'); return;
+    show('#screen-auth'); offerOffline(e); msg($('#auth-msg'), e.status === 0 ? 'Tus respuestas están guardadas: pulsa «Nueva partida» para seguir.' : e.message); return;
   }
   await dialog(box, [
     { text: 'Ya veo…' },
