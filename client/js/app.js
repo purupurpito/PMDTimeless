@@ -30,7 +30,6 @@ async function puruNotice() {
   ], { portraitEl: wrap.querySelector('.pmd-portrait') });
   try { localStorage.removeItem('pmdt_save'); localStorage.removeItem('mm_known'); } catch {}
   wrap.remove(); choice.classList.remove('hidden');
-  const c = document.getElementById('btn-continue'); if (c) { c.disabled = true; c.title = 'Aún no tienes ninguna partida'; }
 }
 let toastTimer;
 export function toast(text, ms = 2500) { const t = $('#toast'); t.textContent = text; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), ms); }
@@ -237,6 +236,5 @@ document.addEventListener('mousedown', ev => { if (ev.detail > 1 && !ev.target.c
   });
 }
 // "Continuar" solo tiene sentido si ya jugaste en este dispositivo
-const known = () => { try { return localStorage.getItem('mm_known') === '1'; } catch { return false; } };
-if (!known()) { const c = $('#btn-continue'); if (c) { c.disabled = true; c.title = 'Aún no tienes ninguna partida'; } }
+// «Continuar» siempre disponible: la cuenta vive en el servidor, así que puede existir aunque este navegador no lo sepa
 if (hasToken()) enterGame(); else show('#screen-auth');
