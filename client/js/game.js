@@ -497,6 +497,13 @@ const KECLEON_GREEN_LINES = ['¡Bienvenido, bienvenido! Mira, mira: género fres
 const KECLEON_PURPLE_LINES = ['¿Qué me traes hoy? Perlas, pepitas, tesoros olvidados… ¡Todo lo que brilla vale Pokés!', 'Mi hermano habla demasiado. Yo prefiero que hablen los objetos. Enséñamelos.', 'Pago bien. No tanto como me gustaría a mí, ni tanto como te gustaría a ti. Un trato justo.', 'Si encuentras algo raro en una mazmorra, no lo tires. Tráemelo.'];
 const KANGASKHAN_LINES = ['¡Hola, cielo! ¿Guardamos algo a buen recaudo?', 'Lo que dejes conmigo no se pierde ni aunque te pase algo ahí fuera. Palabra de madre.', 'Mi pequeño dice que quiere ser explorador como tú. Todavía no sabe ni abrir una semilla.', '¿Has comido bien? En las mazmorras se pasa hambre, hazme caso.'];
 const GULPIN_LINES = ['…Gulp.', '¿Eh? Ah. Movimientos. Sí, sí… ¿qué querías?', '…Ñam. …¿Decías algo?'];
+// Murkrow, el cartero del gremio (junto al buzón de la plaza). También firma los anuncios del juego en Discord.
+const MURKROW_LINES = [
+  '¡Crrraaa! Soy Murkrow, el cartero del gremio. Muy pronto podrás dejar cartas en este buzón para otros exploradores.',
+  '¡Crrraaa! ¿Correo? Todavía no, todavía no… Pero cuando llegue, serás el primero en saberlo. ¡Palabra de cartero!',
+  'Las noticias vuelan, y yo con ellas. ¡Crrraaa! Si pasa algo en el gremio, me enteraré antes que nadie.',
+  '¿Sabías que llevo las novedades del gremio a todos los rincones? ¡Crrraaa! Nadie reparte como yo.',
+];
 function npcGreeting(who, lines, key, next, sp) {
   const c = hubCounters(); c[key] = (c[key] || 0) + 1; saveHubCounters(c);
   return openDialog([{ who, ...(sp ? { sp } : {}), text: lines[(c[key] - 1) % lines.length] }], next);
@@ -537,7 +544,7 @@ function talkTo(kind) {
       if (rankOf(meta.rankPts) < 4) return openDialog([{ who: 'Mawile', text: 'Lo siento, pero el jefe está ocupado. Por normas estipuladas del gremio, solamente gente de rango Diamante o superior pueden acceder de forma directa a su despacho.' }]);
       return openDialog([{ who: 'Mawile', text: `¡Rango Diamante! Adelante, ${user.name}. El jefe te recibirá.` }], () => openPidgeotOffice());
     case 'chatot_intro': return openDialog([{ who: 'Chatot', text: '¿Has cambiado de idea? ¡Estupendo!' }], () => tutorial(true));
-    case 'dugtrio': return openDialog([{ who: 'Dugtrio', text: 'Mi hijo está aprendiendo a hacer su labor. Quizá en un futuro pueda enseñar a otros como lo hago yo con él.' }]);
+    case 'murkrow': return npcGreeting('Murkrow', MURKROW_LINES, 'mk');
     case 'chansey': return openDialog([{ who: 'Chansey', text: '¡Bienvenidos a la zona de descanso! Aquí os recuperáis después de cada expedición. Descansad bien, que mañana será otro día de aventuras.' }]);
     case 'diglett': return openDialog([{ who: 'Diglett', text: '¡Huella reconocida! Pasa, pasa. Y no toques la rejilla.' }]);
     case 'chatot': return openDialog([{ who: 'Chatot', text: `¿Dudas, ${user.name}? El tablón está justo ahí. El maestro Pidgeot está… ocupado. Siempre está ocupado.` }], () => openMenu({ title: 'Chatot', items: ['Rango y progreso', 'Diario de exploracion', 'Repetir el tutorial', 'Nada, gracias'], onCancel: closeHub, onSelect: i => i === 0 ? openRankMenu() : i === 1 ? openDiaryMenu() : i === 2 ? tutorial() : closeHub() }));
@@ -1238,7 +1245,7 @@ function drawPortrait(c, sp, mood, x, y, size) {
   c.imageSmoothingEnabled = prev; return true;
 }
 // quién habla: la especie indicada, un personaje de la aldea, un jefe, o un Pokémon presente (tu equipo, la mazmorra)
-const NPC_SPECIES = { Chatot: 'chatot', Diglett: 'diglett', Dugtrio: 'dugtrio', Kecleon: 'kecleon', Kangaskhan: 'kangaskhan', Gulpin: 'gulpin', Wobbuffet: 'wobbuffet',
+const NPC_SPECIES = { Murkrow: 'murkrow', Chatot: 'chatot', Diglett: 'diglett', Dugtrio: 'dugtrio', Kecleon: 'kecleon', Kangaskhan: 'kangaskhan', Gulpin: 'gulpin', Wobbuffet: 'wobbuffet',
   'Kecleon morado': 'kecleon_purple', 'Kecleon verde': 'kecleon', Pidgeot: 'pidgeot', 'Maestro Pidgeot': 'pidgeot', Chansey: 'chansey', Mawile: 'mawile', Bruno: 'ursaring', Ursaring: 'ursaring' };
 const SPECIES_BY_NAME = Object.fromEntries(Object.entries(SPECIES).map(([k, s]) => [s.name, k]));
 function speakerSpecies(page) {
@@ -2293,7 +2300,7 @@ const DIALOG_FONT = () => Sprites.fontName || 'monospace';
 // Un único redibujado pendiente como mucho (evita que las animaciones encadenen fotogramas de más)
 let renderQueued = false;
 function scheduleRender() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; render(); }); }
-const NPC_PORTRAITS = ['chatot', 'diglett', 'kecleon', 'kangaskhan', 'gulpin', 'wobbuffet', 'pidgeot', 'chansey', 'mawile', 'dugtrio'];
+const NPC_PORTRAITS = ['chatot', 'diglett', 'kecleon', 'kangaskhan', 'gulpin', 'wobbuffet', 'pidgeot', 'chansey', 'mawile', 'murkrow'];
 function renderDialog() {
   const d = state.dialog; if (!d) return;
   const page = d.pages[d.i], W = LOG.w, h = Math.round(114 * UIS()), y = LOG.h - h - 6, x = 6, w = W - 12;   // como en el original: casi todo el ancho y ~¼ de la altura

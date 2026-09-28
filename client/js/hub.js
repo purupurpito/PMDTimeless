@@ -13,7 +13,7 @@ export const HUB = {
     ],
     npcs: [
       { id: 'chatot', x: 446, y: 226, facing: [-1, 1], talk: 'chatot_intro', intro: true },                          // solo al empezar: te recibe en la entrada
-      { id: 'dugtrio', x: 316, y: 214, facing: [1, 1], talk: 'dugtrio', fixedFacing: true, reach: 40 },   // el padre de Diglett: anticipo de la Guardia de huellas
+      { id: 'murkrow', x: 316, y: 214, facing: [1, 1], talk: 'murkrow', fixedFacing: true, reach: 40 },   // el cartero del gremio, junto al buzón
     ],
     signs: [ { rect: [70, 170, 130, 230], text: 'Mercado de Kecleon ←' }, { rect: [440, 405, 500, 465], text: '↓ Aldea · Salida a las mazmorras' } ],
   },
