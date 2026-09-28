@@ -326,3 +326,9 @@ body.log-inside #log { display: none; }
 .tp-dpad .tp-d.down { background: #5a4f86; }
 .tp-dpad .tp-ul.down, .tp-dpad .tp-ur.down, .tp-dpad .tp-dl.down, .tp-dpad .tp-dr.down { background: rgba(90,79,134,.8) !important; color: #fff; }
 .touch-toggle { display: none !important; }
+
+/* aviso de conexión con el servidor */
+.net-banner { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 9999; max-width: min(92vw, 520px); padding: 6px 14px; border-radius: 999px;
+  background: rgba(16, 32, 74, .94); color: #f0f0f0; border: 1px solid #5070c0; font: 13px/1.35 system-ui, sans-serif; text-align: center; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.net-banner[data-kind="retry"] { border-color: #e0b060; }
+.net-banner[data-kind="down"] { border-color: #e04848; background: rgba(74, 16, 24, .94); }

@@ -9,6 +9,7 @@ const isLocal = () => { try { return localStorage.getItem(MODE_KEY) === 'local';
 const backend = () => isLocal() ? local : remote;
 
 export const ApiError = remote.ApiError;
+export const onNetStatus = fn => remote.onNetStatus(fn);   // el aviso de conexión (sin conexión no hace falta)
 export const setToken = t => backend().setToken(t);
 export const hasToken = () => backend().hasToken();
 export async function api(path, body, opts) {

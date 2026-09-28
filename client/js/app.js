@@ -1,5 +1,5 @@
 // Pantallas de acceso: elección, login, registro (quiz → resultado → cuenta). Luego arranca el juego.
-import { api, setToken, hasToken, ApiError } from './api.js';
+import { api, setToken, hasToken, ApiError, onNetStatus } from './api.js';
 import { startGame } from './game.js';
 import { SPECIES } from '../../shared/data.js';
 import { dialog, menu, keyboard, writeText, loadManifest, portraitOf, portraitURL, asset } from './ui.js';
@@ -34,6 +34,16 @@ async function puruNotice() {
 }
 let toastTimer;
 export function toast(text, ms = 2500) { const t = $('#toast'); t.textContent = text; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), ms); }
+// Aviso de conexión (arriba de la pantalla): mientras se espera al servidor, si se corta y se reintenta, o si no hay conexión
+const netBanner = (() => { const el = document.createElement('div'); el.id = 'net-banner'; el.className = 'net-banner hidden'; document.body.appendChild(el); return el; })();
+let netHide = null;
+onNetStatus((s, n) => {
+  clearTimeout(netHide);
+  const txt = { waking: 'Conectando con el servidor… (si estaba dormido, puede tardar hasta un minuto)', retry: `Se ha cortado la conexión. Reintentando… (${n ?? 1})`, down: 'Sin conexión con el servidor.' }[s];
+  if (!txt) { netHide = setTimeout(() => netBanner.classList.add('hidden'), 400); return; }
+  netBanner.textContent = txt; netBanner.dataset.kind = s; netBanner.classList.remove('hidden');
+  if (s === 'down') netHide = setTimeout(() => netBanner.classList.add('hidden'), 7000);
+});
 const waking = () => toast('Despertando a Kecleon… el servidor gratuito tarda un poco en abrir la tienda.', 8000);
 
 // ---- elección / login / registro ----
@@ -157,7 +167,7 @@ async function chatotScene() {
     hideNext();
     const password = await keyboard(kb, { label: 'Código secreto', max: 32, min: 4, masked: true });
     try {
-      const r = await api('/auth/register', { name, password, answers: quiz.answers });
+      const r = await api('/auth/register', { name, password, answers: quiz.answers }, { onWaking: waking });   // el servidor puede estar despertando
       setToken(r.token); await enterGame(); return;
     } catch (e) {
       await say(e.status === 409 ? '¡Uy! Ese nombre ya lo tiene otro explorador. Dime otro, anda.' : e.message, 'Surprised');

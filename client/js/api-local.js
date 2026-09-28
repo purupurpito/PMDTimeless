@@ -117,3 +117,6 @@ async function localApi(path, body) {
   }
   fail('Endpoint no disponible en la demo: ' + path, 404);
 }
+
+// sin servidor no hay conexión que vigilar
+export const onNetStatus = () => {};

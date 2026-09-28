@@ -5,6 +5,6 @@
 //   1.0.0 → lanzamiento completo
 // Los cambios de los parches se acumulan en changelog/pendiente.md y entran en el anuncio de la siguiente actualización.
 // Excepción: un parche se anuncia solo si arregla un fallo grave que afecta a todos (partidas perdidas, el juego no carga…).
-export const VERSION = '0.3.1';
+export const VERSION = '0.3.2';
 export const CHANNEL = 'Beta';
 export const VERSION_LABEL = `${CHANNEL} ${VERSION}`;
