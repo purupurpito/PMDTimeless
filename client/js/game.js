@@ -6,7 +6,7 @@ import { rollLoot, WEATHER as WEATHER_ALL, CFG, SPECIES, MOVES, BASIC, TM_POOL, 
 import { hooks as engineHooks, T, createMon, computeStats, damage, hitCheck, applyStages, applyStatus, tickStatus, wakeOnHit, buildFloor, spawnMonsterHouse, JIRACHI_PHASES } from '../../shared/engine.js';
 import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/data.js';
 import { makeRng, floorSeed } from '../../shared/rng.js';
-import { api } from './api.js';
+import { api, newRequestId } from './api.js';
 import { HUB, VIEW } from './hub.js';
 import { HUB_OBJECTS } from './hub-objects.js';
 import { typeIconHTML, typeIconImg } from './typeicons.js';
@@ -239,6 +239,7 @@ export async function startGame(me) {
       state.dungeon.tiles[p.y][p.x + 2] = T.FLOOR; state.shop = { carpet, unpaid: [], keeper: { x: p.x, y: p.y - 1 }, room: roomOf(p) || { x: p.x - 1, y: p.y - 1, w: 3, h: 3 }, robbed: false };
       state.enemies = []; state.groundItems = [{ name: 'Semilla Revivir', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
   user = me.user; meta = me.user.meta; state.pausedRun = me.run;
+  if (pendingEnd()) flushPendingEnd();   // un resultado que no llegó la última vez (se envía solo)
   document.getElementById('hud-user').textContent = user.name;
   await Sprites.load();
   bindInput();
@@ -426,7 +427,7 @@ function enterHub() {
   if (!state.player) state.player = createPlayer(meta.starters[0]);
   const h = state.hub; if (!h.area) { h.area = 'plaza'; Object.assign(h, HUB.plaza.spawn); }
   spawnWanderers(); render(); checkSpecialDay(); checkMyRescue();
-  if (state.pausedRun) openMenu({ title: `Tienes una run pausada en ${dungeonById(state.pausedRun.dungeonId).name}`, items: ['Continuar ahora', 'Más tarde'], onSelect: i => { if (i === 0) resumeRun(); } });
+  if (state.pausedRun) openMenu({ title: `Tienes una exploración a medias en ${dungeonById(state.pausedRun.dungeonId).name}`, items: ['Continuar ahora', 'Más tarde'], onSelect: i => { if (i === 0) resumeRun(); } });
   hubLoop();
 }
 const closeHub = () => { state.menu = null; render(); };
@@ -656,6 +657,7 @@ function openRankMenu() {
 // RUN
 // =====================================================================
 async function startRun(def) {
+  if (pendingEnd() && !(await flushPendingEnd(true))) return openDialog([{ who: '', text: 'Antes hay que enviar el resultado de tu última exploración, y ahora no hay conexión. Inténtalo de nuevo en un momento.' }]);
   if (!state.player) state.player = createPlayer(meta.starters[0]);   // por si la aldea aún no había terminado de cargar
   const r = await call('/run/start', { dungeonId: def.id, starter: state.player.species });
   if (!r) return closeHub();
@@ -667,11 +669,52 @@ async function startRun(def) {
 }
 async function resumeRun() {
   const r = await call('/run/resume', {}); if (!r) return closeHub();
-  const s = r.run.state;
+  let s = r.run.state;
+  const local = localBackup(r.run.id);   // si la copia del navegador es más nueva (se cortó la conexión al guardar), manda ella
+  if (local && local.rev > (r.run.rev || 0)) { s = local.state; r.run.rev = local.rev; api('/run/save', { state: s, rev: local.rev }).catch(() => {}); }
   Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: dungeonById(r.run.dungeonId), player: s.player, team: s.team || [], inventory: s.inventory, runPokes: s.runPokes, missions: s.missions, earnedMD: s.earnedMD || [], recruitedLegendaries: s.recruitedLegendaries || [], lostRecruits: s.lostRecruits || [], bondedLost: s.bondedLost || [], floor: s.floor, turn: s.turn, dead: false, log: [], scene: 'dungeon', pausedRun: null });
   newFloor();
 }
 const runSnapshot = () => ({ floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, turn: state.turn });
+// ---------- guardado automático (en cada piso, cada 10 turnos y al cerrar o esconder la pestaña) ----------
+// La foto va al servidor con un número de versión y, además, a este navegador. Al volver se usa la más reciente.
+const BACKUP_KEY = 'pmdt_run_backup';
+function autosave(why) {
+  if (!state.run || state.scene !== 'dungeon' || state.dead || !state.player || state.run.ending) return;
+  const rev = (state.run.rev || 0) + 1; state.run.rev = rev;
+  const snap = runSnapshot();
+  try { localStorage.setItem(BACKUP_KEY, JSON.stringify({ runId: state.run.id, user: user?.name, rev, state: snap })); } catch { /* sin espacio */ }
+  api('/run/save', { state: snap, rev }, { keepalive: why === 'close' }).catch(() => { /* la copia local queda; se sube al volver */ });
+}
+const localBackup = runId => { try { const b = JSON.parse(localStorage.getItem(BACKUP_KEY)); return b && b.runId === runId && b.user === user?.name ? b : null; } catch { return null; } };
+const clearBackup = () => { try { localStorage.removeItem(BACKUP_KEY); } catch {} };
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') autosave('close'); });
+  window.addEventListener('pagehide', () => autosave('close'));
+}
+
+// ---------- buzón de salida: el resultado final no se pierde aunque falle la conexión ----------
+// Se guarda en el navegador con su identificador y se reenvía (el servidor no lo aplica dos veces) hasta que llega.
+const PENDING_KEY = 'pmdt_pending_end';
+const pendingEnd = () => { try { const p = JSON.parse(localStorage.getItem(PENDING_KEY)); return p && p.user === user?.name ? p : null; } catch { return null; } };
+let flushTimer = null;
+async function flushPendingEnd(quiet = false) {
+  const p = pendingEnd(); if (!p) return true;
+  clearTimeout(flushTimer);
+  try {
+    const r = await api('/run/end', p.body, { rid: p.rid });
+    localStorage.removeItem(PENDING_KEY); clearBackup();
+    meta = r.meta; state.pausedRun = null; (r.messages || []).forEach(say);
+    if (!quiet) openDialog([{ who: '', text: `¡Conexión recuperada! Tu resultado en ${p.where} ya está registrado.` }]);
+    render(); return true;
+  } catch (e) {
+    if (e.status === 0) { flushTimer = setTimeout(() => flushPendingEnd(), 20000); return false; }   // sin conexión: se reintenta más tarde
+    localStorage.removeItem(PENDING_KEY);   // el servidor lo rechaza (p. ej. ya estaba registrado): nada que reenviar
+    try { const me = await api('/me'); meta = me.user.meta; state.pausedRun = me.run; } catch {}
+    render(); return true;
+  }
+}
+
 async function pauseRun() {
   const r = await call('/run/pause', { state: runSnapshot() }); if (!r) return;
   state.pausedRun = { dungeonId: state.run.dungeonId, state: runSnapshot() };
@@ -756,7 +799,23 @@ async function endRun(outcome) {
   const summary = outcome === 'clear' ? { dungeon: state.dungeonDef.name, floors: state.floor, pokes: state.runPokes, items: [...state.inventory], held: state.player.held,
     leader: state.player.name, lv0: state.player.runStartLevel ?? state.player.level, lv1: state.player.level,
     team: state.team.map(a => `${a.name} Nv${a.level}`), recruited: state.diary?.recruited || 0, missions: (state.missions || []).filter(m => m.done).length } : null;
-  const r = await call('/run/end', { outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] });
+  if (state.run) state.run.ending = true;   // ya no se autoguarda
+  const endBody = { outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] };
+  const rid = state.run?.endRid || (state.run ? (state.run.endRid = newRequestId()) : newRequestId());
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify({ user: user?.name, rid, body: endBody, where: state.dungeonDef.name })); } catch {}
+  let r = null, offline = false;
+  state.busy = true; render();
+  try { r = await api('/run/end', endBody, { rid }); } catch (e) { if (e.status === 0) offline = true; else say(e.message); }
+  finally { state.busy = false; render(); }
+  if (r) { try { localStorage.removeItem(PENDING_KEY); } catch {} clearBackup(); }
+  // sin conexión: el resultado queda guardado y se envía solo cuando vuelva (no se pierde la exploración)
+  if (!r && offline) { openMenu({ title: 'Sin conexión con el servidor', items: ['Reintentar ahora', 'Volver a la aldea (se enviará después)'], sticky: true, onSelect: async i => {
+    if (i === 0) return endRun(outcome);
+    state.player = null; state.run = null; state.pausedRun = null; enterHub();
+    openDialog([{ who: '', text: 'Tu resultado está guardado en este dispositivo: se enviará solo en cuanto vuelva la conexión.' }]);
+    flushTimer = setTimeout(() => flushPendingEnd(), 20000);
+  } }); return; }
+  if (!r) try { localStorage.removeItem(PENDING_KEY); } catch {}   // rechazado por el servidor: reenviarlo no serviría
   // si el servidor no responde, se reintenta; si rechaza el cierre, reintentar no sirve: se puede volver a la aldea
   if (!r) { openMenu({ title: 'No se pudo cerrar la exploración', items: ['Reintentar', 'Volver a la aldea'], sticky: true, onSelect: async i => {
     if (i === 0) return endRun(outcome);
@@ -876,6 +935,7 @@ function newFloor() {
   else if (def.eras && (state.floor - 1) % def.eraEvery === 0) say(`B${state.floor}F. El tiempo se retuerce… estás en un eco de ${dungeonById(state.era).name}.`);
   else say(`${def.name} B${state.floor}F.`);
   if (state.weather && state.weather !== 'none') say(`El clima aquí es: ${WEATHER[state.weather].name}.`);
+  autosave('floor');   // guardado automático al empezar cada piso
 }
 
 const tileAt = (x, y) => (y >= 0 && y < CFG.map.h && x >= 0 && x < CFG.map.w) ? state.dungeon.tiles[y][x] : T.WALL;
@@ -1659,6 +1719,8 @@ async function resolveTurn(playerActed) {
       if (state.attacked) { state.attacked = false; render(); await pace(ATTACK_PAUSE()); await waitFading(); }
     }
     updateVisibility(); render();
+    state.turnsSinceSave = (state.turnsSinceSave || 0) + 1;
+    if (state.turnsSinceSave >= 10) { state.turnsSinceSave = 0; autosave('turns'); }   // guardado automático cada 10 turnos
   } finally { state.resolving = false; }
 }
 function stepAway(mon, tx, ty) {

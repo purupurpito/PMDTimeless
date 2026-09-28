@@ -73,7 +73,8 @@ async function localApi(path, body) {
     case '/pidgeot/advance': { if (m.story === 'none') { m.story = 'quest'; return { meta: m, story: 'quest' }; } if (m.story === 'quest' && m.stones.length >= MEGA_STONES.length) { m.story = 'dream'; m.dreamUnlocked = true; return { meta: m, story: 'dream', message: 'La Mazmorra de los Sueños se revela.' }; } return { meta: m, story: m.story }; }
     case '/run/start': { if (activeRun()) fail('Ya tienes una run en curso.', 409); const def = dungeonById(body.dungeonId); if (!def) fail('Mazmorra desconocida.'); if (def.id !== 'suenos' && def.rank > rankOf(m.rankPts)) fail(`Necesitas rango ${RANKS[def.rank].name}.`, 403); const bag = m.bag; m.bag = []; const run = { id: DB.runs.length + 1, dungeonId: def.id, seed: 1 + rnd(2 ** 31 - 2), starter: body.starter, status: 'active', state: null }; DB.runs.push(run); return { run: runInfo(run), bag, missions: m.active, movepool: m.movepool[body.starter] || [], meta: m }; }
     case '/run/pause': { const r = activeRun(); if (!r) fail('No hay run.'); r.status = 'paused'; r.state = body.state; return { ok: true }; }
-    case '/run/resume': { const r = activeRun(); if (!r || r.status !== 'paused') fail('No hay run pausada.'); r.status = 'active'; return { run: runInfo(r) }; }
+    case '/run/save': { const r = activeRun(); if (!r) fail('No hay run.', 404); if ((body.rev || 0) > (r.rev || 0)) { r.state = body.state; r.rev = body.rev; } return { ok: true, rev: r.rev }; }   // guardado automático
+    case '/run/resume': { const r = activeRun(); if (!r || !(r.status === 'paused' || r.state)) fail('No hay run pausada.'); r.status = 'active'; return { run: { ...runInfo(r), rev: r.rev || 0 } }; }
     case '/run/abandon': { const r = activeRun(); if (r) r.status = 'ended'; return { meta: m }; }
     case '/run/end': {
       const r = activeRun(); if (!r) fail('No hay run.'); const def = dungeonById(r.dungeonId), f = Number(body.floor) || 1, msgs = [];
@@ -120,3 +121,4 @@ async function localApi(path, body) {
 
 // sin servidor no hay conexión que vigilar
 export const onNetStatus = () => {};
+export const newRequestId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;

@@ -15,8 +15,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // X-Request-Id es el mismo en todos los intentos: si una petición llegó pero se perdió la respuesta, el servidor
 // devuelve la misma respuesta en vez de aplicarla dos veces (nada se cobra ni se cierra dos veces).
 const FIRST_TIMEOUT = 90000, RETRY_TIMEOUT = 25000, TRIES = 3;
-export async function api(path, body, { onWaking } = {}) {
-  const rid = (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+export const newRequestId = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+// rid: identificador propio (para reenviar más tarde la misma petición); keepalive: se completa aunque se cierre la pestaña
+export async function api(path, body, { onWaking, rid = newRequestId(), keepalive = false } = {}) {
   for (let attempt = 1; ; attempt++) {
     const ctrl = new AbortController();
     const wakeTimer = setTimeout(() => { onWaking?.(); notify('waking'); }, 2500);
@@ -26,7 +27,7 @@ export async function api(path, body, { onWaking } = {}) {
         method: body !== undefined ? 'POST' : 'GET',
         headers: { 'Content-Type': 'application/json', 'X-Request-Id': rid, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: body !== undefined ? JSON.stringify(body) : undefined,
-        signal: ctrl.signal,
+        signal: ctrl.signal, keepalive,
       });
       const data = await res.json().catch(() => ({}));
       notify('ok');
@@ -34,7 +35,7 @@ export async function api(path, body, { onWaking } = {}) {
       return data;
     } catch (e) {
       if (e instanceof ApiError) throw e;
-      if (attempt >= TRIES) { notify('down'); throw new ApiError('No se puede hablar con el servidor. Revisa tu conexión e inténtalo de nuevo.', 0); }
+      if (attempt >= TRIES || keepalive) { notify('down'); throw new ApiError('No se puede hablar con el servidor. Revisa tu conexión e inténtalo de nuevo.', 0); }
       notify('retry', attempt); await sleep(1500 * attempt);
     } finally { clearTimeout(wakeTimer); clearTimeout(killTimer); }
   }
