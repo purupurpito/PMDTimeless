@@ -22,6 +22,6 @@ Esta es la versión de prueba: funciona sin instalar nada, pero las partidas no 
 
 - Retratos y sprites de Pokémon: [PMDCollab/SpriteCollab](https://github.com/PMDCollab/SpriteCollab) y sus colaboradores.
 - Iconos de objetos: [PMDCollab/RawAsset](https://github.com/PMDCollab/RawAsset) (gráficos de Pokémon Mundo Misterioso, © Chunsoft).
-- Datos del juego original: proyectos de la comunidad [Explorers-Data](https://github.com/) y pmdsky-debug.
+- Datos del juego original: proyectos de la comunidad Explorers-Data y pmdsky-debug.
 
 Pokémon y Pokémon Mundo Misterioso son propiedad de Nintendo, The Pokémon Company, Creatures y Spike Chunsoft. Fan game sin ánimo de lucro, sin relación con ellos.
