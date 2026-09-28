@@ -1,0 +1,17 @@
+{
+  "_comment": "Copia este archivo como manifest.json y apunta cada clave a tu PNG. Las claves que falten se pintan con placeholders.",
+  "_font": "client/assets/font.ttf",
+  "floor": "client/assets/tiles/floor.png",
+  "floor_bosque": "client/assets/tiles/floor_bosque.png",
+  "floor_cueva": "client/assets/tiles/floor_cueva.png",
+  "wall_bosque": "client/assets/tiles/wall_bosque.png",
+  "wall": "client/assets/tiles/wall.png",
+  "stairs": "client/assets/tiles/stairs.png",
+  "hub_bg": "client/assets/hub/base.png",
+  "kecleon_green": "client/assets/hub/kecleon_green.png",
+  "kecleon_purple": "client/assets/hub/kecleon_purple.png",
+  "gulpin": "client/assets/hub/gulpin.png",
+  "board": "client/assets/hub/board.png",
+  "charmander": "client/assets/pokemon/charmander.png",
+  "pidgey": "client/assets/pokemon/pidgey.png"
+}

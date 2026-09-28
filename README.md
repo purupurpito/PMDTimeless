@@ -6,7 +6,7 @@ Fan game de **Pokémon Mundo Misterioso**: un roguelike por turnos que se juega 
 
 **https://purupurpito.github.io/PMDTimeless/**
 
-Esta es la versión de prueba: funciona sin instalar nada, pero las partidas no se guardan al recargar la página.
+Funciona sin instalar nada. Tu partida se guarda en el navegador: al volver, pulsa «Continuar» y entra con tu nombre y tu código secreto.
 
 ## Controles
 
