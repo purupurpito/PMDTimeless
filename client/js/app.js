@@ -16,11 +16,21 @@ if (window.__netMode) {
   document.getElementById('btn-offline')?.addEventListener('click', () => window.__netMode.setLocal());
   document.getElementById('btn-online')?.addEventListener('click', () => window.__netMode.setServer());
   if (window.__netMode.current() === 'local') document.getElementById('net-local')?.classList.remove('hidden');
-  // partida de antes guardada en este navegador (sin conexión): que no se pierda de vista
-  else if ((() => { try { return !!localStorage.getItem('pmdt_save'); } catch { return false; } })()) {
-    const box = document.getElementById('net-offline'); box?.classList.remove('hidden');
-    const p = box?.querySelector('.joke'); if (p) p.textContent = 'Tienes una partida guardada sin conexión en este navegador.';
-  }
+  // partida de antes de las cuentas en el servidor (guardada solo en este navegador): Puru avisa de que ya no sirve
+  else if ((() => { try { return !!localStorage.getItem('pmdt_save'); } catch { return false; } })()) puruNotice();
+}
+async function puruNotice() {
+  const card = document.querySelector('#screen-auth .card'), choice = document.getElementById('auth-choice');
+  const wrap = document.createElement('div'); wrap.className = 'puru-notice';
+  wrap.innerHTML = '<div class="pmd-portrait"><img alt=""></div><div class="pmd-box"><p class="pmd-text"></p><span class="pmd-next hidden">▼</span></div>';
+  choice.classList.add('hidden'); card.appendChild(wrap);
+  await dialog(wrap.querySelector('.pmd-box'), [
+    { who: 'Puru', text: '¡Hemos añadido una BASE DE DATOS (y la parte del servidor) al juego!!', portrait: await portraitURL('pidgeot', 'Joyous') },
+    { who: 'Puru', text: 'Tu partida anterior no sirve, ¡lo siento! Tendrás que empezar de nuevo.', portrait: await portraitURL('pidgeot', 'Worried') },
+  ], { portraitEl: wrap.querySelector('.pmd-portrait') });
+  try { localStorage.removeItem('pmdt_save'); localStorage.removeItem('mm_known'); } catch {}
+  wrap.remove(); choice.classList.remove('hidden');
+  const c = document.getElementById('btn-continue'); if (c) { c.disabled = true; c.title = 'Aún no tienes ninguna partida'; }
 }
 let toastTimer;
 export function toast(text, ms = 2500) { const t = $('#toast'); t.textContent = text; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), ms); }

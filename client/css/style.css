@@ -316,3 +316,6 @@ body.log-inside #log { display: none; }
 /* barriga con hambre (20 o menos): parpadea en rojo */
 .bar.belly.hungry i { background: #e04848 !important; animation: hungry-blink .8s steps(2, start) infinite; }
 @keyframes hungry-blink { to { opacity: .35; } }
+
+/* aviso de Puru (web): cuadro de diálogo con retrato dentro de la pantalla de inicio */
+.puru-notice { position: relative; margin-top: 112px; text-align: left; }
