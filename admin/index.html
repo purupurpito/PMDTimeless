@@ -39,6 +39,7 @@
   .twocol .wrap { max-height: 380px; overflow-y: auto; }
   h4 { font-size: 13px; margin: 14px 0 6px; color: var(--text); }
   .grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .unstick { margin-left: 6px; padding: 2px 8px; font-size: 12px; background: #5a2a2a; border: 1px solid #a05050; color: #fff; border-radius: 5px; cursor: pointer; }
   select { background: #0a0c18; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px; }
   .twocol { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
   @media (max-width: 800px) { .twocol { grid-template-columns: 1fr; } }
@@ -103,6 +104,7 @@ function draw() {
   $('#head').innerHTML = COLS.map(([k, t, n]) => `<th data-k="${k}" class="${n ? 'num' : ''}">${t}${sort[0] === k ? (sort[1] > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('');
   $('#rows').innerHTML = list.map(u => `<tr>${COLS.map(([k, , n]) => {
     let v = u[k]; if (k === 'createdAt' || k === 'lastLogin') v = fmt(v); if (k === 'runStatus') v = STATUS[v] || '—'; if (k === 'playMin') v = hm(v);
+    if (k === 'runStatus' && ['active', 'paused', 'rescue_pending'].includes(u.runStatus)) return `<td>${v} <button class="unstick" data-id="${u.id}" data-name="${String(u.name).replace(/"/g, '')}" title="Cierra la exploración y le devuelve los objetos con los que entró">Desatascar</button></td>`;
     if (k === 'ip') return `<td class="${ipCount[v] > 1 ? 'ipdup' : 'dim'}">${v ? v + (ipCount[v] > 1 ? ` (×${ipCount[v]})` : '') : '—'}</td>`;
     return `<td class="${n ? 'num' : ''}">${String(v ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>`; }).join('')}</tr>`).join('');
   $('#s-dup').textContent = Object.values(ipCount).filter(n => n > 1).length;
@@ -128,6 +130,13 @@ $('#login').onsubmit = async ev => {
 };
 $('#logout').onclick = () => { sessionStorage.removeItem(KEY); users = []; show(false); };
 $('#reload').onclick = load; $('#q').oninput = draw;
+// Desatascar: cierra la exploración a medias de una cuenta (le devuelve los objetos con los que entró)
+$('#rows').addEventListener('click', async ev => {
+  const b = ev.target.closest('.unstick'); if (!b) return;
+  if (!confirm(`¿Cerrar la exploración a medias de ${b.dataset.name}? Recuperará los objetos con los que entró, pero perderá lo que llevara encima.`)) return;
+  try { const r = await api('/admin/unstick', { userId: +b.dataset.id }); alert(r.closed.length ? `Hecho: ${r.closed.map(c => c.dungeon).join(', ')} cerrada.` : 'No tenía ninguna exploración a medias.'); load(); }
+  catch (e) { alert(e.message); }
+});
 // ---------- telemetría ----------
 const E = t => String(t ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 const rowsOf = (list, cols) => list.length ? list.map(x => `<tr>${cols.map(([k, num]) => `<td class="${num ? 'num' : ''}">${E(typeof k === 'function' ? k(x) : x[k])}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${cols.length}" class="dim">Sin datos todavía</td></tr>`;

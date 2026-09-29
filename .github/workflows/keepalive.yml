@@ -1,0 +1,13 @@
+name: Mantener despierto el servidor
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Toque al servidor
+        run: |
+          curl -s -m 90 -o /dev/null -w "servidor %{http_code} en %{time_total} s" https://pmd-timeless-api.onrender.com/health || true

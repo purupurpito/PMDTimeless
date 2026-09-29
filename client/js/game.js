@@ -725,13 +725,37 @@ function openRankMenu() {
 async function startRun(def) {
   if (pendingEnd() && !(await flushPendingEnd(true))) return openDialog([{ who: '', text: 'Antes hay que enviar el resultado de tu última exploración, y ahora no hay conexión. Inténtalo de nuevo en un momento.' }]);
   if (!state.player) state.player = createPlayer(meta.starters[0]);   // por si la aldea aún no había terminado de cargar
-  const r = await call('/run/start', { dungeonId: def.id, starter: state.player.species });
-  if (!r) return closeHub();
+  let r;
+  state.busy = true; render();
+  try { r = await api('/run/start', { dungeonId: def.id, starter: state.player.species }); }
+  catch (e) { state.busy = false; closeHub(); return blockedStart(e); }
+  finally { state.busy = false; }
   meta = r.meta;
   const moves = state.player.moves;
   state.player = createPlayer(r.run.starter); state.player.moves = moves;
   Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: def, inventory: [...r.bag], runPokes: 0, missions: r.missions.map(m => ({ ...m, done: false })), earnedMD: [], recruitedLegendaries: [], lostRecruits: [], bondedLost: [], team: [], floor: 1, turn: 0, dead: false, log: [], scene: 'dungeon', diary: { monsterHouses: 0, recruited: 0, kecleonRobs: 0, itemsSold: 0 }, stonesFound: [] });
   newFloor();
+}
+// No se ha podido entrar en la mazmorra: se explica por qué y se da la salida (antes el motivo iba al registro de
+// mensajes, que en la aldea no se ve, y parecía que el botón no hacía nada)
+async function blockedStart(e) {
+  if (e.status === 409) {
+    let me = null; try { me = await api('/me'); meta = me.user.meta; state.pausedRun = me.run; } catch {}
+    if (me?.rescue) return showRescueWait(me.rescue);
+    if (me?.run) {
+      const name = dungeonById(me.run.dungeonId)?.name || 'una mazmorra';
+      return openMenu({ title: `Tienes una exploración a medias en ${name}. Antes de empezar otra, hay que terminarla.`, items: ['Continuarla ahora', 'Abandonarla', 'Cerrar'], onCancel: closeHub, onSelect: async i => {
+        if (i === 0) return resumeRun();
+        if (i === 1) return openMenu({ title: '¿Abandonar la exploración? Perderás lo acumulado.', items: ['No', 'Sí, abandonar'], onCancel: closeHub, onSelect: async j => {
+          if (j !== 1) return closeHub();
+          try { await api('/run/abandon', {}); const m2 = await api('/me'); meta = m2.user.meta; state.pausedRun = m2.run; closeHub(); openDialog([{ who: '', text: 'Exploración abandonada. Ya puedes empezar otra.' }]); }
+          catch (err) { closeHub(); openDialog([{ who: '', text: err.message }]); }
+        } });
+        closeHub();
+      } });
+    }
+  }
+  openDialog([{ who: '', text: e.status === 0 ? 'No se ha podido conectar con el servidor. Inténtalo de nuevo en un momento.' : e.message }]);
 }
 async function resumeRun() {
   const r = await call('/run/resume', {}); if (!r) return closeHub();
@@ -1788,8 +1812,9 @@ function openRescueCode() {
 }
 async function startRescue(mission) {
   // entrar en la mazmorra con la MISMA semilla y bajar directo al piso del caido
-  const r = await call('/run/start', { dungeonId: mission.dungeonId, starter: state.player.species });
-  if (!r) return closeHub();
+  let r;
+  try { r = await api('/run/start', { dungeonId: mission.dungeonId, starter: state.player.species }); }
+  catch (e) { closeHub(); return blockedStart(e); }
   meta = r.meta;
   const moves = state.player.moves;
   state.player = createPlayer(r.run.starter); state.player.moves = moves;

@@ -1,6 +1,9 @@
 // Pantallas de acceso: elección, login, registro (quiz → resultado → cuenta). Luego arranca el juego.
 import { api, setToken, hasToken, ApiError, onNetStatus } from './api.js';
 import { track } from './telemetry.js';
+import { API_URL } from './config.js';
+// Despierta al servidor nada más abrir la página, mientras el jugador aún está en la pantalla de inicio
+try { if (API_URL) fetch(API_URL + '/health', { cache: 'no-store' }).catch(() => {}); } catch {}
 import { startGame } from './game.js';
 import { SPECIES } from '../../shared/data.js';
 import { dialog, menu, keyboard, writeText, loadManifest, portraitOf, portraitURL, asset } from './ui.js';
