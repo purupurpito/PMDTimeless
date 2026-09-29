@@ -1,5 +1,6 @@
 // Pantallas de acceso: elección, login, registro (quiz → resultado → cuenta). Luego arranca el juego.
 import { api, setToken, hasToken, ApiError, onNetStatus } from './api.js';
+import { track } from './telemetry.js';
 import { startGame } from './game.js';
 import { SPECIES } from '../../shared/data.js';
 import { dialog, menu, keyboard, writeText, loadManifest, portraitOf, portraitURL, asset } from './ui.js';
@@ -42,6 +43,7 @@ onNetStatus((s, n) => {
   if (!txt) { netHide = setTimeout(() => netBanner.classList.add('hidden'), 400); return; }
   netBanner.textContent = txt; netBanner.dataset.kind = s; netBanner.classList.remove('hidden');
   if (s === 'down') netHide = setTimeout(() => netBanner.classList.add('hidden'), 7000);
+  if (s === 'down') track('net_down');   // telemetría: problemas de conexión
 });
 const waking = () => toast('Despertando a Kecleon… el servidor gratuito tarda un poco en abrir la tienda.', 8000);
 
@@ -126,7 +128,8 @@ async function startQuiz() {
   }
   box.classList.remove('asking'); $('#quiz-tab').classList.add('hidden');
   let result;
-  try { result = await api('/quiz/preview', { answers: quiz.answers }, { onWaking: waking }); }
+  const quizT0 = quiz.t0 || Date.now();
+  try { result = await api('/quiz/preview', { answers: quiz.answers }, { onWaking: waking }); track('quiz_done', { nature: result.nature, starter: result.starter, answers: quiz.answers.length }); }
   catch (e) {   // sin conexión: las respuestas están guardadas; al volver a «Nueva partida» se retoma aquí
     writeText(box, e.message); await new Promise(r => setTimeout(r, 2500)); stopQuizBg();
     show('#screen-auth'); offerOffline(e); msg($('#auth-msg'), e.status === 0 ? 'Tus respuestas están guardadas: pulsa «Nueva partida» para seguir.' : e.message); return;

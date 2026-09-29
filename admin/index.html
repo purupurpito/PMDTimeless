@@ -35,6 +35,11 @@
   .dim { color: var(--dim); }
   .hidden { display: none !important; }
   h3 { font-size: 15px; margin: 18px 0 8px; color: var(--gold); }
+  #st { display: block; max-height: 330px; overflow-y: auto; }
+  .twocol .wrap { max-height: 380px; overflow-y: auto; }
+  h4 { font-size: 13px; margin: 14px 0 6px; color: var(--text); }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  select { background: #0a0c18; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px; }
   .twocol { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
   @media (max-width: 800px) { .twocol { grid-template-columns: 1fr; } }
 </style>
@@ -56,6 +61,21 @@
       <div><h3>Iniciales</h3><div class="wrap"><table><thead><tr><th>Inicial</th><th class="num">Jugadores</th></tr></thead><tbody id="st"></tbody></table></div></div>
     </div>
     <p class="dim">El tiempo se mide solo mientras se juega en la mazmorra (sin contar la pestaña oculta ni las pausas). Las exploraciones de antes de medirlo no tienen tiempo.</p>
+    <h3>Telemetría de la beta</h3>
+    <div class="tools"><label class="dim">Periodo <select id="tdays"><option value="1">1 día</option><option value="7" selected>7 días</option><option value="30">30 días</option><option value="180">180 días</option></select></label>
+      <button id="csv">Descargar eventos (CSV)</button><span class="dim" id="tmsg"></span></div>
+    <div class="stats"><div class="stat"><span class="dim">Jugadores activos</span><b id="t-active">0</b></div><div class="stat"><span class="dim">Sesión media</span><b id="t-sess">—</b></div><div class="stat"><span class="dim">Muertes por hambre</span><b id="t-hunger">—</b></div></div>
+    <div class="grid3">
+      <div><h4>Embudo de progreso</h4><div class="wrap"><table><tbody id="t-funnel"></tbody></table></div></div>
+      <div><h4>Qué mata más</h4><div class="wrap"><table><thead><tr><th>Pokémon</th><th>Movimiento</th><th class="num">Muertes</th></tr></thead><tbody id="t-killers"></tbody></table></div></div>
+      <div><h4>Dónde se muere</h4><div class="wrap"><table><thead><tr><th>Mazmorra</th><th>Pisos</th><th class="num">Muertes</th></tr></thead><tbody id="t-deaths"></tbody></table></div></div>
+      <div><h4>Objetos más usados</h4><div class="wrap"><table><thead><tr><th>Objeto</th><th class="num">Usos</th></tr></thead><tbody id="t-items"></tbody></table></div></div>
+      <div><h4>Reclutas</h4><div class="wrap"><table><thead><tr><th>Pokémon</th><th class="num">Veces</th></tr></thead><tbody id="t-recruits"></tbody></table></div></div>
+      <div><h4>Turnos por piso</h4><div class="wrap"><table><thead><tr><th>Mazmorra</th><th class="num">Turnos</th><th class="num">Pisos</th></tr></thead><tbody id="t-turns"></tbody></table></div></div>
+      <div><h4>Dispositivos</h4><div class="wrap"><table><thead><tr><th>Tipo</th><th>Sistema</th><th>Navegador</th><th class="num">Jugadores</th></tr></thead><tbody id="t-devices"></tbody></table></div></div>
+      <div><h4>Eventos</h4><div class="wrap"><table><thead><tr><th>Tipo</th><th class="num">N.º</th></tr></thead><tbody id="t-types"></tbody></table></div></div>
+    </div>
+    <h4>Errores recientes del juego</h4><div class="wrap"><table><thead><tr><th>Mensaje</th><th>Dónde</th><th>Versión</th><th class="num">Veces</th><th>Último</th></tr></thead><tbody id="t-errors"></tbody></table></div>
     <h3>Cuentas</h3>
     <div class="tools"><input id="q" placeholder="Buscar por nombre, inicial, naturaleza…"><button class="link" id="reload">Actualizar</button></div>
     <div class="wrap"><table><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table></div>
@@ -90,6 +110,7 @@ function draw() {
 }
 async function load() {
   try {
+    loadTelemetry();
     const d = await api('/admin/users'); users = d.users; $('#s-total').textContent = d.total; $('#s-today').textContent = d.today; show(true); draw();
     const s = await api('/admin/stats'); const esc = t => String(t ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
     $('#s-hours').textContent = s.totalHours; $('#s-runs').textContent = s.runs;
@@ -107,6 +128,36 @@ $('#login').onsubmit = async ev => {
 };
 $('#logout').onclick = () => { sessionStorage.removeItem(KEY); users = []; show(false); };
 $('#reload').onclick = load; $('#q').oninput = draw;
+// ---------- telemetría ----------
+const E = t => String(t ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+const rowsOf = (list, cols) => list.length ? list.map(x => `<tr>${cols.map(([k, num]) => `<td class="${num ? 'num' : ''}">${E(typeof k === 'function' ? k(x) : x[k])}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${cols.length}" class="dim">Sin datos todavía</td></tr>`;
+async function loadTelemetry() {
+  try {
+    const t = await api('/admin/telemetry?days=' + $('#tdays').value);
+    $('#t-active').textContent = t.active; $('#t-sess').textContent = t.sessions?.avg_min != null ? t.sessions.avg_min + ' min' : '—';
+    $('#t-hunger').textContent = t.hunger?.total ? `${t.hunger.hunger} de ${t.hunger.total}` : '—';
+    const f = t.funnel, base = f.cuentas || 1, step = (k, label) => `<tr><td>${label}</td><td class="num">${f[k]}</td><td class="num">${Math.round(f[k] / base * 100)} %</td></tr>`;
+    $('#t-funnel').innerHTML = step('cuentas', 'Cuentas') + step('tutorial', 'Tutorial') + step('bosque', 'Bosque Frondoso') + step('cueva', 'Cueva') + step('monte', 'Monte') + step('ruinas', 'Ruinas') + step('tiempo50', 'Tiempo, piso 50') + step('tiempo100', 'Tiempo, piso 100');
+    $('#t-killers').innerHTML = rowsOf(t.killers, [['sp'], ['move'], ['n', 1]]);
+    $('#t-deaths').innerHTML = rowsOf(t.deathsAt, [['dungeon'], ['floors'], ['n', 1]]);
+    $('#t-items').innerHTML = rowsOf(t.items, [['item'], ['n', 1]]);
+    $('#t-recruits').innerHTML = rowsOf(t.recruits, [['species'], ['n', 1]]);
+    $('#t-turns').innerHTML = rowsOf(t.floorTurns, [['dungeon'], ['turns', 1], ['n', 1]]);
+    $('#t-devices').innerHTML = rowsOf(t.devices, [['device'], ['os'], ['browser'], ['users', 1]]);
+    $('#t-types').innerHTML = rowsOf(t.byType, [['type'], ['n', 1]]);
+    $('#t-errors').innerHTML = rowsOf(t.errors, [['message'], ['where_'], ['version'], ['n', 1], [x => fmt(x.last)]]);
+  } catch (e) { $('#tmsg').textContent = e.message; }
+}
+$('#tdays').onchange = loadTelemetry;
+$('#csv').onclick = async () => {
+  $('#tmsg').textContent = 'Preparando…';
+  try {
+    const r = await fetch(API_URL + '/admin/events.csv?days=' + $('#tdays').value, { headers: { Authorization: 'Bearer ' + sessionStorage.getItem(KEY) } });
+    if (!r.ok) throw new Error('Error ' + r.status);
+    const url = URL.createObjectURL(await r.blob()), a = document.createElement('a'); a.href = url; a.download = `pmdt-eventos-${$('#tdays').value}d.csv`; a.click(); URL.revokeObjectURL(url);
+    $('#tmsg').textContent = '';
+  } catch (e) { $('#tmsg').textContent = e.message; }
+};
 if (sessionStorage.getItem(KEY)) load();
 </script>
 </body>

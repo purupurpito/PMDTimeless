@@ -7,6 +7,7 @@ import { hooks as engineHooks, T, createMon, computeStats, damage, hitCheck, app
 import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/data.js';
 import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
+import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
 import { storyLineFor, letterById, SABLEYE_LINES } from '../../shared/story.js';
 import { HUB, VIEW } from './hub.js';
 import { HUB_OBJECTS } from './hub-objects.js';
@@ -247,6 +248,7 @@ export async function startGame(me) {
       state.dungeon.tiles[p.y][p.x + 2] = T.FLOOR; state.shop = { carpet, unpaid: [], keeper: { x: p.x, y: p.y - 1 }, room: roomOf(p) || { x: p.x - 1, y: p.y - 1, w: 3, h: 3 }, robbed: false };
       state.enemies = []; state.groundItems = [{ name: 'Semilla Revivir', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
   user = me.user; meta = me.user.meta; state.pausedRun = me.run;
+  sessionStart = Date.now(); track('session_start', { ...deviceInfo(), mode: window.__netMode?.current?.() || 'demo', rank: rankOf(meta.rankPts || 0), starter: meta.starters?.[0] }); flushTelemetry();
   state.waitingRescue = !!me.rescue;
   if (me.mailNews && !me.rescue) { const news = (tries = 0) => { if (state.scene === 'hub' && !state.dialog && !state.menu) openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Tienes correo! Pásate por el buzón de la plaza.' }]); else if (tries < 10) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1200); }
   if (me.rescue) setTimeout(() => showRescueWait(me.rescue), 300);   // tu equipo sigue esperando un rescate
@@ -579,6 +581,7 @@ function talkTo(kind) {
 // ---------- buzón de Murkrow: las cartas de la historia ----------
 const unreadMail = () => (meta.mail || []).filter(x => !x.read && letterById(x.id)).length;   // las cartas que ya no existen no cuentan
 function openMailbox() {
+  track('ui', { what: 'buzón' });
   const list = [...(meta.mail || [])].filter(x => letterById(x.id)).reverse();   // las más nuevas, arriba
   if (!list.length) return openDialog([{ who: 'Murkrow', sp: 'murkrow', text: '¡Crrraaa! Tu buzón está vacío. Vuelve más tarde.' }]);
   openMenu({ title: `Buzón · ${unreadMail()} sin leer`, items: list.map(x => `${x.read ? '   ' : '✉ '}${letterById(x.id).title}`), onSelect: i => readLetter(list[i].id) });
@@ -763,6 +766,13 @@ function restoreFloor(w) {
   updateVisibility(); render(); say('Continúas la exploración donde la dejaste.');
 }
 const runSnapshot = () => ({ where: floorSnapshot(), playMs: state.run?.playMs || 0, floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, turn: state.turn });
+// ---------- telemetría: contexto de cada evento y estadísticas de la exploración ----------
+setTelemetryContext(() => state.scene === 'dungeon' && state.dungeonDef ? { at: 'mazmorra', dungeon: state.dungeonDef.id, floor: state.floor, sp: state.player?.species, lv: state.player?.level } : { at: state.hub?.area || state.scene });
+const runStats = () => (state.run ? (state.run.tstats ||= { dealt: 0, taken: 0, kills: 0, moves: {}, items: 0 }) : { dealt: 0, taken: 0, kills: 0, moves: {}, items: 0 });
+const onOurSide = m => m === state.player || state.team.includes(m);
+const pct = m => m ? Math.round(m.hp / m.maxHp * 100) : null;
+let sessionStart = Date.now();
+if (typeof window !== 'undefined') window.addEventListener('pagehide', () => { if (user) { track('session_end', { min: Math.round((Date.now() - sessionStart) / 60000) }); flushTelemetry(true); } });
 // ---------- tiempo jugado de verdad en la mazmorra (sin pestaña oculta, pausas ni pantalla de rescate) ----------
 let playTick = performance.now();
 setInterval(() => {
@@ -951,6 +961,7 @@ async function endRun(outcome) {
     leader: state.player.name, lv0: state.player.runStartLevel ?? state.player.level, lv1: state.player.level,
     team: state.team.map(a => `${a.name} Nv${a.level}`), recruited: state.diary?.recruited || 0, missions: (state.missions || []).filter(m => m.done).length } : null;
   if (state.run) state.run.ending = true;   // ya no se autoguarda
+  { const st = runStats(), top = Object.entries(st.moves).sort((a, b) => b[1] - a[1]).slice(0, 8); track('run_summary', { outcome, floor: state.floor, dealt: st.dealt, taken: st.taken, kills: st.kills, items: st.items, moves: Object.fromEntries(top), min: Math.round((state.run?.playMs || 0) / 60000) }); }
   const endBody = { playMs: Math.round(state.run?.playMs || 0), outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] };
   const rid = state.run?.endRid || (state.run ? (state.run.endRid = newRequestId()) : newRequestId());
   try { localStorage.setItem(PENDING_KEY, JSON.stringify({ user: user?.name, rid, body: endBody, where: state.dungeonDef.name })); } catch {}
@@ -1061,6 +1072,7 @@ function openStatueMenu() {
 }
 function newFloor() {
   const def0 = state.dungeonDef;
+  if (state.player) track('floor_enter', { next: state.floor, prevTurns: state.floorTurns || 0, hp: pct(state.player), belly: Math.round(state.player.belly ?? 0), bag: state.inventory?.length || 0, team: state.team.length });
   state.arenaDone = false; state.feed = [];
   musicZone = null;
   state.floorTurns = 0; // el viento cuenta los turnos de cada piso
@@ -1131,7 +1143,8 @@ function findTargets(userMon, move) {
   return [];
 }
 function useMove(userMon, move) {
-  state.attacked = true;   // el turno hará una pausa para que se vea
+  state.attacked = true;
+  if (userMon === state.player && move?.name) { const st = runStats(); st.moves[move.name] = (st.moves[move.name] || 0) + 1; }   // el turno hará una pausa para que se vea
   playAnim(userMon, move.cat === 'spec' && Sprites.mons[userMon.species]?.anims?.Shoot ? 'Shoot' : 'Attack');   // animación de ataque
   const ally = isAlly(userMon), targets = findTargets(userMon, move), who = ally ? userMon.name : `${userMon.name} salvaje`;
   if (!targets.length) { say(`${who} usa ${move.name}, pero no acierta a nadie.`); return; }
@@ -1161,6 +1174,8 @@ function useMove(userMon, move) {
       if (dmg > 0) playAnim(target, 'Hurt');
       if (isVisibleNow(target.x, target.y)) playSfx(!ally ? 'hurt' : crit ? 'crit' : eff > 1 ? 'hitSuper' : eff < 1 ? 'hitWeak' : 'hit');   // sonido según el golpe
       target.hp = Math.max(0, target.hp - dmg);
+      if (onOurSide(target) && !onOurSide(userMon)) { target.lastHitBy = { sp: userMon.species, move: move.name || 'Ataque', lv: userMon.level, boss: !!userMon.isBoss }; runStats().taken += dmg; }
+      else if (onOurSide(userMon) && !onOurSide(target)) runStats().dealt += dmg;
       const note = (crit ? ' ¡Golpe crítico!' : '') + (eff === 0 ? ' Apenas afecta.' : eff > 1 ? ' ¡Es muy eficaz!' : eff < 1 ? ' No es muy eficaz…' : '');
       if (targets.length === 1) say(`${who} usa ${move.name}: ${dmg} de daño a ${target.name}.${note}`);
       state.effects.push({ x: target.x, y: target.y, text: `-${dmg}`, t: performance.now(), color: ally ? '#e9e3d3' : '#c95c5c' });
@@ -1235,6 +1250,7 @@ function spawnWild() {
 
 // ---------- derrotas, experiencia, reclutamiento ----------
 function defeatEnemy(e, by) {
+  if (by && onOurSide(by)) runStats().kills++;   // telemetría: enemigos derrotados en la exploración
   playSfx('faint'); addFading(e);
   state.enemies = state.enemies.filter(x => x !== e);
   const p = e.shopkeeper ? 0 : pokesFor(e.species, state.floor); state.runPokes += p; if (p) setTimeout(() => playSfx('coin'), 180);
@@ -1271,7 +1287,7 @@ function tryRecruit(e, by) {
   recruit.hp = Math.ceil(recruit.maxHp / 2);
   openMenu({ title: `¡${e.name} quiere unirse al equipo! (${chance.toFixed(0)} %)`, items: ['Aceptar', 'Rechazar'], onSelect: i => {
     if (i === 1) { say(`${e.name} se marcha cabizbajo.`); return; }
-    playSfx('recruit'); recruit.runStartLevel = recruit.level; state.team.push(recruit); if (state.diary) state.diary.recruited++; say(`¡${e.name} se une al equipo!`);
+    playSfx('recruit'); recruit.runStartLevel = recruit.level; state.team.push(recruit); track('recruit', { species: recruit.species, level: recruit.level }); if (state.diary) state.diary.recruited++; say(`¡${e.name} se une al equipo!`);
     // mote, como en el original
     setTimeout(() => openMenu({ title: `¿Quieres ponerle un mote a ${recruit.name}?`, items: ['Sí', 'No'], onSelect: async k => {
       if (k !== 0) return;
@@ -1311,7 +1327,7 @@ function gainExp(mon, n) {
     const before = { hp: mon.maxHp, atk: mon.atk, def: mon.def, spa: mon.spa, spd: mon.spd };
     mon.level++; computeStats(mon); mon.hp += mon.maxHp - before.hp;
     const gains = [['PS', mon.maxHp - before.hp], ['Ataque', mon.atk - before.atk], ['Defensa', mon.def - before.def], ['At. Esp.', mon.spa - before.spa], ['Def. Esp.', mon.spd - before.spd]].filter(([, v]) => v > 0);
-    say(`¡${mon.name} sube al nivel ${mon.level}!`);
+    say(`¡${mon.name} sube al nivel ${mon.level}!`); track('level_up', { species: mon.species, level: mon.level, leader: mon === state.player });
     pages.push({ who: mon.name, sp: mon.species, mood: 'Happy', text: `¡${mon.name} sube al nivel ${mon.level}!${gains.length ? '  ' + gains.map(([k, v]) => `${k} +${v}`).join(' · ') : ''}` });
     for (const m of [SPECIES[mon.species].learnset[mon.level]].flat().filter(Boolean)) {
       if (mon.moves.some(x => x.name === m) || !MOVES[m]) continue;
@@ -1338,6 +1354,7 @@ function downed(mon) {
     const i = state.inventory.indexOf('Semilla Revivir');
     if (i >= 0) { state.inventory.splice(i, 1); mon.hp = mon.maxHp; mon.status = null; say('¡La Semilla Revivir te revive!'); return; }
     state.dead = true; say(`${mon.name} se ha quedado sin PS…`);
+    track('death', { by: mon.lastHitBy || null, hunger: (mon.belly ?? 1) <= 0, turn: state.turn, floorTurns: state.floorTurns || 0, near: state.enemies.filter(e => e.hp > 0 && cheb(e, mon) <= 2).length, team: state.team.length, bag: state.inventory.length });
     const where = `${state.dungeonDef.name} B${state.floor}F`;
     playOnce('defeat');
     (async () => { await sleep(700); await showCard('Te han derrotado…', where, 2000); deathChoice(); })();
@@ -1670,6 +1687,7 @@ function refreshBagEffects() {
 // ---------- objetos ----------
 function useItem(index) {
   const name = state.inventory[index]; if (!name) return false;
+  track('item_use', { item: name, hp: pct(state.player) }); runStats().items++;
   setTimeout(refreshBagEffects, 0);
   const p = state.player, it = ITEMS[name];
   if (isMachine(name)) { useMachine(index); return false; }
@@ -2261,6 +2279,7 @@ function askText(title, max = 10) {
   });
 }
 function openHistory() {
+  track('ui', { what: 'registro' });
   state.historyOpen = true; state.menu = null;
   const el = document.createElement('div'); el.id = 'msg-history'; el.className = 'msg-history';
   const rows = (state.history || []).map(e => e.sep ? `<p class="mh-sep">— ${e.text} —</p>` : `<p>${e.text}</p>`).join('') || '<p class="mh-empty">Aún no hay mensajes.</p>';
@@ -2850,7 +2869,9 @@ function setupMusicControl() {
   btn.addEventListener('click', ev => { ev.stopPropagation(); setOpen(panel.classList.contains('hidden')); btn.blur(); });
   document.addEventListener('click', ev => { if (!panel.classList.contains('hidden') && !ev.target.closest('.settings')) setOpen(false); });
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !panel.classList.contains('hidden')) setOpen(false); });
-  document.getElementById('opt-touch').addEventListener('change', ev => { setTouchVisible(ev.target.checked); ev.target.blur(); });   // mostrar u ocultar el mando en pantalla
+  document.getElementById('opt-touch').addEventListener('change', ev => { setTouchVisible(ev.target.checked); ev.target.blur(); });
+  // telemetría de la beta: activada por defecto, se puede desactivar
+  const ot = document.getElementById('opt-telemetry'); if (ot) { ot.checked = telemetryOn(); ot.addEventListener('change', ev => { setTelemetry(ev.target.checked); ev.target.blur(); }); }   // mostrar u ocultar el mando en pantalla
   document.getElementById('scale').addEventListener('change', ev => ev.target.blur());
   document.getElementById('set-version').textContent = VERSION_LABEL;
   const dv = document.getElementById('opt-dview');

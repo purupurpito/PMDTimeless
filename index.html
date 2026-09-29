@@ -25,6 +25,7 @@
       <button class="btn link" type="button" data-go="choice">Volver</button>
     </form>
     <p id="auth-msg" class="msg"></p>
+    <p class="beta-note">Beta: el juego envía datos de partida (qué te derrota, cuánto duras en cada piso, errores…) asociados a tu cuenta, sin datos personales, para mejorarlo. Puedes desactivarlo en ☰ Opciones.</p>
     <div id="net-offline" class="stack hidden">
       <button class="btn" type="button" id="btn-offline">Jugar sin conexión</button>
       <p class="joke">La partida se guardará solo en este navegador.</p>
@@ -77,6 +78,7 @@
         <div class="set-row"><span>Música</span><input type="range" id="music-vol" min="0" max="100" step="1"><output id="music-val"></output></div>
         <div class="set-row"><span>Efectos</span><input type="range" id="sfx-vol" min="0" max="100" step="1"><output id="sfx-val"></output></div>
         <label class="set-row set-scale"><span>Tamaño de pantalla</span><select id="scale"></select></label>
+        <label class="set-row"><span>Enviar datos de juego (beta)</span><input type="checkbox" id="opt-telemetry"></label>
         <label class="set-row"><span>Mando en pantalla</span><input type="checkbox" id="opt-touch"></label>
         <label class="set-row"><span>Vista de mazmorra</span><select id="opt-dview"><option value="near">Cercana</option><option value="wide">Amplia</option></select></label>
         <label class="set-row"><span>Mensajes</span><select id="opt-log"><option value="inside">En la pantalla</option><option value="outside">Fuera de la pantalla</option></select></label>
