@@ -5,6 +5,8 @@
 export const HUB = {
   plaza: {
     img: 'client/assets/hub/plaza.png', mask: 'client/assets/hub/plaza_mask.png', spawn: { x: 384, y: 300 },
+    // al completar el Bosque Frondoso se abre el camino de la derecha, a la Fuente de la Evolución
+    alt: { img: 'client/assets/hub/plaza_fuente.png', mask: 'client/assets/hub/plaza_fuente_mask.png', unlock: 'bosque' },
     // Salidas: franjas junto al borde (o la puerta). Al entrar en ellas cambias de zona.
     exits: [
       { rect: [0, 225, 22, 305], to: 'mercado', at: { x: 722, y: 288 } },

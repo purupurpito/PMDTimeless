@@ -129,9 +129,16 @@ const Hub = {
       const objs = HUB_OBJECTS[id];
       const objImg = objs ? await loadImg(objs.img) : null;
       this.areas[id] = { img, walk, debug, objs: objImg ? objs.list : [], objImg };
+      // versión alternativa de la zona (p. ej. la plaza con el camino a la Fuente, al completar el Bosque Frondoso)
+      if (a.alt) { const ai = await loadImg(a.alt.img), am = await loadImg(a.alt.mask); if (ai && am) {
+        const c = document.createElement('canvas'); c.width = am.width; c.height = am.height; const cx = c.getContext('2d'); cx.drawImage(am, 0, 0);
+        const px = cx.getImageData(0, 0, c.width, c.height); this.areas[id].alt = { img: ai, walk: { w: c.width, h: c.height, data: px.data } };
+      } }
     }
   },
-  walkable(id, x, y) { const a = this.areas[id]; if (!a?.walk) return true; const { w, h, data } = a.walk; x |= 0; y |= 0; if (x < 0 || y < 0 || x >= w || y >= h) return false; return data[(y * w + x) * 4] > 127; },
+  // la zona tal como se ve ahora: su versión alternativa si ya está desbloqueada
+  view(id) { const a = this.areas[id], alt = HUB[id]?.alt; return a?.alt && alt && meta?.cleared?.includes(alt.unlock) ? { ...a, ...a.alt, debug: null } : a; },
+  walkable(id, x, y) { const a = this.view(id); if (!a?.walk) return true; const { w, h, data } = a.walk; x |= 0; y |= 0; if (x < 0 || y < 0 || x >= w || y >= h) return false; return data[(y * w + x) * 4] > 127; },
 };
 
 // ---------- tarjetas de transición (pantalla negra con texto, como al entrar en un piso en PMD) ----------
@@ -429,6 +436,7 @@ function enterHub() {
   if (!state.player) state.player = createPlayer(meta.starters[0]);
   const h = state.hub; if (!h.area) { h.area = 'plaza'; Object.assign(h, HUB.plaza.spawn); }
   spawnWanderers(); render(); checkSpecialDay(); checkMyRescue();
+  setTimeout(() => { if (!state.dialog && !state.menu) fountainNews(); }, 700);
   if (state.pausedRun) openMenu({ title: `Tienes una exploración a medias en ${dungeonById(state.pausedRun.dungeonId).name}`, items: ['Continuar ahora', 'Más tarde'], onSelect: i => { if (i === 0) resumeRun(); } });
   hubLoop();
 }
@@ -468,7 +476,7 @@ function hubLoop() {
         const tryMove = (mx, my) => { const nx = h.x + mx, ny = h.y + my; if ([[-6, 0], [6, 0], [0, 2]].every(([ox, oy]) => Hub.walkable(h.area, nx + ox, ny + oy)) && !npcAtHub(nx, ny)) { h.x = nx; h.y = ny; return true; } return false; };
         if (!tryMove(dx * sp, dy * sp)) { tryMove(dx * sp, 0) || tryMove(0, dy * sp); }
         h.movedAt = performance.now();
-        for (const ex of area.exits) if (inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); } break; }   // al irte de la plaza, Chatot entra en el gremio
+        for (const ex of area.exits) if (inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); fountainNews(); } break; }   // al irte de la plaza, Chatot entra en el gremio
       }
     }
     h.t++; if (h.t % 2 === 0) moveWanderers();
@@ -508,6 +516,13 @@ const MURKROW_LINES = [
   'Las noticias vuelan, y yo con ellas. ¡Crrraaa! Si pasa algo en el gremio, me enteraré antes que nadie.',
   '¿Sabías que llevo las novedades del gremio a todos los rincones? ¡Crrraaa! Nadie reparte como yo.',
 ];
+// Al completar el Bosque Frondoso se abre el camino a la Fuente: Murkrow da la noticia la primera vez que pasas por la plaza
+function fountainNews() {
+  if (state.hub?.area !== 'plaza' || !meta?.cleared?.includes('bosque')) return;
+  const key = `pmdt_fuente_${user?.name}`; try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { return; }
+  openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Noticias frescas! Han abierto un camino a la derecha de la plaza…' },
+    { who: 'Murkrow', sp: 'murkrow', mood: 'Normal', text: 'Dicen que lleva a una fuente muy antigua. Y que alguien espera allí desde hace muchísimo tiempo. ¡Crrraaa!' }]);
+}
 function npcGreeting(who, lines, key, next, sp) {
   const c = hubCounters(); c[key] = (c[key] || 0) + 1; saveHubCounters(c);
   return openDialog([{ who, ...(sp ? { sp } : {}), text: lines[(c[key] - 1) % lines.length] }], next);
@@ -2249,7 +2264,7 @@ const HUB_SCALE = 2; // los sprites van al doble en la aldea para casar con la e
 let musicZone = null;
 function renderHub() {
   if (state.scene === 'hub' && document.body.classList.contains('in-game') && state.hub?.area !== musicZone) { musicZone = state.hub?.area; playZone(musicZone); } // solo dentro del juego
-  const W = LOG.w, H = LOG.h, h = state.hub, area = Hub.areas[h.area], def = HUB[h.area];
+  const W = LOG.w, H = LOG.h, h = state.hub, area = Hub.view(h.area), def = HUB[h.area];
   const cam = { x: Math.max(0, Math.min(768 - W, h.x - W / 2)), y: Math.max(0, Math.min(515 - H, h.y - H / 2)) };
   ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, W, H);
   if (area?.img) ctx.drawImage(area.img, -cam.x, -cam.y); else { ctx.fillStyle = '#3f6b3a'; ctx.fillRect(0, 0, W, H); }
