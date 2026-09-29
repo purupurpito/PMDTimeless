@@ -302,7 +302,7 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     else if (m.type === 'encontrar') { groundItems.push({ ...p, name: 'Objeto perdido', missionId: m.id }); messages.push('El objeto perdido debería estar en este piso.'); }
     else if (m.type === 'rescatar') { npcs.push({ ...p, species: m.target, name: SPECIES[m.target].name, missionId: m.id, facing: [0, 1] }); messages.push(`${SPECIES[m.target].name} espera ser rescatado en este piso.`); }
     else if (m.type === 'entregar') { npcs.push({ ...p, species: m.target, name: SPECIES[m.target].name, missionId: m.id, wants: m.item, facing: [0, 1] }); messages.push(`${SPECIES[m.target].name} espera en este piso: necesita ${m.item}.`); }
-    else if (m.type === 'forajido') { const o = createMon(m.target, wildLevel() + 5, { ...p, asleep: false, missionId: m.id, outlaw: true, statMult: 1.2 }); o.name = `${SPECIES[m.target].name} (forajido)`; enemies.push(o); messages.push(`¡El forajido ${SPECIES[m.target].name} se esconde en este piso!`); }
+    else if (m.type === 'forajido') { const o = createMon(m.target, wildLevel() + 5, { ...p, asleep: false, missionId: m.id, outlaw: true, statMult: 1.2, fleeOutlaw: rng.random() < 0.35 }); o.name = `${SPECIES[m.target].name} (forajido)`; enemies.push(o); messages.push(`¡El forajido ${SPECIES[m.target].name} se esconde en este piso!`); }
   }
   for (let i = 0, n = rng.int(1, 3); i < n; i++) {
     const p = randomFloorIn(rng, rng.pick(rooms), tiles);

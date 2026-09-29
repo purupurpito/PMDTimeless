@@ -299,3 +299,6 @@ export function eraFor(def, floor, runSeed) {
 // Nombres antiguos de objetos → nombre actual (partidas guardadas con el nombre de antes)
 export const ITEM_ALIASES = { 'Semilla Reviver': 'Semilla Revivir', 'Semilla Reviser': 'Semilla Rever' };
 export const fixItemName = n => ITEM_ALIASES[n] || n;
+
+// Orbe Pavor: asusta a los enemigos de la sala (huyen), como en el original
+if (ITEMS['Orbe Pavor']) Object.assign(ITEMS['Orbe Pavor'], { fx: 'terrify', desc: 'Asusta a los enemigos de la sala: huyen de ti durante un rato.' });

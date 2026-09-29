@@ -201,7 +201,7 @@ function createPlayer(species) {
   mon.runStartLevel = mon.level; // tope: +2 niveles por exploración
   if (saved?.exp) mon.exp = saved.exp;
   mon.iq = saved?.iq || 0; mon.bonus = { ...(saved?.bonus || {}) }; computeStats(mon); mon.hp = mon.maxHp;   // IQ (gominolas) y mejoras permanentes
-  mon.name = user.name; // el Pokémon del jugador lleva su nombre
+  mon.name = meta.nicknames?.[species] || user.name; // tu inicial lleva tu nombre; los reclutas que se hicieron iniciales, su mote
   for (const m of permanentMoves(species)) if (mon.moves.length < 4 && !mon.moves.some(x => x.name === m)) mon.moves.push({ name: m, pp: MOVES[m].pp, permanent: true });
   mon.moves.forEach(m => m.permanent = permanentMoves(species).includes(m.name));
   return mon;
@@ -878,7 +878,7 @@ function showPenaltyReport(p, where) {
 // Quien te trae de vuelta al caer: siempre Bruno, el Ursaring de otro equipo de rescate
 const RESCUER = { name: 'Bruno', art: 'el', sp: 'Ursaring' };
 async function endRun(outcome) {
-  const bonds = [...state.team.map(a => ({ species: a.species, floors: a.floors })), ...state.bondedLost];
+  const bonds = [...state.team.map(a => ({ species: a.species, floors: a.floors, nick: a.nick })), ...state.bondedLost];
   const fell = { x: state.player.x, y: state.player.y };
   const fallen = `${state.dungeonDef.name}, piso B${state.floor}F`;   // para el mensaje de Chansey
   // resumen para la pantalla de «mazmorra completada» (antes de que se reinicie el estado)
@@ -1100,6 +1100,7 @@ function useMove(userMon, move) {
       if (wakeOnHit(target)) say(`${target.name} se despierta.`);
       if (move.drain) userMon.hp = Math.min(userMon.maxHp, userMon.hp + Math.floor(dmg * move.drain));
       if (dmg > 0 && cheb(userMon, target) <= 1) {
+        if (hasAbility(target, 'STENCH') && state.rng.random() < 0.1) terrify(userMon, 5, `¡El hedor de ${target.name} asusta a ${userMon.name}!`);   // Hedor
         const cs = contactStatus(state.rng, userMon, target, move);   // Elec. Estática, Punto Tóxico, Cuerpo Llama, Efecto Espora
         if (cs && applyStatus(state.rng, userMon, cs, 1)) say(`¡${userMon.name} está ${STATUS[cs].name.toLowerCase()} por la habilidad de ${target.name}!`);
         if (target.iqSkills?.includes('Counter Hitter') && target.hp > 0 && state.rng.random() < 0.3) { const back = Math.max(1, Math.floor(dmg / 4)); userMon.hp = Math.max(0, userMon.hp - back); say(`¡${target.name} contraataca: ${back} de daño!`); if (userMon.hp <= 0) { ally ? downed(userMon) : defeatEnemy(userMon, target); } }
@@ -1204,6 +1205,12 @@ function tryRecruit(e, by) {
   openMenu({ title: `¡${e.name} quiere unirse al equipo! (${chance.toFixed(0)} %)`, items: ['Aceptar', 'Rechazar'], onSelect: i => {
     if (i === 1) { say(`${e.name} se marcha cabizbajo.`); return; }
     playSfx('recruit'); recruit.runStartLevel = recruit.level; state.team.push(recruit); if (state.diary) state.diary.recruited++; say(`¡${e.name} se une al equipo!`);
+    // mote, como en el original
+    setTimeout(() => openMenu({ title: `¿Quieres ponerle un mote a ${recruit.name}?`, items: ['Sí', 'No'], onSelect: async k => {
+      if (k !== 0) return;
+      const nick = await askText(`Mote para ${SPECIES[recruit.species].name}`, 10);
+      if (nick) { recruit.name = nick; recruit.nick = nick; say(`¡A partir de ahora, se llamará ${nick}!`); render(); }
+    } }), 50);
     if (SPECIES[e.species].legendary) { state.recruitedLegendaries.push(e.species); say(`Un legendario… sólo podrá acompañarte en la Mazmorra de los Sueños.`); }
     render();
   } });
@@ -1270,7 +1277,7 @@ function downed(mon) {
     return;
   }
   state.team = state.team.filter(a => a !== mon);
-  if (mon.floors >= CFG.bondFloors) { state.bondedLost.push({ species: mon.species, floors: mon.floors }); say(`${mon.name} cae, pero vuestro vínculo ya está forjado.`); }
+  if (mon.floors >= CFG.bondFloors) { state.bondedLost.push({ species: mon.species, floors: mon.floors, nick: mon.nick }); say(`${mon.name} cae, pero vuestro vínculo ya está forjado.`); }
   else { state.lostRecruits.push(mon.species); say(`${mon.name} cae… y se marcha.`); }
 }
 
@@ -1524,7 +1531,8 @@ function orbEffect(name, it) {
     case 'rollcall': for (const a of state.team) { const s = DIRS8.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).find(s => walkableFor(a, s.x, s.y) && !occupied(s.x, s.y)); if (s) Object.assign(a, s); } say('Tu equipo se reúne a tu alrededor.'); break;
     case 'trawl': { let n = 0; for (const gi of [...state.groundItems]) if (!gi.shop && !gi.missionId && state.inventory.length < bagSizeFor(meta?.rankPts)) { state.groundItems.splice(state.groundItems.indexOf(gi), 1); state.inventory.push(gi.name); n++; } say(n ? `Atraes ${n} objeto${n > 1 ? 's' : ''} a la bolsa.` : 'No hay nada que atraer (o la bolsa está llena).'); break; }
     case 'roomStatus': { let n = 0; for (const e of foes) if (applyStatus(state.rng, e, it.status, 1)) { if (it.turns && e.status) e.status.turns = it.turns; n++; } say(n ? `${n} enemigo${n > 1 ? 's quedan' : ' queda'} ${STATUS[it.status].name.toLowerCase()}.` : 'No afecta a nadie.'); break; }
-    case 'roomWarp': foes.forEach(e => warpTo(e, randomFreeTile())); say(foes.length ? 'Los enemigos huyen despavoridos.' : 'No hay enemigos cerca.'); break;
+    case 'roomWarp': foes.forEach(e => warpTo(e, randomFreeTile())); say(foes.length ? 'Los enemigos desaparecen de la sala.' : 'No hay enemigos cerca.'); break;
+    case 'terrify': { let n = 0; foes.forEach(e => { if (terrify(e, 10, '')) n++; }); say(n ? '¡Los enemigos se asustan y huyen!' : 'No hay enemigos cerca.'); break; }
     case 'frontWarp': if (f && !f.isBoss) { warpTo(f, randomFreeTile()); say(`${f.name} sale despedido lejos.`); } else say('No pasa nada.'); break;
     case 'swap': if (f && !f.isBoss) { const px = p.x, py = p.y; p.x = f.x; p.y = f.y; f.x = px; f.y = py; updateVisibility(); say(`Intercambias el sitio con ${f.name}.`); } else say('No pasa nada.'); break;
     case 'warp': warpTo(p, randomFreeTile()); say(`${p.name} se teletransporta.`); break;
@@ -1809,6 +1817,43 @@ async function resolveTurn(playerActed) {
     if (state.turnsSinceSave >= 10) { state.turnsSinceSave = 0; autosave('turns'); }   // guardado automático cada 10 turnos
   } finally { state.resolving = false; }
 }
+// ---------- huir (como en el original): asustados, con Fuga por debajo del 50 % y forajidos que huyen ----------
+function terrify(mon, turns, why) {
+  if (!mon || mon === state.player || mon.isBoss || mon.shopkeeper || mon.hp <= 0) return false;
+  const was = mon.terrified; mon.terrified = Math.max(mon.terrified || 0, turns);
+  if (!was && isVisibleNow(mon.x, mon.y)) say(why || `¡${mon.name} se asusta y huye!`);
+  return true;
+}
+// paso que más aleja de todos los que amenazan (entre las 8 casillas vecinas)
+function fleeStep(mon, threats) {
+  if (!threats.length) return false;
+  const far = (x, y) => Math.min(...threats.map(t => Math.max(Math.abs(t.x - x), Math.abs(t.y - y))));
+  let best = null, bestD = far(mon.x, mon.y);
+  for (const [a, b] of DIRS8) if (canMove(mon, a, b)) { const d = far(mon.x + a, mon.y + b) + Math.random() * 0.1; if (d > bestD) { bestD = d; best = [a, b]; } }
+  if (!best) return false;
+  mon.x += best[0]; mon.y += best[1]; mon.facing = best; mon.movedAt = performance.now(); return true;
+}
+// true si el enemigo ha dedicado su turno a huir
+function fleeTurn(e) {
+  const threats = [state.player, ...state.team].filter(m => m && m.hp > 0);
+  if (!e.terrified && !e.isBoss && !e.shopkeeper && hasAbility(e, 'RUN_AWAY') && e.hp <= e.maxHp / 2) terrify(e, Infinity, `¡${e.name} huye asustado! (Fuga)`);
+  if (e.fleeOutlaw) {   // forajido que huye: se aleja si te ve y, si no, va hacia la escalera; si llega, escapa
+    const st = state.dungeon.stairs;
+    if (st && e.x === st.x && e.y === st.y) {
+      state.enemies = state.enemies.filter(x => x !== e);
+      if (isVisibleNow(e.x, e.y) || true) say(`¡${e.name} ha escapado por las escaleras!`);
+      return true;
+    }
+    const seen = threats.some(t => cheb(t, e) <= 5 && isVisibleNow(e.x, e.y));
+    if (seen) fleeStep(e, threats) || stepAway(e, state.player.x, state.player.y);
+    else if (st) { const path = dungeonPath(e, st); if (path?.length) { const n = path[0]; if (canMove(e, n.x - e.x, n.y - e.y)) { e.facing = [n.x - e.x, n.y - e.y]; e.x = n.x; e.y = n.y; e.movedAt = performance.now(); } } }
+    return true;
+  }
+  if (!e.terrified) return false;
+  if (Number.isFinite(e.terrified) && --e.terrified <= 0) { e.terrified = 0; return false; }
+  fleeStep(e, threats) || stepAway(e, state.player.x, state.player.y);
+  return true;
+}
 function stepAway(mon, tx, ty) {
   const dx = Math.sign(mon.x - tx) || (Math.random() < 0.5 ? 1 : -1), dy = Math.sign(mon.y - ty) || (Math.random() < 0.5 ? 1 : -1);
   for (const [a, b] of [[dx, dy], [dx, 0], [0, dy]]) if ((a || b) && canMove(mon, a, b)) { mon.x += a; mon.y += b; mon.facing = [a, b]; mon.movedAt = performance.now(); return true; }
@@ -1857,6 +1902,7 @@ function weatherTick() {
 function enemyTurn(e) {
   if (e.delay > 0) { e.delay--; return; }   // tarda en reaccionar (Kecleon tras un robo)
   const st = preTurn(e); if (st.skip || e.hp <= 0) return;
+  if (fleeTurn(e)) return;   // asustado, con Fuga o forajido que huye
   if (e.mega && MEGA_DIALOG[e.species]) {
     const dlg = MEGA_DIALOG[e.species], dist = cheb(state.player, e), room = roomOf(e), playerInRoom = room && roomOf(state.player) === room;
     if (!e.megaMet && playerInRoom) { megaEncounter(e); return; }   // al entrar en su sala, como una Casa Monstruo
@@ -2067,6 +2113,20 @@ function logHistory(msg) {
   h.push({ text: String(msg) });
   if (h.length > HISTORY_MAX) h.splice(0, h.length - HISTORY_MAX);
 }
+// campo de texto sencillo (motes): Enter acepta, Escape cancela
+function askText(title, max = 10) {
+  return new Promise(resolve => {
+    state.textOpen = true;
+    const el = document.createElement('div'); el.className = 'msg-history ask-text';
+    el.innerHTML = `<div class="mh-box"><h3></h3><input type="text" maxlength="${max}" autocomplete="off" spellcheck="false"><div class="at-btns"><button type="button" class="btn at-ok">Aceptar</button><button type="button" class="btn at-no">Cancelar</button></div></div>`;
+    el.querySelector('h3').textContent = title; document.body.appendChild(el);
+    const inp = el.querySelector('input'); setTimeout(() => inp.focus(), 30);
+    const done = v => { el.remove(); state.textOpen = false; render(); resolve(v); };
+    const ok = () => { const v = inp.value.replace(/[<>&"'`\\]/g, '').trim().slice(0, max); done(v || null); };
+    el.querySelector('.at-ok').onclick = ok; el.querySelector('.at-no').onclick = () => done(null);
+    inp.addEventListener('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') ok(); else if (ev.key === 'Escape') done(null); });
+  });
+}
 function openHistory() {
   state.historyOpen = true; state.menu = null;
   const el = document.createElement('div'); el.id = 'msg-history'; el.className = 'msg-history';
@@ -2132,7 +2192,7 @@ function feedPush(msg) {
 }
 // Iconos de estado sobre los Pokémon, como en el original (zetas, burbujas, rayo, llama, estrellas, copo)
 function drawStatusIcon(e, px, py, tile) {
-  const k = e.status?.kind || (e.asleep ? 'sleep' : null); if (!k) return false;
+  const k = e.status?.kind || (e.asleep ? 'sleep' : e.terrified ? 'terrified' : null); if (!k) return false;
   const t = performance.now() / 1000, s = tile / 24, x = px + tile - 6 * s, y = py + 5 * s;
   ctx.save(); ctx.lineWidth = Math.max(1, 1.2 * s);
   if (k === 'sleep') {
@@ -2150,6 +2210,9 @@ function drawStatusIcon(e, px, py, tile) {
   } else if (k === 'confusion') {
     const cx = px + tile / 2, cy = py + 2 * s;
     for (let i = 0; i < 3; i++) { const a = t * 3 + i * 2.09; ctx.fillStyle = '#f8e070'; ctx.font = `${Math.round(7 * s)}px sans-serif`; ctx.fillText('★', cx + Math.cos(a) * 7 * s - 3 * s, cy + Math.sin(a) * 2.5 * s + 2 * s); }
+  } else if (k === 'terrified') {   // asustado: gotas de sudor que caen
+    for (let i = 0; i < 2; i++) { const ph = (t * 1.4 + i * 0.5) % 1; ctx.globalAlpha = 1 - ph; ctx.fillStyle = '#9fd8ff';
+      ctx.beginPath(); ctx.ellipse(x - 5 * s + i * 5 * s, y - 2 * s + ph * 7 * s, 1.4 * s, 2.2 * s, 0, 0, Math.PI * 2); ctx.fill(); }
   } else if (k === 'freeze') {
     ctx.strokeStyle = '#a8e0f8';
     for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * 4 * s, y - Math.sin(a) * 4 * s); ctx.lineTo(x + Math.cos(a) * 4 * s, y + Math.sin(a) * 4 * s); ctx.stroke(); }
@@ -2581,6 +2644,7 @@ function bindInput() {
     ev.preventDefault(); if (ev.repeat && !ARROW_VEC[btn]) return;
     held.add(btn);
     if (state.historyOpen) { historyKey(btn); return; }
+    if (state.textOpen) return;   // escribiendo un mote
     if (state.busy || state.resolving) return;
     // Start termina el tutorial en cualquier momento (también con un diálogo abierto)
     if (state.tour && btn === 'START') { state.tour.skip = true; const d = state.dialog; state.dialog = null; d?.onDone?.(); render(); return; }

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>PMD: Timeless · Administración</title>
+<style>
+  :root { --bg: #0d0f1c; --panel: #16192e; --line: #2c3160; --text: #e8e8f0; --dim: #9aa0c0; --gold: #f8d848; --warn: #e0b060; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 18px; color: var(--gold); }
+  header .sp { flex: 1; }
+  main { padding: 18px 20px; max-width: 1400px; margin: 0 auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .login { max-width: 360px; margin: 12vh auto; }
+  .login h2 { margin: 0 0 12px; font-size: 17px; }
+  input { width: 100%; padding: 9px 11px; border-radius: 7px; border: 1px solid var(--line); background: #0a0c18; color: var(--text); font: inherit; }
+  button { padding: 8px 14px; border-radius: 7px; border: 1px solid #5070c0; background: #22306a; color: #fff; font: inherit; cursor: pointer; }
+  button.link { background: none; border: none; color: var(--dim); padding: 4px 6px; }
+  .msg { color: #ff8a8a; min-height: 1.4em; margin: 8px 0 0; }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; }
+  .stat b { display: block; font-size: 22px; color: var(--gold); }
+  .tools { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+  .tools input { max-width: 320px; }
+  .wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { position: sticky; top: 0; background: #1c2040; cursor: pointer; user-select: none; font-weight: 600; }
+  th.num, td.num { text-align: right; }
+  tr:hover td { background: #1a1e3a; }
+  .ipdup { color: var(--warn); font-weight: 600; }
+  .dim { color: var(--dim); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header><h1>PMD: Timeless · Administración</h1><span class="sp"></span><button class="link hidden" id="logout">Salir</button></header>
+<main>
+  <form class="card login" id="login">
+    <h2>Acceso de administrador</h2>
+    <input type="password" id="pw" placeholder="Contraseña de administrador" autocomplete="current-password" required>
+    <p class="msg" id="msg"></p>
+    <button type="submit">Entrar</button>
+  </form>
+  <section id="panel" class="hidden">
+    <div class="stats"><div class="stat"><span class="dim">Cuentas</span><b id="s-total">0</b></div><div class="stat"><span class="dim">Creadas hoy</span><b id="s-today">0</b></div><div class="stat"><span class="dim">Conexiones con varias cuentas</span><b id="s-dup">0</b></div></div>
+    <div class="tools"><input id="q" placeholder="Buscar por nombre, inicial, naturaleza…"><button class="link" id="reload">Actualizar</button></div>
+    <div class="wrap"><table><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table></div>
+    <p class="dim">«Conexión» es un identificador cifrado de la IP con la que se creó la cuenta: sirve para ver cuentas creadas desde el mismo sitio, no para saber dónde está nadie.</p>
+  </section>
+</main>
+<script type="module">
+import { API_URL } from '../client/js/config.js';
+const $ = s => document.querySelector(s), KEY = 'pmdt_admin';
+const COLS = [['name', 'Nombre'], ['nature', 'Naturaleza'], ['starter', 'Inicial'], ['starters', 'Iniciales', 1], ['rank', 'Rango'], ['rankPts', 'Puntos', 1], ['pokes', 'Pokés', 1],
+  ['cleared', 'Mazmorras', 1], ['runs', 'Exploraciones', 1], ['runStatus', 'Última'], ['createdAt', 'Creada'], ['lastLogin', 'Último acceso'], ['ip', 'Conexión']];
+let users = [], sort = ['createdAt', -1];
+const fmt = d => d ? new Date(d).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+const STATUS = { active: 'en curso', paused: 'guardada', ended: 'terminada', rescue_pending: 'esperando rescate' };
+async function api(path, body) {
+  const r = await fetch(API_URL + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(sessionStorage.getItem(KEY) ? { Authorization: 'Bearer ' + sessionStorage.getItem(KEY) } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(d.error || 'Error ' + r.status), { status: r.status }); return d;
+}
+function draw() {
+  const q = $('#q').value.trim().toLowerCase(), ipCount = {};
+  users.forEach(u => { if (u.ip) ipCount[u.ip] = (ipCount[u.ip] || 0) + 1; });
+  const list = users.filter(u => !q || [u.name, u.starter, u.nature, u.rank].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => { const x = a[sort[0]] ?? '', y = b[sort[0]] ?? ''; return (x > y ? 1 : x < y ? -1 : 0) * sort[1]; });
+  $('#head').innerHTML = COLS.map(([k, t, n]) => `<th data-k="${k}" class="${n ? 'num' : ''}">${t}${sort[0] === k ? (sort[1] > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('');
+  $('#rows').innerHTML = list.map(u => `<tr>${COLS.map(([k, , n]) => {
+    let v = u[k]; if (k === 'createdAt' || k === 'lastLogin') v = fmt(v); if (k === 'runStatus') v = STATUS[v] || '—';
+    if (k === 'ip') return `<td class="${ipCount[v] > 1 ? 'ipdup' : 'dim'}">${v ? v + (ipCount[v] > 1 ? ` (×${ipCount[v]})` : '') : '—'}</td>`;
+    return `<td class="${n ? 'num' : ''}">${String(v ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>`; }).join('')}</tr>`).join('');
+  $('#s-dup').textContent = Object.values(ipCount).filter(n => n > 1).length;
+  document.querySelectorAll('#head th').forEach(th => th.onclick = () => { sort = [th.dataset.k, sort[0] === th.dataset.k ? -sort[1] : 1]; draw(); });
+}
+async function load() {
+  try { const d = await api('/admin/users'); users = d.users; $('#s-total').textContent = d.total; $('#s-today').textContent = d.today; show(true); draw(); }
+  catch (e) { if (e.status === 401) { sessionStorage.removeItem(KEY); show(false); } $('#msg').textContent = e.message; }
+}
+function show(logged) { $('#login').classList.toggle('hidden', logged); $('#panel').classList.toggle('hidden', !logged); $('#logout').classList.toggle('hidden', !logged); }
+$('#login').onsubmit = async ev => {
+  ev.preventDefault(); $('#msg').textContent = 'Entrando… (si el servidor estaba dormido, puede tardar un minuto)';
+  try { const d = await api('/admin/login', { password: $('#pw').value }); sessionStorage.setItem(KEY, d.token); $('#pw').value = ''; $('#msg').textContent = ''; load(); }
+  catch (e) { $('#msg').textContent = e.message; }
+};
+$('#logout').onclick = () => { sessionStorage.removeItem(KEY); users = []; show(false); };
+$('#reload').onclick = load; $('#q').oninput = draw;
+if (sessionStorage.getItem(KEY)) load();
+</script>
+</body>
+</html>

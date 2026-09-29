@@ -351,3 +351,7 @@ body.log-inside #log { display: none; }
 .msg-history .mh-sep { color: #8fb0ff; text-align: center; margin: 10px 0 6px !important; }
 .msg-history .mh-empty { color: #9aa0c0; }
 .msg-history .mh-close { margin-top: 10px; align-self: center; }
+
+/* campo de texto (motes) */
+.ask-text input { font: 18px/1.3 ui-monospace, monospace; padding: 8px 10px; border-radius: 6px; border: 1px solid #5070c0; background: #0a1430; color: #fff; margin: 4px 0 12px; }
+.ask-text .at-btns { display: flex; gap: 10px; justify-content: center; }
