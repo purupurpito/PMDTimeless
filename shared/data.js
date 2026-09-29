@@ -7,7 +7,7 @@ export const CFG = {
   startLevel: 5, minibossEvery: 10, legendaryEvery: 20, bigLegendaryEvery: 50, checkpointEvery: 10, bagSize: 12,
   pokeFloorMult: 0.15,
   monsterHouse: { min: 0.02, max: 0.12, rampFloors: 30, enemies: [6, 10], items: [2, 4] },
-  teamMax: 4, bondFloors: 5, storageSize: 48, leaderChoiceRank: 4, // elegir líder sólo desde Diamante
+  teamMax: 4, bondFloors: 5, storageSize: 500, leaderChoiceRank: 4, // elegir líder sólo desde Diamante
   jirachiFloor: 100, terrainChance: 0.3,
 };
 
@@ -73,6 +73,10 @@ export const TYPE_CHART = {
 import { POKEDEX, MOVES_DB } from './pokedex.js';
 import { EOS_EXP, EOS_YIELD, EOS_MOVES, EOS_RECRUIT, EOS_LEARN, EOS_EXTRA_MOVES, EOS_TM } from './eos.js';
 import { ITEMS_FULL, EXCLUSIVES, TM_ALL } from './items-full.js';
+import { applyMoveNames, fixMoveName } from './move-names.js';
+// nombres de movimientos de la época de Exploradores del Cielo (antes de construir nada con ellos)
+applyMoveNames({ moveTables: [MOVES_DB, EOS_MOVES, EOS_EXTRA_MOVES], learnsetsBySpecies: [POKEDEX], lists: [TM_ALL, ...Object.values(EOS_TM)], learnPairs: [EOS_LEARN] });
+export { fixMoveName };
 
 // Movimientos: la base viene de PokeAPI (tools/build-pokedex.mjs); aquí sólo ajustes propios.
 export const MOVES = { ...MOVES_DB };
@@ -90,7 +94,7 @@ MOVES['Deseo Oculto'] = { ...MOVES['Deseo Oculto'], range: 'room' }; // firma de
 export const BASIC = { name: 'Ataque', type: 'Normal', typeless: true, cat: 'phys', power: 25, pmdPower: 1, acc1: 125, acc2: 93, crit: 0, range: 'front' }; // ataque normal real: potencia 1, acierta el 93 %, nunca es crítico
 export const TM_POOL = TM_ALL.filter(m => MOVES[m]);   // todas las MT del juego cuyo movimiento funciona aquí
 export const MD_POOL = ['Lanzallamas', 'Rayo', 'Surf', 'Rayo Hielo', 'Psíquico', 'Hiperrayo', 'Pulso Dragón'].filter(m => MOVES[m]);
-export const MD_RARE_POOL = ['Terremoto', 'Ventisca', 'Chispazo', 'Onda Ígnea', 'Meteoros'].filter(m => MOVES[m]); // los de sala: sólo grandes legendarios
+export const MD_RARE_POOL = ['Terremoto', 'Ventisca', 'Chispazo', 'Onda Ígnea', 'Rapidez'].filter(m => MOVES[m]); // los de sala: sólo grandes legendarios
 
 // Especies: Kanto + Johto + legendarios (generado). Se añade la marca de minijefe.
 export const SPECIES = {};
@@ -137,7 +141,7 @@ const wildPool = (types, maxTotal, minTotal = 0) => Object.keys(SPECIES).filter(
 export const ITEMS = {
   'Baya Aranja':  { kind: 'heal', value: 100, buy: 50,  sell: 15 },
   'Manzana':      { kind: 'belly', value: 50, buy: 60,  sell: 20 },
-  'Semilla Reviver': { kind: 'revive', buy: 600, sell: 150 },
+  'Semilla Revivir': { kind: 'revive', buy: 600, sell: 150 },
   'Baya Zidra':   { kind: 'cure', buy: 80, sell: 25 },
   'Semilla Dormir': { kind: 'throw_sleep', buy: 120, sell: 30 }, // se come: duerme al que tienes delante
   'Orbe Cura':    { kind: 'orb', orb: 'heal', buy: 400, sell: 100 },
@@ -168,7 +172,7 @@ export function rollLoot(rng, floor, { noSell = false } = {}) {
 }
 // Catálogo de Kecleon: fijo (consumibles básicos) + rotación por run (el servidor elige)
 export const SHOP_FIXED = ['Baya Aranja', 'Manzana', 'Baya Zidra'];
-export const SHOP_ROTATING = ['Semilla Reviver', 'Semilla Dormir', 'Orbe Cura', 'Orbe Sueño', 'Orbe Reinicio', 'Orbe Escape', 'Orbe Luminoso', 'Elixir Máximo', 'Semilla Cura', 'Semilla Explosiva', 'Manzana Grande', 'Púa Hierro', 'Guijarro Geo', 'Baya Meloc', 'Baya Zreza', 'Baya Atania', 'Baya Safre', 'Semilla Teletransporte', 'Orbe Red', 'Orbe Radar', 'Orbe Escáner', 'Gominola Blanca', 'Gominola Roja', 'Gominola Azul', 'Gominola Hierba'];
+export const SHOP_ROTATING = ['Semilla Revivir', 'Semilla Dormir', 'Orbe Cura', 'Orbe Sueño', 'Orbe Reinicio', 'Orbe Escape', 'Orbe Luminoso', 'Elixir Máximo', 'Semilla Cura', 'Semilla Explosiva', 'Manzana Grande', 'Púa Hierro', 'Guijarro Geo', 'Baya Meloc', 'Baya Zreza', 'Baya Atania', 'Baya Safre', 'Semilla Teletransporte', 'Orbe Red', 'Orbe Radar', 'Orbe Escáner', 'Gominola Blanca', 'Gominola Roja', 'Gominola Azul', 'Gominola Hierba'];
 export const SHOP_HELD = ['Lazo Amigo', 'Pañuelo Poder', 'Bufanda Defensa', 'Pañuelo Especial', 'Bufanda Zen', 'Periscopio', 'Banda Aguante', 'Pañuelo Meloc', 'Banda Caquic', 'Insomnioscopio', 'Lazo Cura', 'Banda Giro', 'Gafas Blanco', 'Banda Detector', 'Gafas Protectoras', 'Cinto Glotón'];
 export const MISSION_TYPES = {
   derrotar: { label: 'Derrota a', needsTarget: true },
@@ -240,6 +244,8 @@ export const DREAM_DUNGEON = { id: 'suenos', name: 'Mazmorra de los Sueños', fl
 
 export const dungeonById = id => id === 'suenos' ? DREAM_DUNGEON : DUNGEONS.find(d => d.id === id);
 export const rankOf = pts => { let r = 0; RANKS.forEach((rk, i) => { if (pts >= rk.pts) r = i; }); return r; };
+// La bolsa crece con el rango, como en el original: 12 huecos de Novato y 4 más por cada rango
+export const bagSizeFor = rankPts => CFG.bagSize + 4 * rankOf(rankPts || 0);
 // Experiencia como en Exploradores del Cielo: cada especie tiene su tabla (acumulada, niveles 1-100).
 // Las especies que no están en el juego original usan la de Bulbasaur, que es la referencia de la mayoría.
 const expTableOf = sp => EOS_EXP[sp] || EOS_EXP[String(sp).replace('mega_', '')] || EOS_EXP.bulbasaur;
@@ -289,3 +295,7 @@ export function eraFor(def, floor, runSeed) {
   let v = (Math.imul(runSeed ^ 0x51ed27, 0x9E3779B1) + Math.imul(block + 1, 0x85EBCA77)) >>> 0; v = Math.imul(v ^ (v >>> 15), 0x2C1B3C6D) >>> 0; v = (v ^ (v >>> 12)) >>> 0;
   return dungeonById(def.eras[v % def.eras.length]);
 }
+
+// Nombres antiguos de objetos → nombre actual (partidas guardadas con el nombre de antes)
+export const ITEM_ALIASES = { 'Semilla Reviver': 'Semilla Revivir', 'Semilla Reviser': 'Semilla Rever' };
+export const fixItemName = n => ITEM_ALIASES[n] || n;

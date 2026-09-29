@@ -2,7 +2,7 @@ import { setTouchVisible } from './touch.js';
 // =====================================================================
 // JUEGO — escenas Base y Mazmorra. Lo persistente pasa por la API; la mazmorra se juega en local con RNG sembrado.
 // =====================================================================
-import { rollLoot, WEATHER as WEATHER_ALL, CFG, SPECIES, MOVES, BASIC, TM_POOL, ITEMS, STATUS, TACTICS, RANKS, DUNGEONS, MISSION_TYPES, SHOP_IN_DUNGEON, KECLEON_DISCOUNT, RECRUIT_MIN_RANK, dungeonById, rankOf, expForLevel, expToNext, expGained, learnEntries, canLearnMachine, pokesFor, floorKind, recruitChance, canCrossTerrain, eraFor, shopPrice } from '../../shared/data.js';
+import { rollLoot, WEATHER as WEATHER_ALL, CFG, SPECIES, MOVES, BASIC, TM_POOL, ITEMS, STATUS, TACTICS, RANKS, DUNGEONS, MISSION_TYPES, SHOP_IN_DUNGEON, KECLEON_DISCOUNT, RECRUIT_MIN_RANK, dungeonById, rankOf, expForLevel, expToNext, expGained, learnEntries, canLearnMachine, pokesFor, floorKind, recruitChance, canCrossTerrain, eraFor, shopPrice, bagSizeFor, fixItemName, fixMoveName } from '../../shared/data.js';
 import { hooks as engineHooks, T, createMon, computeStats, damage, hitCheck, applyStages, applyStatus, tickStatus, wakeOnHit, buildFloor, spawnMonsterHouse, JIRACHI_PHASES } from '../../shared/engine.js';
 import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/data.js';
 import { makeRng, floorSeed } from '../../shared/rng.js';
@@ -227,17 +227,17 @@ export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
-  window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
+  window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmOpenMain = () => openDungeonMainMenu(); window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
   window.__mmGainExp = (m, n) => gainExp(m, n); window.__mmExpToNext = expToNext; window.__mmBag = () => openBagMenu(); window.__mmIconOf = t => itemInText(t);
   window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
   window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l);
   window.__mmDefeat = (e, by) => defeatEnemy(e, by); window.__mmMoves = MOVES; window.__mmSlot = i => useMoveSlot(i); window.__mmAct = (k, dx, dy) => playerAction(k, dx, dy); window.__mmPath = (to) => dungeonPath(state.player, to); window.__mmUseItem = i => useItem(i); window.__mmDescend = () => descend(); window.__mmPassing = () => !!passTimer; window.__mmEndTurn = () => endTurn(false);
   window.__mmVisibleNpcs = () => HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden).map(n => n.id); window.__mmHubPath = hubPath; window.__mmHubFree = hubFree; window.__mmGetMeta = () => meta; window.__mmEndRun = o => endRun(o); // pruebas automáticas
   window.__mmDebug = { defeat: () => downed(state.player), dungeons: () => openDungeonMenu(),
-    // tienda de prueba: alfombra 3×3 alrededor del jugador y una Semilla Reviver a su derecha
+    // tienda de prueba: alfombra 3×3 alrededor del jugador y una Semilla Revivir a su derecha
     testShop: () => { const p = state.player, carpet = []; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { state.dungeon.tiles[p.y + dy][p.x + dx] = T.FLOOR; carpet.push({ x: p.x + dx, y: p.y + dy }); }
       state.dungeon.tiles[p.y][p.x + 2] = T.FLOOR; state.shop = { carpet, unpaid: [], keeper: { x: p.x, y: p.y - 1 }, room: roomOf(p) || { x: p.x - 1, y: p.y - 1, w: 3, h: 3 }, robbed: false };
-      state.enemies = []; state.groundItems = [{ name: 'Semilla Reviver', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
+      state.enemies = []; state.groundItems = [{ name: 'Semilla Revivir', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
   user = me.user; meta = me.user.meta; state.pausedRun = me.run;
   state.waitingRescue = !!me.rescue;
   if (me.rescue) setTimeout(() => showRescueWait(me.rescue), 300);   // tu equipo sigue esperando un rescate
@@ -437,10 +437,11 @@ const closeHub = () => { state.menu = null; render(); };
 function openHubMenu() {
   const save = state.pausedRun;
   // elegir líder se hará hablando con el Pokémon en la aldea (como en Rojo/Azul), no desde este menú
-  const items = save ? ['Continuar la exploración', 'Abandonar la exploración guardada', 'Rango y progreso', 'Cerrar'] : ['Rango y progreso', 'Cerrar'];
+  const items = save ? ['Continuar la exploración', 'Abandonar la exploración guardada', 'Rango y progreso', 'Registro de mensajes', 'Cerrar'] : ['Rango y progreso', 'Registro de mensajes', 'Cerrar'];
   openMenu({ title: 'Menú', items, onCancel: closeHub, onSelect: async i => {
     const key = items[i];
     if (key === 'Continuar la exploración') return resumeRun();
+    if (key === 'Registro de mensajes') return openHistory();
     if (key.startsWith('Abandonar')) return openMenu({ title: '¿Abandonar la exploración? Perderás lo acumulado.', items: ['No', 'Sí, abandonar'], onCancel: closeHub, onSelect: async j => { if (j === 1) { const r = await call('/run/abandon', {}); if (r) { meta = r.meta; state.pausedRun = null; say('Run abandonada.'); } } closeHub(); } });
     if (key === 'Rango y progreso') return openRankMenu();
     if (key === 'Elegir líder') return openStarterMenu();
@@ -558,7 +559,7 @@ function talkTo(kind) {
     case 'gulpin': return npcGreeting('Gulpin', GULPIN_LINES, 'gu', openGulpinMenu);
     case 'wobbuffet': {
       const c = hubCounters(); c.wob = (c.wob || 0) + 1; saveHubCounters(c);
-      if (c.wob === 50 && !c.wobPrize) { c.wobPrize = true; saveHubCounters(c); return openDialog([{ who: 'Wobbuffet', text: 'Wobbuffet! (Le has hablado 50 veces. Conmovido, te da algo que guardaba.)' }], async () => { const r = await call('/hub/gift', { item: 'Semilla Reviver' }); if (r) meta = r.meta; }); }
+      if (c.wob === 50 && !c.wobPrize) { c.wobPrize = true; saveHubCounters(c); return openDialog([{ who: 'Wobbuffet', text: 'Wobbuffet! (Le has hablado 50 veces. Conmovido, te da algo que guardaba.)' }], async () => { const r = await call('/hub/gift', { item: 'Semilla Revivir' }); if (r) meta = r.meta; }); }
       return openDialog([{ who: 'Wobbuffet', text: c.wob % 10 === 0 ? ('Wobbuffet! (Van ' + c.wob + '. Parece que le caes bien.)') : 'Wobbuffet!' }]);
     }
   }
@@ -602,7 +603,7 @@ function openShopMenu() {
   const kec = state.player?.species === 'kecleon', mult = kec ? KECLEON_DISCOUNT : 1;
   say(kec ? 'Kecleon verde: "¡Hermano! Para ti, todo un 20 % más barato."' : 'Kecleon verde: "¡Bienvenido! Hoy tengo esto."');
   const stock = meta.shop || [];
-  const items = [...stock.map(n => `${n} — ${Math.round(ITEMS[n].buy * mult)} P${ITEMS[n].kind === 'held' ? ' (equipable)' : ''}`), `Bolsa: ${meta.bag.length}/${CFG.bagSize}`];
+  const items = [...stock.map(n => `${n} — ${Math.round(ITEMS[n].buy * mult)} P${ITEMS[n].kind === 'held' ? ' (equipable)' : ''}`), `Bolsa: ${meta.bag.length}/${bagSizeFor(meta?.rankPts)}`];
   openMenu({ title: `Comprar (tienes ${meta.pokes} P)${kec ? ' · descuento Kecleon' : ''}`, items, onCancel: closeHub, onSelect: async i => {
     if (i < stock.length) { const r = await call('/shop/buy', { item: stock[i], leader: state.player.species }); if (r) { meta = r.meta; say(`Compras ${stock[i]} por ${r.price} P.`); } }
     openShopMenu();
@@ -673,12 +674,36 @@ async function startRun(def) {
 async function resumeRun() {
   const r = await call('/run/resume', {}); if (!r) return closeHub();
   let s = r.run.state;
+  // nombres antiguos: objetos, MT/MD y movimientos del equipo
+  const fixMachine = n => { const x = fixItemName(n); return /^(MT|MD): /.test(x) ? x.slice(0, 4) + fixMoveName(x.slice(4)) : x; };
+  if (s?.inventory) s.inventory = s.inventory.map(fixMachine);
+  for (const mon of [s?.player, ...(s?.team || [])]) if (mon?.moves) mon.moves.forEach(mv => { mv.name = fixMoveName(mv.name); });
   const local = localBackup(r.run.id);   // si la copia del navegador es más nueva (se cortó la conexión al guardar), manda ella
   if (local && local.rev > (r.run.rev || 0)) { s = local.state; r.run.rev = local.rev; api('/run/save', { state: s, rev: local.rev }).catch(() => {}); }
   Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: dungeonById(r.run.dungeonId), player: s.player, team: s.team || [], inventory: s.inventory, runPokes: s.runPokes, missions: s.missions, earnedMD: s.earnedMD || [], recruitedLegendaries: s.recruitedLegendaries || [], lostRecruits: s.lostRecruits || [], bondedLost: s.bondedLost || [], floor: s.floor, turn: s.turn, dead: false, log: [], scene: 'dungeon', pausedRun: null });
-  newFloor();
+  state.scene = 'dungeon';
+  if (s.where?.dungeon?.tiles) restoreFloor(s.where); else newFloor();   // el mismo piso, tal como estaba (las fotos antiguas no lo traen)
 }
-const runSnapshot = () => ({ floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, turn: state.turn });
+// El piso tal como está (mapa, enemigos, objetos, lo explorado…), para continuar exactamente donde lo dejaste.
+// Casillas y mapa explorado van como texto (un carácter por casilla) para que la foto pese poco.
+const floorSnapshot = () => {
+  if (state.scene !== 'dungeon' || !state.dungeon) return null;
+  const clean = e => { const { _tw, anim, ...rest } = e; return rest; };   // lo que solo sirve para dibujar, fuera
+  return { dungeon: { ...state.dungeon, tiles: state.dungeon.tiles.map(r => r.map(v => String.fromCharCode(48 + v)).join('')) },
+    enemies: state.enemies.map(clean), groundItems: state.groundItems, npcs: (state.npcs || []).map(clean), monsterHouse: state.monsterHouse || null, shop: state.shop || null,
+    seen: (state.seen || []).map(r => r.map(v => v ? '1' : '0').join('')), weather: state.weather, era: state.era, floorTurns: state.floorTurns || 0, arenaDone: !!state.arenaDone };
+};
+function restoreFloor(w) {
+  const def = state.dungeonDef;
+  state.arenaDone = !!w.arenaDone; state.feed = []; musicZone = null; state.floorTurns = w.floorTurns || 0;
+  state.rng = makeRng((floorSeed(state.run.seed, state.floor) ^ Math.imul(state.floorTurns + 1, 2654435761)) >>> 0);
+  state.dungeon = { ...w.dungeon, tiles: w.dungeon.tiles.map(r => [...r].map(c => c.charCodeAt(0) - 48)) };
+  Object.assign(state, { enemies: w.enemies || [], groundItems: w.groundItems || [], npcs: w.npcs || [], monsterHouse: w.monsterHouse, shop: w.shop, weather: w.weather || 'none', era: w.era || def.id });
+  state.seen = (w.seen || []).map(r => [...r].map(c => c === '1'));
+  showCard(def.name, `B${state.floor}F`); setTimeout(updateDungeonMusic, 0);
+  updateVisibility(); render(); say('Continúas la exploración donde la dejaste.');
+}
+const runSnapshot = () => ({ where: floorSnapshot(), floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, turn: state.turn });
 // ---------- guardado automático (en cada piso, cada 10 turnos y al cerrar o esconder la pestaña) ----------
 // La foto va al servidor con un número de versión y, además, a este navegador. Al volver se usa la más reciente.
 const BACKUP_KEY = 'pmdt_run_backup';
@@ -721,7 +746,7 @@ async function flushPendingEnd(quiet = false) {
 // ---------- rescates: al caer, esperar a que otro explorador venga a buscarte (como en el original) ----------
 // Solo con servidor (sin conexión nadie podría rescatarte). Mientras esperas no puedes jugar: pantalla de espera.
 async function deathChoice() {
-  if (window.__netMode?.current() !== 'server') return endRun('death');
+  if (window.__netMode?.current() !== 'server' || state.dungeonDef?.id === 'entrenamiento') return endRun('death');   // sin conexión nadie te rescata; el tutorial no tiene rescates
   const where = `${state.dungeonDef.name}, piso B${state.floor}F`;
   openMenu({ title: `Tu equipo ha caído en ${where}`, items: ['Esperar un rescate', 'Rendirse y volver al gremio'], sticky: true, onSelect: async i => {
     if (i === 1) return endRun('death');
@@ -1153,7 +1178,7 @@ function defeatEnemy(e, by) {
   if (e.missionId) { const m = state.missions.find(m => m.id === e.missionId); if (m) { m.done = true; say('¡Objetivo de misión cumplido! Cobrarás al volver al gremio.'); } }
   if (e.jirachiEvent) { jirachiNextPhase(e); arenaCleared(); return; }   // tras la última fase, la sala queda despejada
   if (e.isLegendary) {
-    if (state.inventory.length < CFG.bagSize) { addItem(`MD: ${e.md}`); say(`¡${e.name} te entrega una Máquina Definitiva: ${e.md}! Úsala desde la bolsa para enseñársela a quien pueda aprenderla.`); }
+    if (state.inventory.length < bagSizeFor(meta?.rankPts)) { addItem(`MD: ${e.md}`); say(`¡${e.name} te entrega una Máquina Definitiva: ${e.md}! Úsala desde la bolsa para enseñársela a quien pueda aprenderla.`); }
     else { (state.mdToStorage ||= []).push(e.md); say(`¡${e.name} te entrega una Máquina Definitiva: ${e.md}! Tu bolsa está llena: la guardará Kangaskhan en su depósito.`); }
     if (e.big) { addItem('Diamante'); say('Entre sus restos brilla un Diamante.'); }
   } else if (e.dropsStone) {
@@ -1196,7 +1221,7 @@ function jirachiNextPhase(e) {
   say(next.species === 'jirachi' ? 'Jirachi: "Ahora, enfréntate a mí."' : `Jirachi invoca a ${boss.name}.`);
 }
 // dropIfFull: si la bolsa está llena, el objeto nuevo cae al suelo (botines). Al recoger uno del suelo NO se duplica: se queda donde estaba.
-function addItem(name, dropIfFull = true) { if (state.inventory.length >= CFG.bagSize) { say(dropIfFull ? `La bolsa está llena, ${name} se queda en el suelo.` : `La bolsa está llena: ${name} se queda en el suelo.`); if (dropIfFull) state.groundItems.push({ x: state.player.x, y: state.player.y, name }); return false; } state.inventory.push(name); return true; }
+function addItem(name, dropIfFull = true) { if (state.inventory.length >= bagSizeFor(meta?.rankPts)) { say(dropIfFull ? `La bolsa está llena, ${name} se queda en el suelo.` : `La bolsa está llena: ${name} se queda en el suelo.`); if (dropIfFull) state.groundItems.push({ x: state.player.x, y: state.player.y, name }); return false; } state.inventory.push(name); return true; }
 // Experiencia y subidas de nivel. Como en el original, cada subida se anuncia en un cuadro de diálogo con lo que
 // ha subido cada estadística, y cada movimiento nuevo también ("¡X aprende Y!").
 function levelDialog(pages, then) {
@@ -1236,8 +1261,8 @@ function offerMove(name, permanent, then) {
 function downed(mon) {
   playSfx('faint'); if (mon !== state.player) addFading(mon);
   if (mon === state.player) {
-    const i = state.inventory.indexOf('Semilla Reviver');
-    if (i >= 0) { state.inventory.splice(i, 1); mon.hp = mon.maxHp; mon.status = null; say('¡La Semilla Reviver te revive!'); return; }
+    const i = state.inventory.indexOf('Semilla Revivir');
+    if (i >= 0) { state.inventory.splice(i, 1); mon.hp = mon.maxHp; mon.status = null; say('¡La Semilla Revivir te revive!'); return; }
     state.dead = true; say(`${mon.name} se ha quedado sin PS…`);
     const where = `${state.dungeonDef.name} B${state.floor}F`;
     playOnce('defeat');
@@ -1497,7 +1522,7 @@ function orbEffect(name, it) {
     case 'escape': say('Una luz te envuelve… ¡sales de la mazmorra con todo lo que llevas!'); state.inventory.splice(state.inventory.indexOf(name), 1); setTimeout(() => endRun('exit'), 400); return 'consumed';
     case 'reveal': revealFloor(); say('¡El piso se ilumina!'); break;
     case 'rollcall': for (const a of state.team) { const s = DIRS8.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).find(s => walkableFor(a, s.x, s.y) && !occupied(s.x, s.y)); if (s) Object.assign(a, s); } say('Tu equipo se reúne a tu alrededor.'); break;
-    case 'trawl': { let n = 0; for (const gi of [...state.groundItems]) if (!gi.shop && !gi.missionId && state.inventory.length < CFG.bagSize) { state.groundItems.splice(state.groundItems.indexOf(gi), 1); state.inventory.push(gi.name); n++; } say(n ? `Atraes ${n} objeto${n > 1 ? 's' : ''} a la bolsa.` : 'No hay nada que atraer (o la bolsa está llena).'); break; }
+    case 'trawl': { let n = 0; for (const gi of [...state.groundItems]) if (!gi.shop && !gi.missionId && state.inventory.length < bagSizeFor(meta?.rankPts)) { state.groundItems.splice(state.groundItems.indexOf(gi), 1); state.inventory.push(gi.name); n++; } say(n ? `Atraes ${n} objeto${n > 1 ? 's' : ''} a la bolsa.` : 'No hay nada que atraer (o la bolsa está llena).'); break; }
     case 'roomStatus': { let n = 0; for (const e of foes) if (applyStatus(state.rng, e, it.status, 1)) { if (it.turns && e.status) e.status.turns = it.turns; n++; } say(n ? `${n} enemigo${n > 1 ? 's quedan' : ' queda'} ${STATUS[it.status].name.toLowerCase()}.` : 'No afecta a nadie.'); break; }
     case 'roomWarp': foes.forEach(e => warpTo(e, randomFreeTile())); say(foes.length ? 'Los enemigos huyen despavoridos.' : 'No hay enemigos cerca.'); break;
     case 'frontWarp': if (f && !f.isBoss) { warpTo(f, randomFreeTile()); say(`${f.name} sale despedido lejos.`); } else say('No pasa nada.'); break;
@@ -1544,7 +1569,7 @@ function floorStartTraits() {
   for (const m of team) {
     if (m.iqSkills?.includes('Deep Breather')) { const mv = m.moves.filter(x => x.pp < (MOVES[x.name]?.pp ?? x.pp)); if (mv.length) state.rng.pick(mv).pp++; }
     if (m.status && hasAbility(m, 'NATURAL_CURE')) { m.status = null; say(`Cura Natural: ${m.name} se recupera.`); }
-    if (hasAbility(m, 'PICKUP') && state.rng.random() < 0.1 && state.inventory.length < CFG.bagSize) { const it = rollLoot(state.rng, state.floor, { noSell: true }); state.inventory.push(it); say(`Recogida: ${m.name} ha encontrado ${it}.`); }
+    if (hasAbility(m, 'PICKUP') && state.rng.random() < 0.1 && state.inventory.length < bagSizeFor(meta?.rankPts)) { const it = rollLoot(state.rng, state.floor, { noSell: true }); state.inventory.push(it); say(`Recogida: ${m.name} ha encontrado ${it}.`); }
   }
   state.scanItems = state.scanFoes = state.slip = false;
 }
@@ -1918,13 +1943,14 @@ function updateVisibility() {
 // =====================================================================
 function openMenu(menu) { state.menu = { index: 0, ...menu }; render(); }
 function openDungeonMainMenu() {
-  openMenu({ title: 'Menú', items: ['Movimientos', 'Bolsa', 'Equipo', 'Suelo', 'Misiones', `Mapa: ${state.showMap === false ? 'oculto' : 'visible'}`, 'Cerrar'], onSelect: i => {
+  openMenu({ title: 'Menú', items: ['Movimientos', 'Bolsa', 'Equipo', 'Suelo', 'Misiones', `Mapa: ${state.showMap === false ? 'oculto' : 'visible'}`, 'Registro de mensajes', 'Cerrar'], onSelect: i => {
     if (i === 0) openMenu({ title: 'Movimientos', items: state.player.moves.map(m => `${m.name}${m.permanent ? ' ★' : ''}  ${m.pp}/${MOVES[m.name].pp}`), icons: state.player.moves.map(m => MOVES[m.name].type), onSelect: j => playerAction('skill', 0, 0, j) });
     else if (i === 1) openBagMenu();
     else if (i === 2) openTeamMenu();
     else if (i === 3) openGroundMenu();
     else if (i === 4) say(state.missions.length ? state.missions.map(m => `${m.done ? '✓' : '·'} ${missionText(m)}`).join(' | ') : 'Sin misiones activas.');
     else if (i === 5) { state.showMap = state.showMap === false; render(); }
+    else if (i === 6) openHistory();
   } });
 }
 const itemVerb = name => { const k = ITEMS[name]?.kind; return isMachine(name) ? 'Enseñar' : k === 'belly' || k === 'heal' || k === 'berry' || k === 'seed' ? 'Comer' : k === 'held' ? 'Equipar' : k === 'sell' ? null : 'Usar'; };
@@ -1936,9 +1962,9 @@ function itemInfo(name) {
 }
 function openBagMenu() {
   const items = [...state.inventory.map(n => isMachine(n) ? `${n.slice(0, 2)}: ${n.slice(4)}` : n), state.player.held ? `[Equipado] ${state.player.held} — quitar` : '[Nada equipado]'];   // las máquinas, con su disco
-  openMenu({ title: `Bolsa ${state.inventory.length}/${CFG.bagSize}`, items, onSelect: j => {
+  openMenu({ title: `Bolsa ${state.inventory.length}/${bagSizeFor(meta?.rankPts)}`, items, onSelect: j => {
     if (j < state.inventory.length) return openItemMenu(j);
-    if (state.player.held && state.inventory.length < CFG.bagSize) { state.inventory.push(state.player.held); say(`Te quitas ${state.player.held}.`); state.player.held = null; }
+    if (state.player.held && state.inventory.length < bagSizeFor(meta?.rankPts)) { state.inventory.push(state.player.held); say(`Te quitas ${state.player.held}.`); state.player.held = null; }
     render();
   } });
 }
@@ -1990,7 +2016,7 @@ function openGroundMenu() {
   } });
 }
 function pickUp(g, swapping = false) {
-  if (!swapping && state.inventory.length >= CFG.bagSize) { say('La bolsa está llena.'); return false; }
+  if (!swapping && state.inventory.length >= bagSizeFor(meta?.rankPts)) { say('La bolsa está llena.'); return false; }
   state.groundItems.splice(state.groundItems.indexOf(g), 1);
   state.inventory.push(g.name);
   if (g.shop) { const price = shopPriceFor(g); state.shop.unpaid.push({ name: g.name, price }); say(`Coges ${g.name} (${price} P). Kecleon: "¡Paga antes de irte! O déjalo en la alfombra si cambias de idea."`); }
@@ -2028,6 +2054,35 @@ function say(msg) {
   feedPush(msg);   // también dentro de la pantalla (si está activado, por defecto sí)
   state.log.unshift(msg); state.log = state.log.slice(0, 4);
   document.getElementById('log').innerHTML = state.log.map(m => `<p>${m}</p>`).join('');
+  logHistory(msg);
+}
+
+// ---------- registro de mensajes (como el del original: se puede releer todo lo que ha pasado) ----------
+const HISTORY_MAX = 300;
+let lastPlace = '';
+function logHistory(msg) {
+  const place = state.scene === 'dungeon' && state.dungeonDef ? `${state.dungeonDef.name} B${state.floor}F` : 'Gremio';
+  const h = state.history ||= [];
+  if (place !== lastPlace) { lastPlace = place; h.push({ sep: true, text: place }); }   // separador al cambiar de piso o volver al gremio
+  h.push({ text: String(msg) });
+  if (h.length > HISTORY_MAX) h.splice(0, h.length - HISTORY_MAX);
+}
+function openHistory() {
+  state.historyOpen = true; state.menu = null;
+  const el = document.createElement('div'); el.id = 'msg-history'; el.className = 'msg-history';
+  const rows = (state.history || []).map(e => e.sep ? `<p class="mh-sep">— ${e.text} —</p>` : `<p>${e.text}</p>`).join('') || '<p class="mh-empty">Aún no hay mensajes.</p>';
+  el.innerHTML = `<div class="mh-box"><h3>Registro de mensajes</h3><div class="mh-list">${rows}</div><button type="button" class="btn mh-close">Cerrar</button></div>`;
+  document.body.appendChild(el);
+  const list = el.querySelector('.mh-list'); list.scrollTop = list.scrollHeight;   // lo más reciente, abajo
+  el.querySelector('.mh-close').onclick = closeHistory;
+  el.addEventListener('pointerdown', ev => { if (ev.target === el) closeHistory(); });
+}
+function closeHistory() { state.historyOpen = false; document.getElementById('msg-history')?.remove(); render(); }
+function historyKey(btn) {
+  const list = document.querySelector('#msg-history .mh-list'); if (!list) return closeHistory();
+  if (btn === 'UP') list.scrollTop -= 40; else if (btn === 'DOWN') list.scrollTop += 40;
+  else if (btn === 'LEFT') list.scrollTop -= list.clientHeight; else if (btn === 'RIGHT') list.scrollTop += list.clientHeight;
+  else if (btn === 'B' || btn === 'X' || btn === 'A' || btn === 'START' || btn === 'SELECT') closeHistory();
 }
 
 // =====================================================================
@@ -2525,6 +2580,7 @@ function bindInput() {
     const btn = BTN[ev.key.toLowerCase()]; if (!btn) return;
     ev.preventDefault(); if (ev.repeat && !ARROW_VEC[btn]) return;
     held.add(btn);
+    if (state.historyOpen) { historyKey(btn); return; }
     if (state.busy || state.resolving) return;
     // Start termina el tutorial en cualquier momento (también con un diálogo abierto)
     if (state.tour && btn === 'START') { state.tour.skip = true; const d = state.dialog; state.dialog = null; d?.onDone?.(); render(); return; }

@@ -341,3 +341,13 @@ body.log-inside #log { display: none; }
 .rescue-wait .rw-code { margin: 0 0 18px; font: bold 34px/1.2 ui-monospace, monospace; letter-spacing: .12em; color: #fff; user-select: all; -webkit-user-select: all; }
 .rescue-wait .rw-status { margin: 18px 0; color: #9aa0c0; font-size: 14px; }
 .rescue-wait .rw-giveup { margin-top: 6px; }
+
+/* registro de mensajes */
+.msg-history { position: fixed; inset: 0; z-index: 8000; background: rgba(4, 6, 16, .72); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.msg-history .mh-box { width: min(560px, 100%); max-height: min(80vh, 640px); display: flex; flex-direction: column; background: #10204a; border: 2px solid #f0f0f0; border-radius: 10px; box-shadow: inset 0 0 0 3px #10204a, inset 0 0 0 4px #5070c0; padding: 14px 16px; }
+.msg-history h3 { margin: 0 0 8px; color: #f8d848; font: bold 15px/1.3 system-ui, sans-serif; }
+.msg-history .mh-list { overflow-y: auto; flex: 1; font: 14px/1.45 ui-monospace, monospace; color: #f0f0f0; padding-right: 6px; }
+.msg-history .mh-list p { margin: 0 0 4px; }
+.msg-history .mh-sep { color: #8fb0ff; text-align: center; margin: 10px 0 6px !important; }
+.msg-history .mh-empty { color: #9aa0c0; }
+.msg-history .mh-close { margin-top: 10px; align-self: center; }

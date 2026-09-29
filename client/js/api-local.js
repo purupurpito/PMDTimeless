@@ -1,5 +1,5 @@
 // ===== SERVIDOR LOCAL: el juego funciona sin servidor y guarda la partida en este navegador (localStorage) =====
-import { DELIVERY_ITEMS } from '../../shared/data.js';
+import { DELIVERY_ITEMS, bagSizeFor } from '../../shared/data.js';
 import { expToNext, CFG, DUNGEONS, SPECIES, ITEMS, SHOP_FIXED, SHOP_ROTATING, SHOP_HELD, RANKS, MISSION_TYPES, MEGA_STONES, KECLEON_DISCOUNT, dungeonById, rankOf } from '../../shared/data.js';
 import { publicQuiz, scoreQuiz, NATURES } from '../../server/quiz.js';
 
@@ -60,14 +60,14 @@ async function localApi(path, body) {
       token = 'local'; return { token, user: publicUser() };
     case '/auth/logout': token = null; return { ok: true };
     case '/me': { if (!DB.user) fail('Sin sesión', 401); refreshBoard(m); const r = activeRun(); return { user: publicUser(), run: r ? runInfo(r) : null }; }
-    case '/shop/buy': { if (activeRun()) fail('Tienes una run en curso.', 409); if (!m.shop.includes(body.item)) fail('Kecleon verde no vende eso ahora mismo.'); const isK = body.leader === 'kecleon' && m.starters.includes('kecleon'); const price = Math.round(ITEMS[body.item].buy * (isK ? KECLEON_DISCOUNT : 1)); if (m.pokes < price) fail('Kecleon verde: "Ejem… no te llega."'); if (m.bag.length >= CFG.bagSize) fail('Tienes la bolsa llena.'); m.pokes -= price; m.bag.push(body.item); return { meta: m, price }; }
+    case '/shop/buy': { if (activeRun()) fail('Tienes una run en curso.', 409); if (!m.shop.includes(body.item)) fail('Kecleon verde no vende eso ahora mismo.'); const isK = body.leader === 'kecleon' && m.starters.includes('kecleon'); const price = Math.round(ITEMS[body.item].buy * (isK ? KECLEON_DISCOUNT : 1)); if (m.pokes < price) fail('Kecleon verde: "Ejem… no te llega."'); if (m.bag.length >= bagSizeFor(m.rankPts)) fail('Tienes la bolsa llena.'); m.pokes -= price; m.bag.push(body.item); return { meta: m, price }; }
     case '/shop/sell': { if (body.keep) return { meta: m }; let gained = 0; if (body.all) m.bag = m.bag.filter(n => { if (ITEMS[n]?.sell) { gained += ITEMS[n].sell; return false; } return true; }); else { const n = m.bag[body.index]; if (!n || !ITEMS[n]?.sell) fail('Eso no se puede vender.'); gained = ITEMS[n].sell; m.bag.splice(body.index, 1); } m.pokes += gained; return { meta: m, gained }; }
     case '/missions/accept': { const i = m.board.findIndex(x => x.id === body.id); if (i < 0) fail('Esa misión ya no está.'); if (m.active.length >= 2) fail('Ya llevas dos misiones.'); m.active.push(m.board.splice(i, 1)[0]); refreshBoard(m); return { meta: m }; }
     case '/missions/abandon': m.active = m.active.filter(x => x.id !== body.id); return { meta: m };
     case '/storage/deposit': { const n = m.bag[body.index]; if (!n) fail('No hay nada ahí.'); if (m.storage.length >= CFG.storageSize) fail('Almacén lleno.'); m.bag.splice(body.index, 1); m.storage.push(n); return { meta: m }; }
-    case '/storage/withdraw': { const n = m.storage[body.index]; if (!n) fail('No hay nada ahí.'); if (m.bag.length >= CFG.bagSize) fail('Bolsa llena.'); m.storage.splice(body.index, 1); m.bag.push(n); return { meta: m }; }
+    case '/storage/withdraw': { const n = m.storage[body.index]; if (!n) fail('No hay nada ahí.'); if (m.bag.length >= bagSizeFor(m.rankPts)) fail('Bolsa llena.'); m.storage.splice(body.index, 1); m.bag.push(n); return { meta: m }; }
     case '/tutorial/done': m.tutorialDone = true; return { ok: true };
-    case '/hub/gift': { if (ITEMS[body.item] && !m.gifts.includes('wob') && m.bag.length < CFG.bagSize) { m.bag.push(body.item); m.gifts.push('wob'); } return { meta: m }; }
+    case '/hub/gift': { if (ITEMS[body.item] && !m.gifts.includes('wob') && m.bag.length < bagSizeFor(m.rankPts)) { m.bag.push(body.item); m.gifts.push('wob'); } return { meta: m }; }
     case '/hub/today': return { special: null, claimed: false, stats: m.stats, badges: m.badges };
     case '/pidgeot': return { open: rankOf(m.rankPts) >= 4, story: m.story, stones: m.stones, allStones: MEGA_STONES, dreamUnlocked: m.dreamUnlocked };
     case '/pidgeot/advance': { if (m.story === 'none') { m.story = 'quest'; return { meta: m, story: 'quest' }; } if (m.story === 'quest' && m.stones.length >= MEGA_STONES.length) { m.story = 'dream'; m.dreamUnlocked = true; return { meta: m, story: 'dream', message: 'La Mazmorra de los Sueños se revela.' }; } return { meta: m, story: m.story }; }
@@ -80,7 +80,7 @@ async function localApi(path, body) {
       const r = activeRun(); if (!r) fail('No hay run.'); const def = dungeonById(r.dungeonId), f = Number(body.floor) || 1, msgs = [];
       if (body.outcome !== 'death') {
         m.pokes += Math.max(0, Number(body.runPokes) || 0); msgs.push(`Vuelves al gremio con ${body.runPokes} Pokés.`);
-        m.bag = (body.inventory || []).slice(0, CFG.bagSize); if (body.held && m.bag.length < CFG.bagSize) m.bag.push(body.held);
+        m.bag = (body.inventory || []).slice(0, bagSizeFor(m.rankPts)); if (body.held && m.bag.length < bagSizeFor(m.rankPts)) m.bag.push(body.held);
         for (const mv of (body.mdToStorage || [])) { m.storage.push(`MD: ${mv}`); msgs.push(`La MD ${mv} está en el depósito de Kangaskhan.`); }
         m.movepool[r.starter] = m.movepool[r.starter] || []; for (const md of body.earnedMD || []) if (!m.movepool[r.starter].includes(md)) { m.movepool[r.starter].push(md); msgs.push(`${md} pasa al movepool permanente de ${SPECIES[r.starter].name}.`); }
         let rank = 0; for (const id of body.missionsDone || []) { const i = m.active.findIndex(x => x.id === id); if (i < 0) continue; const mis = m.active[i]; m.pokes += mis.pokes; rank += mis.rankPts; m.active.splice(i, 1); msgs.push(`Misión cumplida: +${mis.pokes} Pokés.`); }
@@ -92,10 +92,10 @@ async function localApi(path, body) {
         const before = rankOf(m.rankPts); m.rankPts += rank; if (rankOf(m.rankPts) > before) { msgs.push(`¡Subes a rango ${RANKS[rankOf(m.rankPts)].name}!`); for (const dg of DUNGEONS.filter(x => x.rank > before && x.rank <= rankOf(m.rankPts))) msgs.push(`Nueva mazmorra disponible: ${dg.name}.`); }
       } else {
         // al caer, como en Exploradores del Cielo: mitad de los Pokés, la mitad (o más) de la bolsa al azar y casi siempre el objeto equipado
-        const items = (body.inventory || []).slice(0, CFG.bagSize), kept = [...items], lost = [];
+        const items = (body.inventory || []).slice(0, bagSizeFor(m.rankPts)), kept = [...items], lost = [];
         for (let k = 0; k < Math.ceil(items.length / 2); k++) lost.push(kept.splice(Math.floor(Math.random() * kept.length), 1)[0]);
         const pokes = Math.max(0, Number(body.runPokes) || 0), pokesKept = Math.floor(pokes / 2), held = body.held || null, heldLost = !!held && Math.random() < 0.9;
-        m.pokes += pokesKept; m.bag = [...kept, ...(held && !heldLost ? [held] : [])].slice(0, CFG.bagSize);
+        m.pokes += pokesKept; m.bag = [...kept, ...(held && !heldLost ? [held] : [])].slice(0, bagSizeFor(m.rankPts));
         var penalty = { carried: { pokes, items, held }, lost: { pokes: pokes - pokesKept, items: lost, held: heldLost ? held : null }, kept: { pokes: pokesKept, items: kept, held: held && !heldLost ? held : null } };
       }
       // nivel y experiencia se conservan siempre (también al caer), con el mismo tope que el servidor real

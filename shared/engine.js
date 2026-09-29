@@ -347,7 +347,7 @@ export function spawnMonsterHouse(rng, def, floor, room, tiles, occupied, pool =
   for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++) if (tiles[y][x] === T.FLOOR && !occupied(x, y)) free.push({ x, y });
   for (let i = 0, n = rng.int(...CFG.monsterHouse.enemies); i < n && free.length; i++) enemies.push(createMon(rng.pick(pool), wildLevel(), { ...free.splice(rng.int(0, free.length - 1), 1)[0], asleep: false }));
   const sellable = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'sell' && ITEMS[k].minFloor <= floor);
-  for (let i = 0, n = rng.int(...CFG.monsterHouse.items); i < n && free.length; i++) groundItems.push({ ...free.splice(rng.int(0, free.length - 1), 1)[0], name: rng.random() < 0.6 ? rng.pick(sellable) : rng.pick(['Baya Aranja', 'Manzana', 'Semilla Reviver', 'Orbe Cura']) });
+  for (let i = 0, n = rng.int(...CFG.monsterHouse.items); i < n && free.length; i++) groundItems.push({ ...free.splice(rng.int(0, free.length - 1), 1)[0], name: rng.random() < 0.6 ? rng.pick(sellable) : rng.pick(['Baya Aranja', 'Manzana', 'Semilla Revivir', 'Orbe Cura']) });
   return { enemies, groundItems };
 }
 
