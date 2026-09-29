@@ -533,7 +533,7 @@ function npcGreeting(who, lines, key, next, sp) {
 function hubInteract() {
   const h = state.hub, area = HUB[h.area], fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
   const npc = [...area.npcs].filter(npcShown).find(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26)));
-  if (npc) { if (!npc.fixedFacing) npc.facing = [-Math.sign(h.facing[0]), -Math.sign(h.facing[1])]; return talkTo(npc.talk); }
+  if (npc) { if (!npc.fixedFacing) npc.facing = [-Math.sign(h.facing[0]), -Math.sign(h.facing[1])]; state.talkNpc = { x: npc.x, y: npc.y, area: h.area }; return talkTo(npc.talk); }
   const w = h.wanderers.find(n => Math.hypot(n.x - fx, n.y - fy) < 20); if (w) return openDialog([{ who: SPECIES[w.species].name, text: WANDER_LINES[(Math.random() * WANDER_LINES.length) | 0] }]);
   for (const s of area.signs || []) if (inRect(fx, fy, s.rect)) return openDialog([{ who: '', text: s.text }]);
   for (const hs of area.hotspots || []) if (inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) return hotspotAction(hs);
@@ -2300,6 +2300,10 @@ function renderHub() {
   if (state.scene === 'hub' && document.body.classList.contains('in-game') && state.hub?.area !== musicZone) { musicZone = state.hub?.area; playZone(musicZone); } // solo dentro del juego
   const W = LOG.w, H = LOG.h, h = state.hub, area = Hub.view(h.area), def = HUB[h.area];
   const cam = { x: Math.max(0, Math.min(768 - W, h.x - W / 2)), y: Math.max(0, Math.min(515 - H, h.y - H / 2)) };
+  // dónde quedan en pantalla los que participan en la conversación (para no taparlos con el cuadro de diálogo)
+  if (!state.dialog) state.talkNpc = null;
+  const tg0 = state.tour?.guide;
+  state.dlgFocus = [h.y - cam.y, ...(state.talkNpc?.area === h.area ? [state.talkNpc.y - cam.y] : []), ...(tg0?.area === h.area ? [tg0.y - cam.y] : [])];
   ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, W, H);
   if (area?.img) ctx.drawImage(area.img, -cam.x, -cam.y); else { ctx.fillStyle = '#3f6b3a'; ctx.fillRect(0, 0, W, H); }
   if (state.showMask && area?.debug) ctx.drawImage(area.debug, -cam.x, -cam.y);
@@ -2602,7 +2606,13 @@ function scheduleRender() { if (renderQueued) return; renderQueued = true; reque
 const NPC_PORTRAITS = ['chatot', 'diglett', 'kecleon', 'kangaskhan', 'gulpin', 'wobbuffet', 'pidgeot', 'chansey', 'mawile', 'murkrow'];
 function renderDialog() {
   const d = state.dialog; if (!d) return;
-  const page = d.pages[d.i], W = LOG.w, h = Math.round(114 * UIS()), y = LOG.h - h - 6, x = 6, w = W - 12;   // como en el original: casi todo el ancho y ~¼ de la altura
+  const page = d.pages[d.i], W = LOG.w, h = Math.round(114 * UIS()), x = 6, w = W - 12;   // como en el original: casi todo el ancho y ~¼ de la altura
+  // Abajo, salvo que tape a quien habla: si alguien queda en la franja de abajo (y nadie arriba), el cuadro sube
+  // y el retrato va debajo. Así se ve la escena (en la mazmorra la cámara te centra: siempre abajo).
+  const fys = state.scene === 'hub' ? (state.dlgFocus || []) : [];
+  const hitsBottom = fys.some(fy => fy > LOG.h - h - 16), hitsTop = fys.some(fy => fy - 52 < h + 12);
+  const top = hitsBottom && !hitsTop, y = top ? 6 : LOG.h - h - 6;
+  d.top = top;
   if (d.pageStart !== d.i) { d.pageStart = d.i; d.t0 = performance.now(); }
   // caja
   ctx.fillStyle = '#10204a'; roundRect(x, y, w, h, 6); ctx.fill();
@@ -2614,7 +2624,7 @@ function renderDialog() {
   const prs = page.portraits?.length ? page.portraits.map(sp => [sp, page.mood || 'Normal']) : (() => { const sp = speakerSpecies(page); return sp ? [[sp, page.mood || inferMood(page)]] : []; })();
   const PS = 80, PF = PS + 12;   // retrato al doble de su tamaño (nítido) y marco
   prs.forEach(([sp, emo], i) => {
-    const px0 = x + 4 + i * (PF + 6), py0 = y - PF - 4;
+    const px0 = x + 4 + i * (PF + 6), py0 = top ? y + h + 4 : y - PF - 4;   // retrato encima del cuadro (o debajo, si el cuadro está arriba)
     ctx.fillStyle = '#10204a'; roundRect(px0, py0, PF, PF, 6); ctx.fill();
     ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 2; roundRect(px0 + 2, py0 + 2, PF - 4, PF - 4, 5); ctx.stroke();
     ctx.strokeStyle = '#5070c0'; ctx.lineWidth = 1; roundRect(px0 + 4.5, py0 + 4.5, PF - 9, PF - 9, 4); ctx.stroke();
