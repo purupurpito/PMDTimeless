@@ -96,7 +96,7 @@ const Sprites = {
     const [fw, fh] = moving && m.sheetImg ? m.frame : m.idleFrame || m.frame;
     const frames = moving && m.sheetImg ? m.frames : m.idleImg ? (m.idleFrames || 1) : 1;   // sin animación de inactivo: primer fotograma de andar
     const row = DIR_ROW[`${mon.facing[0]},${mon.facing[1]}`] ?? 0;
-    const col = Math.floor(performance.now() / (moving ? 90 : 220)) % frames;
+    const col = mon.still && !moving ? 0 : Math.floor(performance.now() / (moving ? 90 : 220)) % frames;   // quien está hablando se queda quieto (como en el original)
     // Los frames de SpriteCollab llevan margen: los pies quedan hacia el 62 % de la altura del frame. Se anclan a la casilla.
     // Con hoja recortada (trim = [x0, y0, ancho y alto del fotograma original]) se coloca igual que el original.
     const scale = tile / 24, feet = py + tile - 2 * scale;
@@ -2405,7 +2405,7 @@ function renderHub() {
   if (state.showMask && area?.debug) ctx.drawImage(area.debug, -cam.x, -cam.y);
   // entidades ordenadas por y para que el que está más abajo tape al de arriba
   const tg = state.tour?.guide, tourNpc = tg && tg.area === h.area ? [{ id: 'chatot', x: tg.x, y: tg.y, facing: tg.facing, movedAt: tg.movedAt, kind: 'npc' }] : [];
-  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden).map(n => ({ ...n, kind: 'npc' })), ...tourNpc, ...h.wanderers.map(w => ({ ...w, kind: 'w' })), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].sort((a, b) => a.y - b.y);
+  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden).map(n => ({ ...n, kind: 'npc', still: !!state.dialog && state.talkNpc?.x === n.x && state.talkNpc?.y === n.y })), ...tourNpc, ...h.wanderers.map(w => ({ ...w, kind: 'w' })), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].sort((a, b) => a.y - b.y);
   const fg = (def.fg || []).map(f => ({ ...f, drawn: false }));
   const drawFg = f => {   // capa de primer plano: un trozo de la imagen redibujado encima; con poly, solo esa forma (p. ej. un mostrador en diagonal)
     if (f.drawn || !area?.img) return; f.drawn = true;
@@ -2431,7 +2431,7 @@ function renderHub() {
       ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = `bold ${HUB_SCALE * 7}px sans-serif`; ctx.fillText('z', sx + HUB_SCALE * 8, sy - HUB_SCALE * 20 - 3 * Math.sin(performance.now() / 400));
       continue;
     }
-    if (!Sprites.drawMon(ctx, { species: key, facing: e.facing, movedAt: e.movedAt }, sx - HUB_SCALE * 12, sy - HUB_SCALE * 24, HUB_SCALE * 24)) { ctx.fillStyle = e.kind === 'me' ? '#f2b544' : '#4caf6d'; ctx.beginPath(); ctx.arc(sx, sy - 10 * HUB_SCALE, 10 * HUB_SCALE, 0, Math.PI * 2); ctx.fill(); }
+    if (!Sprites.drawMon(ctx, { species: key, facing: e.facing, movedAt: e.movedAt, still: e.still || (e.kind === 'me' && !!state.dialog) }, sx - HUB_SCALE * 12, sy - HUB_SCALE * 24, HUB_SCALE * 24)) { ctx.fillStyle = e.kind === 'me' ? '#f2b544' : '#4caf6d'; ctx.beginPath(); ctx.arc(sx, sy - 10 * HUB_SCALE, 10 * HUB_SCALE, 0, Math.PI * 2); ctx.fill(); }
   }
   fg.forEach(drawFg);
   // indicación de interacción cerca de un PNJ o cartel
