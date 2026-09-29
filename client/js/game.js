@@ -8,7 +8,10 @@ import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/d
 import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
-import { storyLineFor, letterById, SABLEYE_LINES } from '../../shared/story.js';
+import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
+import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay } from './scenes.js';
+import { SCENES } from '../../shared/story.js';
+const SCENES_ALL = () => SCENES;
 import { HUB, VIEW } from './hub.js';
 import { HUB_OBJECTS } from './hub-objects.js';
 import { typeIconHTML, typeIconImg } from './typeicons.js';
@@ -82,7 +85,7 @@ const Sprites = {
       if (aimg) {
         const [fw, fh] = a.frame, rows = Math.max(1, Math.round(aimg.height / fh)), dur = a.durations?.length ? a.durations : [8];
         const total = dur.reduce((s, d) => s + d, 0), t0 = act ? act.t0 : 0;
-        let f = (now - t0) / (1000 / 60); f = act ? Math.min(f, total - 0.01) : f % total;   // una vez (golpes) o en bucle (dormir)
+        let f = (now - t0) / (1000 / 60); f = act && !act.loop ? Math.min(f, total - 0.01) : f % total;   // una vez (golpes), o en bucle (dormir, poses mantenidas)
         let col = 0; for (let acc = 0; col < dur.length - 1 && (acc += dur[col]) <= f; col++);
         const row = rows === 1 ? 0 : (DIR_ROW[`${mon.facing?.[0] ?? 0},${mon.facing?.[1] ?? 1}`] ?? 0);
         const scale = tile / 24, feet = py + tile - 2 * scale;
@@ -234,6 +237,8 @@ const canLeaderChoice = () => rankOf(meta.rankPts) >= CFG.leaderChoiceRank;
 // =====================================================================
 export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
+  initScenes({ state, render, openDialog, sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || sp, uis: UIS, sfx: n => { try { playSfx(n); } catch {} }, music: null });
+  window.__mmPlayScene = id => { const sc = SCENES_ALL().find(s => s.id === id); return sc ? playScene(sc) : Promise.resolve(); };
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
   window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmOpenMain = () => openDungeonMainMenu(); window.__mmTalk = k => talkTo(k); window.__mmSees = (e, t) => enemySees(e, t); window.__mmEnemyTurn = e => enemyTurn(e); window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
@@ -439,12 +444,24 @@ function enterHub() {
   state.scene = 'hub'; state.menu = null; state.dead = false; state.enemies = []; state.team = []; state.npcs = []; state.effects = []; state.run = null;
   if (!state.player) state.player = createPlayer(meta.starters[0]);
   const h = state.hub; if (!h.area) { h.area = 'plaza'; Object.assign(h, HUB.plaza.spawn); }
-  spawnWanderers(); render(); checkSpecialDay(); checkMyRescue();
+  spawnWanderers(); render(); hubLoop();
+  const sc = user && !state.tour ? pendingScene(meta) : null;
+  if (sc) { runScene(sc).then(() => hubExtras()); } else hubExtras();
+}
+// escena de historia: se reproduce, se marca como vista en el servidor y se enseña una sola vez
+async function runScene(sc) {
+  try { await playScene(sc); } catch (e) { console.error(e); }
+  (meta.scenes ||= []).includes(sc.id) || meta.scenes.push(sc.id);
+  try { const r = await api('/scene/seen', { id: sc.id }); if (r?.meta) meta = r.meta; } catch {}
+  track('scene', { id: sc.id, skipped: false });
+}
+function hubExtras() {
+  checkSpecialDay(); checkMyRescue();
   setTimeout(() => { if (!state.dialog && !state.menu) fountainNews(); }, 700);
   if (state.mailArrived) { const news = (tries = 0) => { if (state.scene !== 'hub') return; if (!state.dialog && !state.menu && !document.querySelector('.penalty-report')) { state.mailArrived = false; openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Te ha llegado una carta mientras estabas fuera! Pásate por el buzón de la plaza.' }]); } else if (tries < 20) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1500); }
   if (state.pausedRun) openMenu({ title: `Tienes una exploración a medias en ${dungeonById(state.pausedRun.dungeonId).name}`, items: ['Continuar ahora', 'Más tarde'], onSelect: i => { if (i === 0) resumeRun(); } });
-  hubLoop();
 }
+
 const closeHub = () => { state.menu = null; render(); };
 // Menú general (S / Tab) — lo demás se hace hablando con cada PNJ
 function openHubMenu() {
@@ -473,7 +490,8 @@ function hubLoop() {
     if (state.scene !== 'hub') return;
     const h = state.hub, area = HUB[h.area];
     if (h.inBed && [...held].some(k => ['UP', 'DOWN', 'LEFT', 'RIGHT'].includes(k))) getUpFromBed();
-    if (!state.menu && !state.dialog && !state.busy && !state.tour && !h.inBed) {   // durante el tutorial no te mueves tú: sigues a Chatot
+    tickScenes();
+    if (!state.menu && !state.dialog && !state.busy && !state.tour && !h.inBed && !state.cut) {   // durante el tutorial no te mueves tú: sigues a Chatot
       let dx = 0, dy = 0;
       if (held.has('UP')) dy -= 1; if (held.has('DOWN')) dy += 1; if (held.has('LEFT')) dx -= 1; if (held.has('RIGHT')) dx += 1;
       if (dx || dy) {
@@ -2420,7 +2438,7 @@ let musicZone = null;
 function renderHub() {
   if (state.scene === 'hub' && document.body.classList.contains('in-game') && state.hub?.area !== musicZone) { musicZone = state.hub?.area; playZone(musicZone); } // solo dentro del juego
   const W = LOG.w, H = LOG.h, h = state.hub, area = Hub.view(h.area), def = HUB[h.area];
-  const cam = { x: Math.max(0, Math.min(768 - W, h.x - W / 2)), y: Math.max(0, Math.min(515 - H, h.y - H / 2)) };
+  const cam = state.cut?.cam ? { x: state.cut.cam.x, y: state.cut.cam.y } : { x: Math.max(0, Math.min(768 - W, h.x - W / 2)), y: Math.max(0, Math.min(515 - H, h.y - H / 2)) };   // en una escena, la cámara la manda el guion
   // dónde quedan en pantalla los que participan en la conversación (para no taparlos con el cuadro de diálogo)
   if (!state.dialog) state.talkNpc = null;
   const tg0 = state.tour?.guide;
@@ -2430,7 +2448,7 @@ function renderHub() {
   if (state.showMask && area?.debug) ctx.drawImage(area.debug, -cam.x, -cam.y);
   // entidades ordenadas por y para que el que está más abajo tape al de arriba
   const tg = state.tour?.guide, tourNpc = tg && tg.area === h.area ? [{ id: 'chatot', x: tg.x, y: tg.y, facing: tg.facing, movedAt: tg.movedAt, kind: 'npc' }] : [];
-  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden).map(n => ({ ...n, kind: 'npc', still: !!state.dialog && state.talkNpc?.x === n.x && state.talkNpc?.y === n.y })), ...tourNpc, ...h.wanderers.map(w => ({ ...w, kind: 'w' })), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].sort((a, b) => a.y - b.y);
+  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden && !state.cut?.hideNpcs).map(n => ({ ...n, kind: 'npc', still: !!state.dialog && state.talkNpc?.x === n.x && state.talkNpc?.y === n.y })), ...tourNpc, ...(state.cut ? [] : h.wanderers.map(w => ({ ...w, kind: 'w' }))), ...sceneEntities(area), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].filter(e => !(state.cut?.hidePlayer && e.kind === 'me')).sort((a, b) => a.y - b.y);
   const fg = (def.fg || []).map(f => ({ ...f, drawn: false }));
   const drawFg = f => {   // capa de primer plano: un trozo de la imagen redibujado encima; con poly, solo esa forma (p. ej. un mostrador en diagonal)
     if (f.drawn || !area?.img) return; f.drawn = true;
@@ -2449,6 +2467,8 @@ function renderHub() {
       ctx.globalAlpha = 1; continue;
     }
     const sx = e.x - cam.x, sy = e.y - cam.y, key = e.kind === 'npc' ? e.id : e.species;
+    if (e.kind === 'sceneobj') { e.draw(ctx, sx, sy); continue; }
+    if (e.kind === 'actor') { drawSceneActor(ctx, e, sx, sy, HUB_SCALE, (c, m, px, py, t) => Sprites.drawMon(c, m, px, py, t)); continue; }
     if (e.kind === 'me' && h.inBed) {   // tumbado en la cama: el personaje de lado, algo más bajo (la manta ya está en la imagen)
       ctx.save(); ctx.translate(sx, sy - HUB_SCALE * 4); ctx.rotate(-Math.PI / 2);
       if (!Sprites.drawMon(ctx, { species: key, facing: [0, 1], movedAt: 0 }, -HUB_SCALE * 12, -HUB_SCALE * 12, HUB_SCALE * 24)) { ctx.fillStyle = '#f2b544'; ctx.beginPath(); ctx.ellipse(0, 0, HUB_SCALE * 8, HUB_SCALE * 11, 0, 0, Math.PI * 2); ctx.fill(); }
@@ -2459,6 +2479,8 @@ function renderHub() {
     if (!Sprites.drawMon(ctx, { species: key, facing: e.facing, movedAt: e.movedAt, still: e.still || (e.kind === 'me' && !!state.dialog) }, sx - HUB_SCALE * 12, sy - HUB_SCALE * 24, HUB_SCALE * 24)) { ctx.fillStyle = e.kind === 'me' ? '#f2b544' : '#4caf6d'; ctx.beginPath(); ctx.arc(sx, sy - 10 * HUB_SCALE, 10 * HUB_SCALE, 0, Math.PI * 2); ctx.fill(); }
   }
   fg.forEach(drawFg);
+  drawSceneOverlay(ctx, W, H, cam);   // noche, narración y fundidos de las escenas
+  if (state.cut) return;
   // indicación de interacción cerca de un PNJ o cartel
   const fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
   const near = def.npcs.filter(npcShown).find(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))) || (def.signs || []).find(s => inRect(fx, fy, s.rect)) || (def.hotspots || []).find(hs => inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) || def.exits.find(ex => ex.label && inExit(ex, fx, fy));
@@ -2745,11 +2767,14 @@ function renderDialog() {
   const prs = page.portraits?.length ? page.portraits.map(sp => [sp, page.mood || 'Normal']) : (() => { const sp = speakerSpecies(page); return sp ? [[sp, page.mood || inferMood(page)]] : []; })();
   const PS = 80, PF = PS + 12;   // retrato al doble de su tamaño (nítido) y marco
   prs.forEach(([sp, emo], i) => {
-    const px0 = x + 4 + i * (PF + 6), py0 = top ? y + h + 4 : y - PF - 4;   // retrato encima del cuadro (o debajo, si el cuadro está arriba)
+    const px0 = page.side === 'right' ? x + w - 4 - PF - i * (PF + 6) : x + 4 + i * (PF + 6), py0 = top ? y + h + 4 : y - PF - 4;   // retrato encima del cuadro (o debajo, si el cuadro está arriba); a la derecha para el segundo interlocutor
     ctx.fillStyle = '#10204a'; roundRect(px0, py0, PF, PF, 6); ctx.fill();
     ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 2; roundRect(px0 + 2, py0 + 2, PF - 4, PF - 4, 5); ctx.stroke();
     ctx.strokeStyle = '#5070c0'; ctx.lineWidth = 1; roundRect(px0 + 4.5, py0 + 4.5, PF - 9, PF - 9, 4); ctx.stroke();
-    if (!drawPortrait(ctx, sp, emo, px0 + 6, py0 + 6, PS)) {   // sin retrato: recuadro con la inicial
+    let drawn;
+    if (page.side === 'right') { ctx.save(); ctx.translate(px0 + 6 + PS, py0 + 6); ctx.scale(-1, 1); drawn = drawPortrait(ctx, sp, emo, 0, 0, PS); ctx.restore(); }   // volteado: mira hacia dentro, como en el original
+    else drawn = drawPortrait(ctx, sp, emo, px0 + 6, py0 + 6, PS);
+    if (!drawn) {   // sin retrato: recuadro con la inicial
       const nm = page.who || SPECIES[sp]?.name || '?', h = [...nm].reduce((q, c) => (q * 31 + c.charCodeAt(0)) % 360, 7);
       ctx.fillStyle = `hsl(${h},45%,42%)`; ctx.fillRect(px0 + 6, py0 + 6, PS, PS);
       ctx.fillStyle = '#fff'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(nm[0].toUpperCase(), px0 + PF / 2, py0 + PF / 2 + 1);
@@ -2836,7 +2861,9 @@ function bindInput() {
     if (state.busy || state.resolving) return;
     // Start termina el tutorial en cualquier momento (también con un diálogo abierto)
     if (state.tour && btn === 'START') { state.tour.skip = true; const d = state.dialog; state.dialog = null; d?.onDone?.(); render(); return; }
+    if (state.cut && btn === 'START') { skipScene(); render(); return; }
     if (state.dialog) { if (btn === 'A' || btn === 'START') dialogAdvance(); render(); return; }
+    if (state.cut) return;   // durante una escena, solo se puede saltar (Start) o pasar el diálogo
     if (state.menu) {
       const m = state.menu;
       if (btn === 'UP') { m.index = (m.index - 1 + m.items.length) % m.items.length; playSfx('cursor'); }

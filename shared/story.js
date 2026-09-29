@@ -56,3 +56,42 @@ export function storyLineFor(key, m, seen) {
   for (let c = ch; c >= 1; c--) if (byCh[c]) return seen.has(`${key}:${c}`) ? null : { chapter: c, pages: byCh[c], then: byCh.then !== false };
   return null;
 }
+
+// ---------------------------------------------------------------------
+// Escenas (docs/ESCENAS.md): guiones que reproduce client/js/scenes.js. `when(meta)` dice cuándo toca; se ven una vez.
+// ---------------------------------------------------------------------
+export const SCENES = [
+  {
+    id: 'acto1-bandeja', when: m => chapterOf(m) >= 3,   // al llegar a Bronce: la noche en que desaparece la bandeja
+    area: 'plaza', night: true, hidePlayer: true, hideNpcs: true, cam: { x: 84, y: 40 }, music: 'tension',
+    lights: [{ x: 384, y: 172, r: 70 }],
+    actors: { chatot: { sp: 'chatot', x: 384, y: 172, dir: 'down', hidden: true }, sombra: { sp: 'sombra', x: 384, y: 575, dir: 'up' } },
+    objects: { bandeja: { kind: 'tray', x: 432, y: 196 } },
+    steps: [
+      { do: 'narration', text: 'Mientras tanto…', ms: 2400 },
+      { do: 'fade', to: 'in', ms: 800 },
+      { do: 'wait', ms: 800 },
+      { do: 'move', who: 'sombra', to: [[384, 330], [396, 262], [418, 218]], speed: 0.55 },   // despacio, con cautela
+      { do: 'emote', who: 'sombra', fx: 'dots' },
+      { do: 'wait', ms: 600 },
+      { do: 'object', id: 'bandeja', action: 'flicker-hide', ms: 500 },
+      { do: 'move', who: 'sombra', to: [[396, 262], [384, 330], [384, 575]], speed: 2.4 },   // y se va deprisa
+      { do: 'fade', to: 'out', ms: 800 },
+      { do: 'set', night: false },
+      { do: 'narration', text: 'A la mañana siguiente…', ms: 2400 },
+      { do: 'show', who: 'chatot' },
+      { do: 'fade', to: 'in', ms: 800 },
+      { do: 'move', who: 'chatot', to: [[384, 206], [406, 206]], speed: 1 },   // baja y gira a la derecha, hasta el hueco
+      { do: 'turn', who: 'chatot', dir: 'right' },
+      { at: [{ do: 'emote', who: 'chatot', fx: 'shock', se: 'shock', nowait: true }, { do: 'anim', who: 'chatot', anim: 'Charge', hold: true }] },
+      { do: 'wait', ms: 700 },
+      { do: 'say', who: 'chatot', mood: 'Surprised', text: '¡¿Dónde está la bandeja de las entregas?! ¡Anoche estaba aquí, aquí mismo!' },
+      { do: 'anim', who: 'chatot', anim: 'Idle' },
+      { do: 'emote', who: 'chatot', fx: 'anger', hold: true },
+      { do: 'say', who: 'chatot', mood: 'Angry', text: '… Gulpin. Tiene que haber sido Gulpin. ¡Ese se lo come todo!' },
+      { do: 'emote', who: 'chatot', fx: 'none' },
+      { do: 'fade', to: 'out', ms: 600 },
+    ],
+  },
+];
+export const pendingScene = m => SCENES.find(sc => !(m.scenes || []).includes(sc.id) && sc.when(m)) || null;

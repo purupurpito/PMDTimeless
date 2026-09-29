@@ -60,7 +60,8 @@ async function localApi(path, body) {
       if (norm(body.name) !== norm(DB.user.name) || (DB.user.pass && hashPass(body.password) !== DB.user.pass)) fail('Nombre o código secreto incorrectos.', 401);
       token = 'local'; return { token, user: publicUser() };
     case '/auth/logout': token = null; return { ok: true };
-    case '/telemetry': return { ok: true };   // sin servidor no hay a quién enviar los datos de juego
+    case '/telemetry': return { ok: true };
+    case '/scene/seen': { const m = DB.user.meta; m.scenes = m.scenes || []; if (!m.scenes.includes(body.id)) m.scenes.push(body.id); saveDB(); return { meta: m }; }   // sin servidor no hay a quién enviar los datos de juego
     case '/me': { if (!DB.user) fail('Sin sesión', 401); refreshBoard(m); deliverMail(m);
       const today = new Date().toISOString().slice(0, 10), mailNews = (m.mail || []).some(x => !x.read && letterById(x.id)) && m.mailDay !== today; if (mailNews) m.mailDay = today;
       const r = activeRun(); return { mailNews, user: publicUser(), run: r ? runInfo(r) : null }; }
