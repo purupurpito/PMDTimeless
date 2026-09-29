@@ -234,10 +234,10 @@ export async function startGame(me) {
   window.__mmDefeat = (e, by) => defeatEnemy(e, by); window.__mmMoves = MOVES; window.__mmSlot = i => useMoveSlot(i); window.__mmAct = (k, dx, dy) => playerAction(k, dx, dy); window.__mmPath = (to) => dungeonPath(state.player, to); window.__mmUseItem = i => useItem(i); window.__mmDescend = () => descend(); window.__mmPassing = () => !!passTimer; window.__mmEndTurn = () => endTurn(false);
   window.__mmVisibleNpcs = () => HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden).map(n => n.id); window.__mmHubPath = hubPath; window.__mmHubFree = hubFree; window.__mmGetMeta = () => meta; window.__mmEndRun = o => endRun(o); // pruebas automáticas
   window.__mmDebug = { defeat: () => downed(state.player), dungeons: () => openDungeonMenu(),
-    // tienda de prueba: alfombra 3×3 alrededor del jugador y una Semilla Revivir a su derecha
+    // tienda de prueba: alfombra 3×3 alrededor del jugador y una Semilla Reviver a su derecha
     testShop: () => { const p = state.player, carpet = []; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { state.dungeon.tiles[p.y + dy][p.x + dx] = T.FLOOR; carpet.push({ x: p.x + dx, y: p.y + dy }); }
       state.dungeon.tiles[p.y][p.x + 2] = T.FLOOR; state.shop = { carpet, unpaid: [], keeper: { x: p.x, y: p.y - 1 }, room: roomOf(p) || { x: p.x - 1, y: p.y - 1, w: 3, h: 3 }, robbed: false };
-      state.enemies = []; state.groundItems = [{ name: 'Semilla Revivir', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
+      state.enemies = []; state.groundItems = [{ name: 'Semilla Reviver', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
   user = me.user; meta = me.user.meta; state.pausedRun = me.run;
   state.waitingRescue = !!me.rescue;
   if (me.rescue) setTimeout(() => showRescueWait(me.rescue), 300);   // tu equipo sigue esperando un rescate
@@ -437,11 +437,11 @@ const closeHub = () => { state.menu = null; render(); };
 function openHubMenu() {
   const save = state.pausedRun;
   // elegir líder se hará hablando con el Pokémon en la aldea (como en Rojo/Azul), no desde este menú
-  const items = save ? ['Continuar run', 'Abandonar run guardada', 'Rango y progreso', 'Cerrar'] : ['Rango y progreso', 'Cerrar'];
+  const items = save ? ['Continuar la exploración', 'Abandonar la exploración guardada', 'Rango y progreso', 'Cerrar'] : ['Rango y progreso', 'Cerrar'];
   openMenu({ title: 'Menú', items, onCancel: closeHub, onSelect: async i => {
     const key = items[i];
-    if (key === 'Continuar run') return resumeRun();
-    if (key.startsWith('Abandonar')) return openMenu({ title: '¿Abandonar la run? Perderás lo acumulado.', items: ['No', 'Sí, abandonar'], onCancel: closeHub, onSelect: async j => { if (j === 1) { const r = await call('/run/abandon', {}); if (r) { meta = r.meta; state.pausedRun = null; say('Run abandonada.'); } } closeHub(); } });
+    if (key === 'Continuar la exploración') return resumeRun();
+    if (key.startsWith('Abandonar')) return openMenu({ title: '¿Abandonar la exploración? Perderás lo acumulado.', items: ['No', 'Sí, abandonar'], onCancel: closeHub, onSelect: async j => { if (j === 1) { const r = await call('/run/abandon', {}); if (r) { meta = r.meta; state.pausedRun = null; say('Run abandonada.'); } } closeHub(); } });
     if (key === 'Rango y progreso') return openRankMenu();
     if (key === 'Elegir líder') return openStarterMenu();
     closeHub();
@@ -521,7 +521,7 @@ function hubInteract() {
   for (const ex of area.exits) if (ex.action === 'dungeons' && inRect(fx, fy, ex.rect)) return openDungeonMenu();
 }
 const WANDER_LINES = ['¡Buenos días! ¿Eres nuevo en el gremio?', 'Dicen que en el Bosque Frondoso hay un Pokémon verde muy raro.', 'Kecleon sube los precios cada vez que alguien vuelve con una pepita…', 'Mi primo se unió a un equipo de exploración y ya no escribe.', 'Cuidado con las Casas Monstruo. Yo perdí ahí a mi mejor amigo. Bueno, se hizo amigo de ellos.'];
-const CHATOT_IDLE = ['Chatot: "Ser la mano derecha del maestro no es facil, no senor."','Chatot: "El maestro Pidgeot lleva tres dias meditando. Yo creo que duerme."','Chatot: "Sabias que antes repartiamos correo? Otros tiempos."','Chatot: "No toques nada del despacho. Que no. Que no."','Chatot: "Un dia me montan un numero musical en condiciones."'];
+const CHATOT_IDLE = ['Chatot: "Ser la mano derecha del maestro no es fácil, no señor."','Chatot: "El maestro Pidgeot lleva tres dias meditando. Yo creo que duerme."','Chatot: "Sabias que antes repartiamos correo? Otros tiempos."','Chatot: "No toques nada del despacho. Que no. Que no."','Chatot: "Un día me montan un número musical en condiciones."'];
 async function checkMyRescue() {
   if (state.waitingRescue) return;   // la pantalla de espera se encarga (si no, se «comería» el aviso de rescate)
   try { const r = await api('/rescue/status'); if (r.rescued) { const me = await api('/me'); state.pausedRun = me.run; openDialog([{ who: '', text: '¡Buenas noticias! ' + r.by + ' te ha rescatado. Puedes continuar tu run desde donde caiste.' }]); } } catch {}
@@ -531,10 +531,10 @@ async function checkSpecialDay() {
 }
 function openDiaryMenu() {
   const s = state.stats || {};
-  openMenu({ title: 'Diario de exploracion', items: [
+  openMenu({ title: 'Diario de exploración', items: [
     'Runs: ' + (s.runs || 0),
     'Pisos explorados: ' + (s.floors || 0),
-    'Piso mas hondo: ' + (s.deepest || 0),
+    'Piso más hondo: ' + (s.deepest || 0),
     'Muertes: ' + (s.deaths || 0),
     'Casas Monstruo vividas: ' + (s.monsterHouses || 0),
     'Pokemon reclutados: ' + (s.recruited || 0),
@@ -551,7 +551,7 @@ function talkTo(kind) {
     case 'murkrow': return npcGreeting('Murkrow', MURKROW_LINES, 'mk');
     case 'chansey': return openDialog([{ who: 'Chansey', text: '¡Bienvenidos a la zona de descanso! Aquí os recuperáis después de cada expedición. Descansad bien, que mañana será otro día de aventuras.' }]);
     case 'diglett': return openDialog([{ who: 'Diglett', text: '¡Huella reconocida! Pasa, pasa. Y no toques la rejilla.' }]);
-    case 'chatot': return openDialog([{ who: 'Chatot', text: `¿Dudas, ${user.name}? El tablón está justo ahí. El maestro Pidgeot está… ocupado. Siempre está ocupado.` }], () => openMenu({ title: 'Chatot', items: ['Rango y progreso', 'Diario de exploracion', 'Repetir el tutorial', 'Nada, gracias'], onCancel: closeHub, onSelect: i => i === 0 ? openRankMenu() : i === 1 ? openDiaryMenu() : i === 2 ? tutorial() : closeHub() }));
+    case 'chatot': return openDialog([{ who: 'Chatot', text: `¿Dudas, ${user.name}? El tablón está justo ahí. El maestro Pidgeot está… ocupado. Siempre está ocupado.` }], () => openMenu({ title: 'Chatot', items: ['Rango y progreso', 'Diario de exploración', 'Repetir el tutorial', 'Nada, gracias'], onCancel: closeHub, onSelect: i => i === 0 ? openRankMenu() : i === 1 ? openDiaryMenu() : i === 2 ? tutorial() : closeHub() }));
     case 'shop': return npcGreeting('Kecleon', KECLEON_GREEN_LINES, 'kg', openShopMenu);
     case 'sell': return npcGreeting('Kecleon', KECLEON_PURPLE_LINES, 'kp', openSellMenu, 'kecleon_purple');   // el morado, con sus propios retratos
     case 'storage': return npcGreeting('Kangaskhan', KANGASKHAN_LINES, 'kk', openStorageMenu);
@@ -576,7 +576,7 @@ function openDungeonMenu() {
     if (d.id === 'suenos') {
       const legends = meta.legendaries || [];
       if (!legends.length) { say('Necesitas un legendario para entrar en la Mazmorra de los Suenos.'); return openDungeonMenu(); }
-      return openMenu({ title: 'Lider legendario', items: [...legends.map(s => SPECIES[s].name), 'Volver'], onCancel: openDungeonMenu, onSelect: j => { if (j >= legends.length) return openDungeonMenu(); state.player = createPlayer(legends[j]); startRun(d); } });
+      return openMenu({ title: 'Líder legendario', items: [...legends.map(s => SPECIES[s].name), 'Volver'], onCancel: openDungeonMenu, onSelect: j => { if (j >= legends.length) return openDungeonMenu(); state.player = createPlayer(legends[j]); startRun(d); } });
     }
     if (d.rank > rank) { say(`Necesitas rango ${RANKS[d.rank].name} para entrar en ${d.name}.`); return openDungeonMenu(); }
     openMenu({ title: `${d.name} con ${state.player.name} (${SPECIES[state.player.species].name})`, items: ['Entrar', 'Volver'], onCancel: openDungeonMenu, onSelect: j => j === 0 ? startRun(d) : openDungeonMenu() });
@@ -629,7 +629,7 @@ function openStorageMenu() {
 }
 function openStarterMenu() {
   if (!canLeaderChoice()) { say(`Chatot: "Hasta rango ${RANKS[CFG.leaderChoiceRank].name} sales con tu Pokémon. Tienes ${meta.starters.length} iniciales desbloqueados, guárdalos."`); return closeHub(); }
-  openMenu({ title: 'Líder de la run', items: meta.starters.map(s => SPECIES[s].name), onCancel: closeHub, onSelect: i => { state.player = createPlayer(meta.starters[i]); say(`${SPECIES[state.player.species].name} será tu líder.`); closeHub(); } });
+  openMenu({ title: 'Líder de la exploración', items: meta.starters.map(s => SPECIES[s].name), onCancel: closeHub, onSelect: i => { state.player = createPlayer(meta.starters[i]); say(`${SPECIES[state.player.species].name} será tu líder.`); closeHub(); } });
 }
 function openGulpinMenu() {
   const p = state.player, pool = knownPool(p);
@@ -779,7 +779,7 @@ function showRescueWait(rescue) {
 async function pauseRun() {
   const r = await call('/run/pause', { state: runSnapshot() }); if (!r) return;
   state.pausedRun = { dungeonId: state.run.dungeonId, state: runSnapshot() };
-  state.player = null; say('Run pausada. Podrás continuarla desde la Base.'); enterHub();
+  state.player = null; say('Exploración guardada. Podrás continuarla desde el gremio.'); enterHub();
 }
 // ---------- despacho del maestro Pidgeot (se llega a través de Mawile, con rango Diamante) ----------
 async function openPidgeotOffice() {
@@ -964,7 +964,7 @@ function drawRestArea(ox, oy, tile) {
 }
 function openStatueMenu() {
   const boss = ['legendary', 'bigLegendary', 'jirachi'].includes(floorKind(state.dungeonDef, state.floor, state.flags));
-  openMenu({ title: 'Estatua de Kangaskhan', items: [boss ? 'Seguir hacia el jefe' : 'Seguir explorando', 'Guardar y pausar', 'Volver a la Base y cobrar', 'Cancelar'],
+  openMenu({ title: 'Estatua de Kangaskhan', items: [boss ? 'Seguir hacia el jefe' : 'Seguir explorando', 'Guardar y pausar', 'Volver al gremio y cobrar', 'Cancelar'],
     onCancel: () => { state.menu = null; render(); },
     onSelect: i => { state.menu = null; if (i === 0) say('La escalera de la derecha te lleva al siguiente piso.'); else if (i === 1) pauseRun(); else if (i === 2) endRun('exit'); render(); } });
 }
@@ -1150,7 +1150,7 @@ function defeatEnemy(e, by) {
   say(`+${exp} de experiencia.`);
   const xp = m => Math.round(exp * (m.iqSkills?.includes('Exp. Elite') ? 1.25 : 1));   // Élite de Experiencia
   gainExp(state.player, xp(state.player)); for (const a of state.team) gainExp(a, xp(a)); // en PMD cada miembro recibe la experiencia entera
-  if (e.missionId) { const m = state.missions.find(m => m.id === e.missionId); if (m) { m.done = true; say('¡Objetivo de misión cumplido! Cobrarás al volver a la Base.'); } }
+  if (e.missionId) { const m = state.missions.find(m => m.id === e.missionId); if (m) { m.done = true; say('¡Objetivo de misión cumplido! Cobrarás al volver al gremio.'); } }
   if (e.jirachiEvent) { jirachiNextPhase(e); arenaCleared(); return; }   // tras la última fase, la sala queda despejada
   if (e.isLegendary) {
     if (state.inventory.length < CFG.bagSize) { addItem(`MD: ${e.md}`); say(`¡${e.name} te entrega una Máquina Definitiva: ${e.md}! Úsala desde la bolsa para enseñársela a quien pueda aprenderla.`); }
@@ -1476,7 +1476,7 @@ function drinkEffect(name, it) {
   const p = state.player;
   if (it.fx === 'ppAll' || it.fx === 'ppMax') { for (const m of p.moves) m.pp = MOVES[m.name]?.pp ?? m.pp; say(`Bebes ${name}. ¡PP restaurados!`); }
   else if (it.fx === 'iq') eatGummi(p, { type: '*' });
-  else if (it.fx === 'stat') { p.bonus = { ...(p.bonus || {}), [it.stat]: (p.bonus?.[it.stat] || 0) + it.n }; const nm = { atk: 'el Ataque', def: 'la Defensa', spa: 'el At. Esp.', spd: 'la Def. Esp.' }[it.stat]; say(`Tomas ${name}. ¡Sube ${nm} de ${p.name} para siempre!`); }
+  else if (it.fx === 'stat') { p.bonus = { ...(p.bonus || {}), [it.stat]: (p.bonus?.[it.stat] || 0) + it.n }; const nm = AREA_NAMES[it.stat]; say(`Tomas ${name}. ¡Sube ${nm} de ${p.name} para siempre!`); }
 }
 // Objetos arrojadizos: en línea recta (hasta 10 casillas) o en arco (saltan por encima de lo que haya en medio)
 function throwItem(name, it) {
@@ -1604,7 +1604,7 @@ function useItem(index) {
     case 'throw': { playSfx('throw'); const ok = throwItem(name, it); if (ok) consume(); return ok; }
     case 'sell': say(`${name}: sólo sirve para vendérselo a Kecleon.`); return false;
     case 'revive': say('Se activa sola cuando caes.'); return false;
-    case 'quest': say('Es el objeto perdido de una misión. Llévalo a la Base.'); return false;
+    case 'quest': say('Es el objeto perdido de una misión. Llévalo al gremio.'); return false;
   }
   return false;
 }
@@ -1632,11 +1632,11 @@ function playerAction(kind, dx = 0, dy = 0, extra) {
     if (npc?.keeper) { openKeeperMenu(); return; }
     if (npc?.wants) {   // misión de entrega: si llevas lo que pide, se lo das
       const m = state.missions.find(m => m.id === npc.missionId), i = state.inventory.indexOf(npc.wants);
-      if (m && i >= 0) { state.inventory.splice(i, 1); m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`${npc.name}: "¡${npc.wants}! ¡Muchísimas gracias!" Cobrarás al volver a la Base.`); }
+      if (m && i >= 0) { state.inventory.splice(i, 1); m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`${npc.name}: "¡${npc.wants}! ¡Muchísimas gracias!" Cobrarás al volver al gremio.`); }
       else say(`${npc.name}: "¿Me traes ${npc.wants}? Lo necesito de verdad…"`);
       endTurn(true); return;
     }
-    if (npc) { const m = state.missions.find(m => m.id === npc.missionId); if (m) { m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`¡${npc.name}: "¡Gracias por rescatarme!" Volverá contigo a la Base.`); } endTurn(true); return; }
+    if (npc) { const m = state.missions.find(m => m.id === npc.missionId); if (m) { m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`¡${npc.name}: "¡Gracias por rescatarme!" Volverá contigo al gremio.`); } endTurn(true); return; }
     if (!canMove(p, dx, dy)) { if (!state.enemies.some(e => e.x === p.x + dx && e.y === p.y + dy)) playSfx('bump'); render(); return; } // chocar (con un enemigo o una pared) solo te gira hacia allí; se ataca con A
     p.x += dx; p.y += dy; p.movedAt = performance.now();
     const gi = state.groundItems.findIndex(g => g.x === p.x && g.y === p.y);
@@ -1676,7 +1676,7 @@ async function startRescue(mission) {
   const moves = state.player.moves;
   state.player = createPlayer(r.run.starter); state.player.moves = moves;
   Object.assign(state, { run: { ...r.run, seed: mission.seed }, flags: r.run.flags || {}, dungeonDef: dungeonById(mission.dungeonId), inventory: [...r.bag], runPokes: 0, missions: [], earnedMD: [], recruitedLegendaries: [], lostRecruits: [], bondedLost: [], team: [], floor: mission.floor, turn: 0, dead: false, log: [], scene: 'dungeon', diary: { monsterHouses: 0, recruited: 0, kecleonRobs: 0, itemsSold: 0 }, rescue: mission });
-  say(`Mision de rescate: encuentra a ${mission.victim} en B${mission.floor}F.`);
+  say(`Misión de rescate: encuentra a ${mission.victim} en B${mission.floor}F.`);
   newFloor();
   // colocar el "cuerpo" del caido en su casilla
   state.npcs.push({ x: mission.fell.x, y: mission.fell.y, species: mission.species, name: mission.victim, fallen: true, facing: [0, 1] });
@@ -2101,6 +2101,7 @@ function drawStatusIcon(e, px, py, tile) {
   } else { ctx.fillStyle = '#b48ead'; ctx.font = `bold ${Math.round(9 * s)}px sans-serif`; ctx.fillText(STATUS[k]?.name?.[0] || '?', x - 3 * s, y + 3 * s); }
   ctx.restore(); return true;
 }
+const AREA_NAMES = { atk: 'el Ataque', def: 'la Defensa', spa: 'el At. Esp.', spd: 'la Def. Esp.' };   // nombre de cada zona de la aldea (etiqueta del mapa y cabecera)
 function renderFeed() {
   if (!logInside() || state.dialog || state.scene !== 'dungeon') return;   // solo en las mazmorras (en la aldea del original no hay registro)
   const now = performance.now(), items = (state.feed || []).filter(f => now - f.t < FEED_MS);
@@ -2161,7 +2162,7 @@ function renderHub() {
   // indicación de interacción cerca de un PNJ o cartel
   const fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
   const near = def.npcs.filter(npcShown).find(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))) || (def.signs || []).find(s => inRect(fx, fy, s.rect)) || (def.hotspots || []).find(hs => inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) || def.exits.find(ex => ex.label && inExit(ex, fx, fy));
-  if (near && !state.menu && !state.dialog) { ctx.font = 'bold 11px sans-serif'; const hint = 'Z · ' + (near.label || near.text ? (near.label || 'Leer') : 'Hablar'), hw = ctx.measureText(hint).width + 20; ctx.fillStyle = 'rgba(20,18,28,.85)'; ctx.fillRect(W / 2 - hw / 2, 8, hw, 20); ctx.fillStyle = '#f2b544'; ctx.textAlign = 'center'; ctx.fillText(hint, W / 2, 22); ctx.textAlign = 'left'; } // el fondo se ajusta al texto
+  if (near && !state.menu && !state.dialog) { ctx.font = 'bold 11px sans-serif'; const hint = (document.body.classList.contains('touch-on') ? 'A' : 'Z') + ' · ' + (near.label || near.text ? (near.label || 'Leer') : 'Hablar'), hw = ctx.measureText(hint).width + 20; ctx.fillStyle = 'rgba(20,18,28,.85)'; ctx.fillRect(W / 2 - hw / 2, 8, hw, 20); ctx.fillStyle = '#f2b544'; ctx.textAlign = 'center'; ctx.fillText(hint, W / 2, 22); ctx.textAlign = 'left'; } // el fondo se ajusta al texto
   { ctx.font = '11px sans-serif'; const nm = { plaza: 'Plaza del gremio', gremio: 'Gremio de Pidgeot', descanso: 'Zona de descanso', mercado: 'Mercado', aldea: 'Aldea' }[h.area] || ''; ctx.fillStyle = 'rgba(20,18,28,.7)'; ctx.fillRect(8, 8, ctx.measureText(nm).width + 12, 18); ctx.fillStyle = '#e9e3d3'; ctx.fillText(nm, 14, 21); } // el fondo se ajusta al texto
 }
 const TILE_COLORS = { [T.WALL]: '#3b2f5a', [T.FLOOR]: '#8f7a5c', [T.STAIRS]: '#8f7a5c', [T.WATER]: '#2f6fa8', [T.LAVA]: '#c4521f' };
@@ -2474,8 +2475,8 @@ function renderDialog() {
 function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function renderHud() {
   const p = state.player, $ = id => document.getElementById(id);
-  $('floor').textContent = state.scene === 'hub' ? 'Base' : `${state.dungeonDef.name} B${state.floor}F${state.dungeonDef.eras ? ` · eco de ${dungeonById(state.era).name}` : ''}${state.weather && state.weather !== 'none' ? ` · ${WEATHER[state.weather].name}` : ''}`;
-  $('pokes').textContent = meta.pokes; $('runPokes').textContent = state.scene === 'hub' ? '—' : `${state.runPokes}${unpaidTotal() ? ` (debes ${unpaidTotal()})` : ''}`;
+  $('floor').textContent = state.scene === 'hub' ? (AREA_NAMES[state.hub.area] || 'Gremio') : `${state.dungeonDef.name} B${state.floor}F${state.dungeonDef.eras ? ` · eco de ${dungeonById(state.era).name}` : ''}${state.weather && state.weather !== 'none' ? ` · ${WEATHER[state.weather].name}` : ''}`;
+  $('pokes').textContent = meta.pokes; $('pokes').parentElement.style.display = state.scene === 'hub' ? 'none' : ''; $('runPokes').textContent = state.scene === 'hub' ? meta.pokes : `${state.runPokes}${unpaidTotal() ? ` (debes ${unpaidTotal()})` : ''}`;
   $('rank').textContent = `${RANKS[rankOf(meta.rankPts)].name} (${meta.rankPts})`;
   if (!p) return;
   $('nameLv').textContent = `${p.name} (${SPECIES[p.species].name}) · Nv ${p.level}${p.status ? ' · ' + STATUS[p.status.kind].name : ''}`;

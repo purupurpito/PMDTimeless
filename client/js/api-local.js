@@ -79,7 +79,7 @@ async function localApi(path, body) {
     case '/run/end': {
       const r = activeRun(); if (!r) fail('No hay run.'); const def = dungeonById(r.dungeonId), f = Number(body.floor) || 1, msgs = [];
       if (body.outcome !== 'death') {
-        m.pokes += Math.max(0, Number(body.runPokes) || 0); msgs.push(`Vuelves a la Base con ${body.runPokes} Pokés.`);
+        m.pokes += Math.max(0, Number(body.runPokes) || 0); msgs.push(`Vuelves al gremio con ${body.runPokes} Pokés.`);
         m.bag = (body.inventory || []).slice(0, CFG.bagSize); if (body.held && m.bag.length < CFG.bagSize) m.bag.push(body.held);
         for (const mv of (body.mdToStorage || [])) { m.storage.push(`MD: ${mv}`); msgs.push(`La MD ${mv} está en el depósito de Kangaskhan.`); }
         m.movepool[r.starter] = m.movepool[r.starter] || []; for (const md of body.earnedMD || []) if (!m.movepool[r.starter].includes(md)) { m.movepool[r.starter].push(md); msgs.push(`${md} pasa al movepool permanente de ${SPECIES[r.starter].name}.`); }

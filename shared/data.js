@@ -207,9 +207,9 @@ export const MEGA_STONES = [
 export const MEGA_DIALOG = {
   mega_absol: {
     font: "'Georgia', 'Times New Roman', serif", color: '#cfd6e6',
-    intro: ['No he venido a luchar. Percibo una desgracia en tu futuro… y aun asi avanzas.'],
+    intro: ['No he venido a luchar. Percibo una desgracia en tu futuro… y aun así avanzas.'],
     flee: ['No quiero hacerte dano. Aléjate, por favor.'],   // mientras huye/se protege
-    yield: ['Que asi sea…'],                                  // justo antes de rendirse y atacar
+    yield: ['Que así sea…'],                                  // justo antes de rendirse y atacar
     defeat: ['Has vencido. Toma la piedra… y ojala te proteja de lo que se avecina.'],
     behavior: 'flee',
   },
@@ -227,8 +227,8 @@ export const MEGA_DIALOG = {
   },
   mega_manectric: {
     font: "'Courier New', monospace", color: '#f2d24a',
-    intro: ['…¿Quien anda ahi? No, no te acerques. No confio en ti.', 'Pero que quede claro: soy mas rapido que tu. Mucho mas. No tienes nada que hacer.'],
-    defeat: ['Imposible… ¿mas rapido que yo? Bah. Coge la piedra y desaparece.'],
+    intro: ['…¿Quien anda ahi? No, no te acerques. No confio en ti.', 'Pero que quede claro: soy más rápido que tú. Mucho más. No tienes nada que hacer.'],
+    defeat: ['Imposible… ¿más rápido que yo? Bah. Coge la piedra y desaparece.'],
     attackAfter: 2,
   },
 };

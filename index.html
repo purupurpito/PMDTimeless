@@ -20,7 +20,7 @@
     </div>
     <form id="auth-login" class="stack hidden" autocomplete="on">
       <label>Nombre de explorador<input name="name" required maxlength="20" autocomplete="username"></label>
-      <label>Contraseña<input name="password" type="password" required autocomplete="current-password"></label>
+      <label>Código secreto<input name="password" type="password" required autocomplete="current-password"></label>
       <button class="btn primary" type="submit">Entrar</button>
       <button class="btn link" type="button" data-go="choice">Volver</button>
     </form>
@@ -63,11 +63,11 @@
   <header>
     <h1 class="brand"><img id="hdr-logo" class="hdr-logo hidden" alt="PMD: Timeless"><span id="hdr-title">PMD: Timeless</span></h1>
     <div class="stat"><span>Explorador</span><b id="hud-user"></b></div>
-    <div class="stat"><span>Lugar</span><b id="floor">Base</b></div>
+    <div class="stat"><span>Lugar</span><b id="floor">Gremio</b></div>
     <div class="stat"><span id="nameLv">—</span><div class="bar hp"><i id="hpBar"></i></div><b id="hpText"></b></div>
     <div class="stat"><span>Barriga</span><div class="bar belly"><i id="bellyBar"></i></div><b id="bellyText"></b></div>
     <div class="stat"><span>Experiencia</span><b id="exp"></b></div>
-    <div class="stat"><span>Pokés (run)</span><b id="runPokes">—</b></div>
+    <div class="stat"><span>Pokés</span><b id="runPokes">—</b></div>
     <div class="stat"><span>Pokés (banco)</span><b id="pokes">0</b></div>
     <div class="stat"><span>Rango</span><b id="rank"></b></div>
     <div class="settings">
@@ -89,7 +89,7 @@
     <canvas id="game"></canvas>
     <aside>
       <div><h2>Movimientos</h2><div id="moves"></div></div>
-      <div><h2>Stats</h2><div id="stats"></div></div>
+      <div><h2>Estadísticas</h2><div id="stats"></div></div>
       <div><h2>Equipo</h2><div id="team" class="dim"></div></div>
       <div><h2>Misiones activas</h2><div id="missions" class="dim"></div></div>
       <div><h2>Bolsa</h2><div id="items" class="items"></div></div>
