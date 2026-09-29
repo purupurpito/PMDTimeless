@@ -8,6 +8,7 @@ export const HUB = {
     // Salidas: franjas junto al borde (o la puerta). Al entrar en ellas cambias de zona.
     exits: [
       { rect: [0, 225, 22, 305], to: 'mercado', at: { x: 722, y: 288 } },
+      { rect: [746, 230, 768, 310], to: 'fuente', at: { x: 50, y: 290 } },   // camino de la derecha: la Fuente de la Evolución
       { rect: [335, 493, 430, 515], to: 'aldea', at: { x: 384, y: 48 } },
       { rect: [345, 150, 425, 200], to: 'gremio', at: { x: 405, y: 466 }, label: 'Puerta del gremio' },
     ],
@@ -39,6 +40,14 @@ export const HUB = {
     beds: [ { x: 116, y: 326, box: [32, 284, 198, 400] }, { x: 146, y: 434, box: [62, 394, 232, 494] },
             { x: 650, y: 326, box: [568, 284, 734, 400] }, { x: 614, y: 434, box: [532, 394, 694, 494] } ],
     npcs: [ { id: 'chansey', x: 522, y: 238, facing: [0, 1], talk: 'chansey', fixedFacing: true, reach: 84, approach: [462, 300, 600, 360] } ],   // tras el mostrador
+  },
+  // Fuente de la Evolución (a la derecha de la plaza). Hecha con el tileset original de Apple Woods: tools/build-fuente.py.
+  // El camino sigue hacia la derecha, pero el bosque aún no deja pasar.
+  fuente: {
+    img: 'client/assets/hub/fuente.png', mask: 'client/assets/hub/fuente_mask.png', spawn: { x: 60, y: 290 },
+    exits: [ { rect: [0, 240, 22, 336], to: 'plaza', at: { x: 730, y: 270 } } ],
+    npcs: [ { id: 'rowlet', x: 408, y: 262, facing: [0, 1], talk: 'rowlet', fixedFacing: true, reach: 70 } ],   // «???»: lleva tanto tiempo como el maestro del gremio
+    signs: [ { rect: [590, 240, 672, 336], text: 'El bosque es demasiado espeso para seguir… Por ahora.' } ],
   },
   mercado: {
     img: 'client/assets/hub/mercado.png', mask: 'client/assets/hub/mercado_mask.png', spawn: { x: 730, y: 300 },

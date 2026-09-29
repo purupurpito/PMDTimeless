@@ -108,6 +108,7 @@ async function localApi(path, body) {
         m.progress[species] = { level, exp: Math.max(0, Math.min(Math.floor(Number(mon.exp) || 0), expToNext(species, level) - 1)), iq: Math.min(999, Math.max(prev.iq || 0, Math.floor(Number(mon.iq) || 0))), bonus }; };
       keep(r.starter, body.player, false);
       for (const t of (body.team || [])) if (t && t.species !== r.starter && m.starters.includes(t.species)) keep(t.species, t, !m.progress[t.species]);
+      (m.stats.deepestBy ||= {})[def.id] = Math.max(m.stats.deepestBy[def.id] || 0, f);
       const st = body.diary || {}; m.stats.runs++; m.stats.floors += Math.max(0, f - 1); m.stats.deaths += body.outcome === 'death' ? 1 : 0; m.stats.monsterHouses += st.monsterHouses | 0; m.stats.recruited += st.recruited | 0; m.stats.kecleonRobs += st.kecleonRobs | 0; m.stats.deepest = Math.max(m.stats.deepest, f);
       m.lostRecruits = body.lostRecruits || []; rotateShop(m); refreshBoard(m); r.status = 'ended'; r.state = { floor: f, player: body.player };
       return { meta: m, messages: msgs, canRescue: false, result: { outcome: body.outcome, floor: f, penalty: typeof penalty !== 'undefined' ? penalty : null } };

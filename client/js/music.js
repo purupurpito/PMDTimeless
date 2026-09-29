@@ -34,7 +34,7 @@ const TRACKS = {
 };
 // Lista de pistas con sus etiquetas (para consultarla desde la consola: window.__mmTracks())
 if (typeof window !== 'undefined') window.__mmTracks = () => Object.entries(TRACKS).map(([k, t]) => ({ pista: k, set: t.set, aprobada: t.approved }));
-const ZONE_TRACK = { plaza: 'village', gremio: 'village', descanso: 'rest', mercado: 'village', aldea: 'village' };
+const ZONE_TRACK = { plaza: 'village', gremio: 'village', descanso: 'rest', mercado: 'village', aldea: 'village', fuente: 'quiz' };   // la fuente: el tema del test («conócete primero»)
 const FADE = 1.2; // segundos de transición
 
 let ctx = null, master = null, current = null; // current = { key, src, gain }

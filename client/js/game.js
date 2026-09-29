@@ -550,6 +550,13 @@ function talkTo(kind) {
       return openDialog([{ who: 'Mawile', text: `¡Rango Diamante! Adelante, ${user.name}. El jefe te recibirá.` }], () => openPidgeotOffice());
     case 'chatot_intro': return openDialog([{ who: 'Chatot', text: '¿Has cambiado de idea? ¡Estupendo!' }], () => tutorial(true));
     case 'murkrow': return npcGreeting('Murkrow', MURKROW_LINES, 'mk');
+    case 'rowlet': {   // «???»: una Rowlet que lleva en la fuente tanto tiempo como el maestro del gremio y nunca quiso evolucionar
+      const r = (text, mood = 'Normal') => ({ who: '???', sp: 'rowlet', mood, text });
+      if ((meta.stats?.deepestBy?.tiempo || 0) < 100) return openDialog([r('…'), r('Aún no sería bueno para ti evolucionar…', 'Worried'),
+        r('Conócete primero, pelea contra tus debilidades… y cuando hayas logrado eso, entonces estarás listo para tu siguiente forma…', 'Determined'),
+        r('Aunque puedas vivir sin ella.', 'Happy')]);
+      return openDialog([r('…'), r('Has llegado muy lejos. Lo noto.', 'Happy'), r('La fuente aún duerme… Cuando despierte, vuelve a verme.', 'Normal')]);
+    }
     case 'chansey': return openDialog([{ who: 'Chansey', text: '¡Bienvenidos a la zona de descanso! Aquí os recuperáis después de cada expedición. Descansad bien, que mañana será otro día de aventuras.' }]);
     case 'diglett': return openDialog([{ who: 'Diglett', text: '¡Huella reconocida! Pasa, pasa. Y no toques la rejilla.' }]);
     case 'chatot': return openDialog([{ who: 'Chatot', text: `¿Dudas, ${user.name}? El tablón está justo ahí. El maestro Pidgeot está… ocupado. Siempre está ocupado.` }], () => openMenu({ title: 'Chatot', items: ['Rango y progreso', 'Diario de exploración', 'Repetir el tutorial', 'Nada, gracias'], onCancel: closeHub, onSelect: i => i === 0 ? openRankMenu() : i === 1 ? openDiaryMenu() : i === 2 ? tutorial() : closeHub() }));
@@ -1508,7 +1515,7 @@ function drinkEffect(name, it) {
   const p = state.player;
   if (it.fx === 'ppAll' || it.fx === 'ppMax') { for (const m of p.moves) m.pp = MOVES[m.name]?.pp ?? m.pp; say(`Bebes ${name}. ¡PP restaurados!`); }
   else if (it.fx === 'iq') eatGummi(p, { type: '*' });
-  else if (it.fx === 'stat') { p.bonus = { ...(p.bonus || {}), [it.stat]: (p.bonus?.[it.stat] || 0) + it.n }; const nm = AREA_NAMES[it.stat]; say(`Tomas ${name}. ¡Sube ${nm} de ${p.name} para siempre!`); }
+  else if (it.fx === 'stat') { p.bonus = { ...(p.bonus || {}), [it.stat]: (p.bonus?.[it.stat] || 0) + it.n }; const nm = STAT_NAMES_DE[it.stat]; say(`Tomas ${name}. ¡Sube ${nm} de ${p.name} para siempre!`); }
 }
 // Objetos arrojadizos: en línea recta (hasta 10 casillas) o en arco (saltan por encima de lo que haya en medio)
 function throwItem(name, it) {
@@ -2219,7 +2226,8 @@ function drawStatusIcon(e, px, py, tile) {
   } else { ctx.fillStyle = '#b48ead'; ctx.font = `bold ${Math.round(9 * s)}px sans-serif`; ctx.fillText(STATUS[k]?.name?.[0] || '?', x - 3 * s, y + 3 * s); }
   ctx.restore(); return true;
 }
-const AREA_NAMES = { atk: 'el Ataque', def: 'la Defensa', spa: 'el At. Esp.', spd: 'la Def. Esp.' };   // nombre de cada zona de la aldea (etiqueta del mapa y cabecera)
+const STAT_NAMES_DE = { atk: 'el Ataque', def: 'la Defensa', spa: 'el At. Esp.', spd: 'la Def. Esp.' };   // «sube el Ataque de…»
+const AREA_NAMES = { plaza: 'Plaza del gremio', gremio: 'Gremio de Pidgeot', descanso: 'Zona de descanso', mercado: 'Mercado', aldea: 'Aldea', fuente: 'Fuente de la Evolución' };   // nombre de cada zona (etiqueta del mapa y cabecera)
 function renderFeed() {
   if (!logInside() || state.dialog || state.scene !== 'dungeon') return;   // solo en las mazmorras (en la aldea del original no hay registro)
   const now = performance.now(), items = (state.feed || []).filter(f => now - f.t < FEED_MS);
@@ -2281,7 +2289,7 @@ function renderHub() {
   const fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
   const near = def.npcs.filter(npcShown).find(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))) || (def.signs || []).find(s => inRect(fx, fy, s.rect)) || (def.hotspots || []).find(hs => inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) || def.exits.find(ex => ex.label && inExit(ex, fx, fy));
   if (near && !state.menu && !state.dialog) { ctx.font = 'bold 11px sans-serif'; const hint = (document.body.classList.contains('touch-on') ? 'A' : 'Z') + ' · ' + (near.label || near.text ? (near.label || 'Leer') : 'Hablar'), hw = ctx.measureText(hint).width + 20; ctx.fillStyle = 'rgba(20,18,28,.85)'; ctx.fillRect(W / 2 - hw / 2, 8, hw, 20); ctx.fillStyle = '#f2b544'; ctx.textAlign = 'center'; ctx.fillText(hint, W / 2, 22); ctx.textAlign = 'left'; } // el fondo se ajusta al texto
-  { ctx.font = '11px sans-serif'; const nm = { plaza: 'Plaza del gremio', gremio: 'Gremio de Pidgeot', descanso: 'Zona de descanso', mercado: 'Mercado', aldea: 'Aldea' }[h.area] || ''; ctx.fillStyle = 'rgba(20,18,28,.7)'; ctx.fillRect(8, 8, ctx.measureText(nm).width + 12, 18); ctx.fillStyle = '#e9e3d3'; ctx.fillText(nm, 14, 21); } // el fondo se ajusta al texto
+  { ctx.font = '11px sans-serif'; const nm = AREA_NAMES[h.area] || ''; ctx.fillStyle = 'rgba(20,18,28,.7)'; ctx.fillRect(8, 8, ctx.measureText(nm).width + 12, 18); ctx.fillStyle = '#e9e3d3'; ctx.fillText(nm, 14, 21); } // el fondo se ajusta al texto
 }
 const TILE_COLORS = { [T.WALL]: '#3b2f5a', [T.FLOOR]: '#8f7a5c', [T.STAIRS]: '#8f7a5c', [T.WATER]: '#2f6fa8', [T.LAVA]: '#c4521f' };
 const TILE_KEYS = { [T.WALL]: 'wall', [T.FLOOR]: 'floor', [T.STAIRS]: 'stairs', [T.WATER]: 'water', [T.LAVA]: 'lava' };
