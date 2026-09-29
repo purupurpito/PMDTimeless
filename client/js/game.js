@@ -2750,7 +2750,7 @@ function renderDialog() {
     ly += size + 6;
   }
   ctx.textBaseline = 'alphabetic';
-  if (d.done) { if (Math.floor(performance.now() / 400) % 2) { ctx.fillStyle = '#f8f8f8'; ctx.beginPath(); ctx.moveTo(x + w - 22, y + h - 16); ctx.lineTo(x + w - 12, y + h - 16); ctx.lineTo(x + w - 17, y + h - 10); ctx.fill(); } }
+  if (d.done) { const b = Math.abs(Math.sin(performance.now() / 180)) * 3; ctx.fillStyle = '#f8d848'; ctx.beginPath(); ctx.moveTo(x + w - 30, y + h - 22 + b); ctx.lineTo(x + w - 14, y + h - 22 + b); ctx.lineTo(x + w - 22, y + h - 12 + b); ctx.fill(); scheduleRender(); }   // indicador para continuar: siempre visible, dando saltitos
   scheduleRender();
 }
 function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
