@@ -61,6 +61,7 @@ export const HUB = {
       { id: 'kecleon_green', x: 230, y: 300, facing: [1, 1], talk: 'shop', fixedFacing: true, reach: 84 },   // atiende tras el mostrador (que le tapa de cintura para abajo)
       { id: 'kecleon_purple', x: 362, y: 235, facing: [1, 1], talk: 'sell', fixedFacing: true, reach: 84 },
       { id: 'kangaskhan', x: 540, y: 235, facing: [-1, 1], talk: 'storage', fixedFacing: true },
+      { id: 'sableye', x: 452, y: 418, facing: [1, 0], talk: 'sableye_gulpin', untilRank: 1, reach: 40 },   // Sableye, ayudando a Gulpin con su cabaña (hasta Bronce)
       { id: 'gulpin', x: 532, y: 380, facing: [-1, 0], talk: 'gulpin', fixedFacing: true, reach: 78, approach: [420, 360, 500, 452] },   // dentro de la cabaña, en la entrada // en la puerta de la cabaña: solo se le habla desde delante
     ],
     // Capas de primer plano: los mostradores (con su poste delantero) se dibujan por encima de los Kecleon, que atienden detrás

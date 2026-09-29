@@ -7,7 +7,7 @@ import { hooks as engineHooks, T, createMon, computeStats, damage, hitCheck, app
 import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/data.js';
 import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
-import { storyLineFor, letterById } from '../../shared/story.js';
+import { storyLineFor, letterById, SABLEYE_LINES } from '../../shared/story.js';
 import { HUB, VIEW } from './hub.js';
 import { HUB_OBJECTS } from './hub-objects.js';
 import { typeIconHTML, typeIconImg } from './typeicons.js';
@@ -489,7 +489,8 @@ function hubLoop() {
   hubRaf = requestAnimationFrame(step);
 }
 const inRect = (x, y, [x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
-const npcShown = n => !(n.intro && !(state.hub.introChatot && !state.tour)) && !(state.tour && n.id === 'chatot');
+const npcShown = n => !(n.intro && !(state.hub.introChatot && !state.tour)) && !(state.tour && n.id === 'chatot')
+  && !(n.untilRank !== undefined && rankOf(meta?.rankPts || 0) >= n.untilRank) && !(n.fromRank !== undefined && rankOf(meta?.rankPts || 0) < n.fromRank);   // personajes que solo están hasta (o desde) cierto rango
 const npcAtHub = (x, y) => [...HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden), ...state.hub.wanderers].some(n => Math.abs(n.x - x) < 14 && Math.abs(n.y - y) < 10);
 function spawnWanderers() {
   const area = HUB[state.hub.area], h = state.hub; h.wanderers = [];
@@ -593,6 +594,7 @@ function talkToBase(kind) {
       if (rankOf(meta.rankPts) < 4) return openDialog([{ who: 'Mawile', text: 'Lo siento, pero el jefe está ocupado. Por normas estipuladas del gremio, solamente gente de rango Diamante o superior pueden acceder de forma directa a su despacho.' }]);
       return openDialog([{ who: 'Mawile', text: `¡Rango Diamante! Adelante, ${user.name}. El jefe te recibirá.` }], () => openPidgeotOffice());
     case 'chatot_intro': return openDialog([{ who: 'Chatot', text: '¿Has cambiado de idea? ¡Estupendo!' }], () => tutorial(true));
+    case 'sableye_gulpin': return openDialog([{ who: 'Sableye', sp: 'sableye', mood: 'Happy', text: SABLEYE_LINES.helpingGulpin }]);   // ayudando a Gulpin (hasta Bronce)
     case 'murkrow': {
       const n = unreadMail();
       return openMenu({ title: 'Murkrow', items: [n ? `Leer el correo (${n} sin leer)` : 'Leer el correo', 'Charlar', 'Nada, gracias'],

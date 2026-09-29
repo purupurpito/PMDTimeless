@@ -57,7 +57,16 @@ export function deliverMail(m, now = Date.now()) {
 
 // ---------- frases nuevas: al empezar un capítulo, estos personajes dicen algo nuevo una sola vez ----------
 // Clave: la de su conversación (la misma que en el juego). then: false = no sigue con su conversación de siempre.
+// Frases de Sableye (el tasador). La de tasador se usará cuando abra el Café de Spinda.
+export const SABLEYE_LINES = {
+  helpingGulpin: '¡Hola! Tú eres nuevo, ¿verdad? Estoy echando una mano a Gulpin con su cabaña. La tasación, cerrada por un tiempo. ¡Je!',
+  appraiser: '¡Bienvenido! Soy Sableye, tasador de cofres. Llevo aquí más años que la mitad del gremio, ¡je! Si te sale un cofre en alguna mazmorra, tráemelo y te lo abro sin romper nada de dentro. ¡Palabra de tasador!',
+};
 export const STORY_LINES = {
+  gulpin: {   // al llegar a Bronce, Sableye se ha ido del mercado
+    3: [{ text: '¡Gulp! Sableye ya se ha ido. Me ayudó a construir… y después a reparar mi cabaña. Es muy buena persona. Ahora está en el Café de Spinda… haciendo de tasador.', mood: 'Happy' },
+        { text: '… Por cierto, ¿qué es un tasador? Gulp.', mood: 'Normal' }],
+  },
   chatot: {
     3: [{ text: '¿Tú también oyes la rejilla por las noches? …No, nada. Pregunta tonta. ¡A trabajar!', mood: 'Worried' }],
     5: [{ text: 'El maestro ha pedido que no se ordene su despacho. Nunca. Ni el polvo. Yo no pregunto, y tú tampoco.', mood: 'Normal' }],
