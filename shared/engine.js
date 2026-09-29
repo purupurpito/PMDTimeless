@@ -79,13 +79,29 @@ export function hitCheck(rng, move, attacker, defender, weather = 'none') {
   const roll = acc => acc > 100 || rng.random() * 100 < Math.floor(Math.floor(acc * ab.accMult * ACC_STAGE[a] * EVA_STAGE[ev] / 256) / 256);
   return roll(move.acc1 ?? 100) && roll(move.acc2 ?? move.acc ?? 100);
 }
-// Cambios de estadísticas (estadios −10…+10 sobre el neutro), con los mensajes del juego. La velocidad aún no se aplica.
+// Velocidad de movimiento, como en Exploradores del Cielo: de −1 (lento: actúa un turno de cada dos) a +3 (actúa 4 veces
+// por turno). Los cambios duran SPEED_TURNS turnos (y se pierden al cambiar de piso). Nado Rápido / Clorofila: +1 con su clima.
+export const SPEED_TURNS = 10;
+export function applySpeed(mon, delta) {
+  const cur = mon.speed || 0, nv = Math.max(-1, Math.min(3, cur + Math.sign(delta)));
+  if (nv === cur) return [`La velocidad de ${mon.name} no puede ${delta > 0 ? 'subir' : 'bajar'} más.`];
+  mon.speed = nv; mon.speedTurns = SPEED_TURNS; hooks.onStage?.(mon, 'spe', nv - cur);
+  return [nv > cur ? (nv > 0 ? `¡${mon.name} se mueve más rápido!` : `¡${mon.name} recupera su velocidad normal!`) : (nv < 0 ? `¡${mon.name} se vuelve más lento!` : `¡${mon.name} pierde velocidad!`)];
+}
+// nivel efectivo este turno (con las habilidades que dependen del clima)
+export function speedOf(mon, weather = 'none') {
+  let s = mon.speed || 0;
+  if ((weather === 'rain' && hasAbility(mon, 'SWIFT_SWIM')) || (weather === 'sun' && hasAbility(mon, 'CHLOROPHYLL'))) s++;
+  return Math.max(-1, Math.min(3, s));
+}
+// Cambios de estadísticas (estadios −10…+10 sobre el neutro), con los mensajes del juego. La velocidad va aparte (applySpeed).
 const STAT_NAMES = { atk: 'el Ataque', def: 'la Defensa', spa: 'el At. Esp.', spd: 'la Def. Esp.', acc: 'la Precisión', eva: 'la Evasión' };
 // Ganchos para el juego: cambios de estadística y estados aplicados (flechas, iconos, sonidos)
 export const hooks = { onStage: null, onStatus: null };
 export function applyStages(mon, changes) {
   const msgs = [];
   for (const [stat, n] of changes) {
+    if (stat === 'spe') { msgs.push(...applySpeed(mon, n)); continue; }   // velocidad de movimiento
     if (!STAT_NAMES[stat]) continue;
     if (n < 0 && (ITEMS[mon.held]?.noStatDrop || abilityBlocksDrop(mon, stat))) { msgs.push(`¡${mon.name} no deja que le bajen ${STAT_NAMES[stat]}!`); continue; }   // Banda Giro / habilidad
     mon.stages ||= {};

@@ -3,7 +3,7 @@ import { setTouchVisible } from './touch.js';
 // JUEGO — escenas Base y Mazmorra. Lo persistente pasa por la API; la mazmorra se juega en local con RNG sembrado.
 // =====================================================================
 import { rollLoot, WEATHER as WEATHER_ALL, CFG, SPECIES, MOVES, BASIC, TM_POOL, ITEMS, STATUS, TACTICS, RANKS, DUNGEONS, MISSION_TYPES, SHOP_IN_DUNGEON, KECLEON_DISCOUNT, RECRUIT_MIN_RANK, dungeonById, rankOf, expForLevel, expToNext, expGained, learnEntries, canLearnMachine, pokesFor, floorKind, recruitChance, canCrossTerrain, eraFor, shopPrice, bagSizeFor, fixItemName, fixMoveName } from '../../shared/data.js';
-import { hooks as engineHooks, T, createMon, computeStats, damage, hitCheck, applyStages, applyStatus, tickStatus, wakeOnHit, buildFloor, spawnMonsterHouse, JIRACHI_PHASES } from '../../shared/engine.js';
+import { hooks as engineHooks, T, createMon, computeStats, damage, hitCheck, applyStages, applyStatus, tickStatus, wakeOnHit, buildFloor, spawnMonsterHouse, JIRACHI_PHASES, speedOf } from '../../shared/engine.js';
 import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/data.js';
 import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
@@ -235,7 +235,7 @@ export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
-  window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmOpenMain = () => openDungeonMainMenu(); window.__mmTalk = k => talkTo(k); window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
+  window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmOpenMain = () => openDungeonMainMenu(); window.__mmTalk = k => talkTo(k); window.__mmSees = (e, t) => enemySees(e, t); window.__mmEnemyTurn = e => enemyTurn(e); window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
   window.__mmGainExp = (m, n) => gainExp(m, n); window.__mmExpToNext = expToNext; window.__mmBag = () => openBagMenu(); window.__mmIconOf = t => itemInText(t);
   window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
   window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l);
@@ -533,7 +533,9 @@ function npcGreeting(who, lines, key, next, sp) {
 }
 function hubInteract() {
   const h = state.hub, area = HUB[h.area], fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
-  const npc = [...area.npcs].filter(npcShown).find(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26)));
+  // de los que están al alcance, habla el que está más cerca de hacia donde miras (no el primero de la lista)
+  const talkScore = n => Math.hypot(n.x - fx, n.y - fy) + (((n.x - h.x) * h.facing[0] + (n.y - h.y) * h.facing[1]) < 0 ? 1000 : 0);   // los que tienes a la espalda, al final
+  const npc = [...area.npcs].filter(npcShown).filter(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))).sort((a, b) => talkScore(a) - talkScore(b))[0];
   if (npc) { if (!npc.fixedFacing) npc.facing = [-Math.sign(h.facing[0]), -Math.sign(h.facing[1])]; state.talkNpc = { x: npc.x, y: npc.y, area: h.area }; return talkTo(npc.talk); }
   const w = h.wanderers.find(n => Math.hypot(n.x - fx, n.y - fy) < 20); if (w) return openDialog([{ who: SPECIES[w.species].name, text: WANDER_LINES[(Math.random() * WANDER_LINES.length) | 0] }]);
   for (const s of area.signs || []) if (inRect(fx, fy, s.rect)) return openDialog([{ who: '', text: s.text }]);
@@ -1057,7 +1059,8 @@ function newFloor() {
   musicZone = null;
   state.floorTurns = 0; // el viento cuenta los turnos de cada piso
   setTimeout(updateDungeonMusic, 0);   // tema del piso (tras montar la planta)
-  for (const m of [state.player, ...state.team]) if (m) m.stages = {}; // los cambios de estadísticas duran lo que dura el piso
+  for (const m of [state.player, ...state.team]) if (m) { m.stages = {}; m.speed = 0; m.speedTurns = 0; } // los cambios de estadísticas (y de velocidad) duran lo que dura el piso
+  state.freeActs = 0;
   showCard(def0.name, `B${state.floor}F`);
   state.rng = makeRng(floorSeed(state.run.seed, state.floor));
   const built = buildFloor(state.rng, state.dungeonDef, state.floor, state.missions, state.flags, state.run.seed);
@@ -1545,7 +1548,7 @@ function seedEffect(name, it) {
     case 'doom': if (need()) { if (f.level > 1 && !f.isBoss) { f.level--; computeStats(f); f.hp = Math.min(f.hp, f.maxHp); say(`${f.name} baja al nivel ${f.level}.`); } else say('No le afecta.'); } break;
     case 'vile': if (need()) applyStages(f, [['def', -2], ['spd', -2]]).forEach(say); break;
     case 'violent': applyStages(p, [['atk', 2], ['spa', 2]]).forEach(say); break;
-    case 'quick': applyStages(p, [['eva', 2]]).forEach(say); break;
+    case 'quick': applyStages(p, [['spe', 1]]).forEach(say); break;   // Semilla Rápida: más velocidad (como en el original)
     case 'vanish': applyStages(p, [['eva', 4]]).forEach(say); break;
     case 'blindSelf': applyStages(p, [['acc', -2]]).forEach(say); break;
     case 'confuseSelf': if (applyStatus(state.rng, p, 'confusion', 1)) say(`${p.name} está confuso.`); break;
@@ -1837,8 +1840,20 @@ function askStairs() {
 function endTurn(playerActed = false) { return (state.turnP = resolveTurn(playerActed)); }
 async function resolveTurn(playerActed) {
   if (state.dead) { render(); return; }
-  state.turn++;
   const p = state.player;
+  // Velocidad (como en el original): rápido = tus acciones extra se resuelven sin que el resto del mundo se mueva
+  const ps = speedOf(p, state.weather);
+  if (playerActed && ps > 0) {
+    state.freeActs = (state.freeActs || 0) + 1;
+    if (state.freeActs <= ps) {
+      state.resolving = true;
+      try { if (state.attacked) { render(); await pace(ATTACK_PAUSE()); } state.attacked = false; await waitFading(); updateVisibility(); render(); }
+      finally { state.resolving = false; }
+      return;
+    }
+    state.freeActs = 0;
+  }
+  state.turn++;
   if (!playerActed) { const st = preTurn(p); if (state.dead) return; }
   // barriga: −1 cada 10 turnos; vacía, se pierde 1 PS por turno y no se regenera (Exploradores del Cielo)
   // en la Mazmorra del Tiempo la barriga baja a la mitad de velocidad (1 cada 20 turnos)
@@ -1855,9 +1870,17 @@ async function resolveTurn(playerActed) {
     state.attacked = false;
     await waitFading();
     const alive = () => !state.dead && state.scene === 'dungeon';
+    // cuántas veces actúa cada uno este turno según su velocidad: lento, uno de cada dos; rápido, 2, 3 o 4 veces
+    const actsOf = m => { const s = speedOf(m, state.weather); return s > 0 ? 1 + s : s < 0 ? (state.turn % 2 === 0 ? 1 : 0) : 1; };
+    const rounds = ps < 0 ? 2 : 1;   // si tú eres lento, el mundo avanza dos turnos por cada acción tuya
+    for (let round = 0; round < rounds; round++) {
+    if (round > 0) state.turn++;
     for (const a of [...state.team]) {
-      if (!alive()) return; regen(a); allyTurn(a);
-      if (state.attacked) { state.attacked = false; render(); await pace(ATTACK_PAUSE()); await waitFading(); }
+      if (!alive()) return; regen(a);
+      for (let k = actsOf(a); k > 0 && a.hp > 0 && alive(); k--) {
+        allyTurn(a);
+        if (state.attacked) { state.attacked = false; render(); await pace(ATTACK_PAUSE()); await waitFading(); }
+      }
     }
     if (!alive()) return;
     if (!floorClock()) return;
@@ -1866,14 +1889,26 @@ async function resolveTurn(playerActed) {
     let first = true;
     for (const e of [...state.enemies]) {
       if (!alive()) return;
-      if (first && moved0 && cheb(e, p) <= 2 && e.hp > 0) { first = false; await pace(STEP_MS()); }   // que termine tu paso antes de que te ataquen
-      enemyTurn(e);
-      if (state.attacked) { state.attacked = false; render(); await pace(ATTACK_PAUSE()); await waitFading(); }
+      for (let k = actsOf(e); k > 0 && e.hp > 0 && alive(); k--) {
+        if (first && moved0 && cheb(e, p) <= 2 && e.hp > 0) { first = false; await pace(STEP_MS()); }   // que termine tu paso antes de que te ataquen
+        enemyTurn(e);
+        if (state.attacked) { state.attacked = false; render(); await pace(ATTACK_PAUSE()); await waitFading(); }
+      }
+    }
+    speedTick();
     }
     updateVisibility(); render();
     state.turnsSinceSave = (state.turnsSinceSave || 0) + 1;
     if (state.turnsSinceSave >= 10) { state.turnsSinceSave = 0; autosave('turns'); }   // guardado automático cada 10 turnos
   } finally { state.resolving = false; }
+}
+// Contadores de velocidad (los cambios duran unos turnos) e Impulso (+1 de velocidad cada 10 turnos)
+function speedTick() {
+  for (const m of [state.player, ...state.team, ...state.enemies]) {
+    if (!m || m.hp <= 0) continue;
+    if (m.speedTurns > 0 && --m.speedTurns === 0 && m.speed) { m.speed = 0; if (isVisibleNow(m.x, m.y)) say(`La velocidad de ${m.name} vuelve a la normalidad.`); }
+    if (hasAbility(m, 'SPEED_BOOST') && state.turn % 10 === 0 && (m.speed || 0) < 3) { m.speed = (m.speed || 0) + 1; m.speedTurns = Infinity; if (isVisibleNow(m.x, m.y)) say(`¡${m.name} acelera gracias a Impulso!`); }
+  }
 }
 // ---------- huir (como en el original): asustados, con Fuga por debajo del 50 % y forajidos que huyen ----------
 function terrify(mon, turns, why) {
@@ -1924,6 +1959,15 @@ function stepToward(mon, tx, ty) {
   for (const [a, b] of tries) if (canMove(mon, a, b)) { mon.x += a; mon.y += b; mon.facing = [a, b]; mon.movedAt = performance.now(); return true; }
   return false;
 }
+function moveStillUseful(mon, target, mv) {
+  if (!mv || mv.cat !== 'status' || !mv.statFx?.changes?.length) return true;
+  const self = mv.statFx.raiseSelf || mv.range === 'self' || mv.range === 'team';
+  const who = self ? mon : target;
+  return mv.statFx.changes.some(([stat, n]) => {
+    if (stat === 'spe') { const s = who.speed || 0; return n > 0 ? s < 3 : s > -1; }
+    const s = who.stages?.[stat] || 0; return n > 0 ? s < 10 : s > -10;
+  });
+}
 function pickMove(mon, target, dist) {
   const usable = mon.moves.filter(m => m.pp > 0 && (dist === 1 ? MOVES[m.name].range !== 'room' || roomOf(mon) : (MOVES[m.name].range === 'line' && MOVES[m.name].dist >= dist) || (MOVES[m.name].range === 'around' && (MOVES[m.name].dist || 1) >= dist) || (MOVES[m.name].range === 'room' && roomOf(mon) && roomOf(mon) === roomOf(target))));
   const aligned = mon.x === target.x || mon.y === target.y || Math.abs(mon.x - target.x) === Math.abs(mon.y - target.y);
@@ -1931,7 +1975,9 @@ function pickMove(mon, target, dist) {
   if (dist === 1 && !cornerFree(mon, target) && !usable.some(m => MOVES[m.name].range === 'room' || MOVES[m.name].range === 'around')) return null;
   if (!aligned && !usable.some(m => MOVES[m.name].range === 'room' || MOVES[m.name].range === 'around')) return null;
   if (aligned) mon.facing = [Math.sign(target.x - mon.x), Math.sign(target.y - mon.y)];
-  const choice = usable.length && (dist === 1 ? state.rng.random() < 0.7 : true) ? state.rng.pick(usable) : null;
+  // descartar los movimientos de estado que ya no harían nada (bajar lo que está al mínimo, subir lo que está al máximo)
+  const useful = usable.filter(m => moveStillUseful(mon, target, MOVES[m.name]));
+  const choice = useful.length && (dist === 1 ? state.rng.random() < 0.7 : true) ? state.rng.pick(useful) : null;
   if (choice && findTargets(mon, { ...MOVES[choice.name], name: choice.name }).length) return choice;
   return dist === 1 && aligned ? 'basic' : null;
 }
@@ -1979,14 +2025,37 @@ function enemyTurn(e) {
   if (st.randomMove) { const [dx, dy] = state.rng.pick(DIRS8); if (canMove(e, dx, dy)) { e.x += dx; e.y += dy; } return; }
   const targets = [state.player, ...state.team].sort((a, b) => cheb(a, e) - cheb(b, e)), target = targets[0], dist = cheb(target, e);
   if (e.asleep) { if (dist <= 1 && state.rng.random() < 0.5) e.asleep = false; return; }
-  if (dist <= CFG.sightRadius) {
+  // Visión como en el original: te ve si estáis en la misma sala o, en los pasillos, a 2 casillas como mucho.
+  // Si te pierde de vista, va al último sitio donde te vio (durante unos turnos) en vez de olvidarse de ti.
+  const seen = targets.find(t => enemySees(e, t));
+  if (seen) e.lastSeen = { x: seen.x, y: seen.y, ttl: 8 };
+  if (seen) {
+    const tgt = seen, dst = cheb(tgt, e);
     if (e.sealed > 0) { e.sealed--; if (dist <= 1) { useMove(e, BASIC); return; } }   // Orbe Silencio / Sello: solo golpes básicos
-    const chosen = pickMove(e, target, dist);
+    const chosen = pickMove(e, tgt, dst);
     if (chosen === 'basic') { useMove(e, BASIC); return; }
     if (chosen) { useMove(e, { ...MOVES[chosen.name], name: chosen.name }); chosen.pp--; return; }
-    stepToward(e, target.x, target.y); return;
+    chase(e, tgt.x, tgt.y); return;
   }
+  if (e.lastSeen && e.lastSeen.ttl-- > 0 && !(e.x === e.lastSeen.x && e.y === e.lastSeen.y)) { chase(e, e.lastSeen.x, e.lastSeen.y); return; }
+  e.lastSeen = null;
   wander(e);
+}
+// ¿El enemigo ve a este Pokémon? Misma sala, o a 2 casillas como mucho (pasillos, entradas de sala)
+function enemySees(e, t) {
+  if (!t || t.hp <= 0) return false;
+  const d = cheb(e, t); if (d <= 2) return true;
+  const r = roomOf(e); return !!r && r === roomOf(t) && d <= CFG.sightRadius * 2;
+}
+// Perseguir por el camino de verdad (por los pasillos), no en línea recta contra las paredes
+function chase(e, tx, ty) {
+  const path = dungeonPath(e, { x: tx, y: ty });
+  const n = path?.[0];
+  if (n && !(n.x === tx && n.y === ty && occupied(tx, ty))) {
+    const dx = n.x - e.x, dy = n.y - e.y;
+    if (canMove(e, dx, dy)) { e.x = n.x; e.y = n.y; e.facing = [dx, dy]; e.movedAt = performance.now(); return; }
+  }
+  stepToward(e, tx, ty);   // sin camino libre (alguien en medio): el paso de siempre
 }
 // Sin verte, el enemigo deambula como en Mundo Misterioso: elige una sala de destino y va hacia ella por los
 // pasillos; al llegar (o si se atasca), elige otra. Así acaba recorriendo el piso y encontrándote.
@@ -2666,7 +2735,7 @@ function renderHud() {
   $('pokes').textContent = meta.pokes; $('pokes').parentElement.style.display = state.scene === 'hub' ? 'none' : ''; $('runPokes').textContent = state.scene === 'hub' ? meta.pokes : `${state.runPokes}${unpaidTotal() ? ` (debes ${unpaidTotal()})` : ''}`;
   $('rank').textContent = `${RANKS[rankOf(meta.rankPts)].name} (${meta.rankPts})`;
   if (!p) return;
-  $('nameLv').textContent = `${p.name} (${SPECIES[p.species].name}) · Nv ${p.level}${p.status ? ' · ' + STATUS[p.status.kind].name : ''}`;
+  $('nameLv').textContent = `${p.name} (${SPECIES[p.species].name}) · Nv ${p.level}${p.status ? ' · ' + STATUS[p.status.kind].name : ''}${p.speed > 0 ? ' · Rápido' : p.speed < 0 ? ' · Lento' : ''}`;
   $('hpBar').style.width = `${p.hp / p.maxHp * 100}%`; $('hpText').textContent = `${p.hp} / ${p.maxHp}`;
   $('bellyBar').style.width = `${p.belly / p.maxBelly * 100}%`; $('bellyBar').parentElement.classList.toggle('hungry', p.belly <= 20); $('bellyText').textContent = `${p.belly} / ${p.maxBelly}`;
   $('exp').textContent = `${p.exp} / ${expToNext(p.species, p.level)}`;

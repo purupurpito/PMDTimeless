@@ -302,3 +302,8 @@ export const fixItemName = n => ITEM_ALIASES[n] || n;
 
 // Orbe Pavor: asusta a los enemigos de la sala (huyen), como en el original
 if (ITEMS['Orbe Pavor']) Object.assign(ITEMS['Orbe Pavor'], { fx: 'terrify', desc: 'Asusta a los enemigos de la sala: huyen de ti durante un rato.' });
+
+// Velocidad (como en el original): la Semilla Rápida y los orbes Rápido y Lento cambian la velocidad, no la evasión
+if (ITEMS['Semilla Rápida']) ITEMS['Semilla Rápida'].desc = 'Te mueves más rápido durante un rato.';
+if (ITEMS['Orbe Rápido']) Object.assign(ITEMS['Orbe Rápido'], { stat: 'spe', n: 1, desc: 'Tu equipo se mueve más rápido durante un rato.' });
+if (ITEMS['Orbe Lento']) Object.assign(ITEMS['Orbe Lento'], { stat: 'spe', n: -1, desc: 'Los enemigos de la sala se vuelven más lentos durante un rato.' });
