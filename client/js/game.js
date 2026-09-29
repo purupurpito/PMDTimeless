@@ -740,7 +740,7 @@ async function resumeRun() {
   const local = localBackup(r.run.id);   // si la copia del navegador es más nueva (se cortó la conexión al guardar), manda ella
   if (local && local.rev > (r.run.rev || 0)) { s = local.state; r.run.rev = local.rev; api('/run/save', { state: s, rev: local.rev }).catch(() => {}); }
   Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: dungeonById(r.run.dungeonId), player: s.player, team: s.team || [], inventory: s.inventory, runPokes: s.runPokes, missions: s.missions, earnedMD: s.earnedMD || [], recruitedLegendaries: s.recruitedLegendaries || [], lostRecruits: s.lostRecruits || [], bondedLost: s.bondedLost || [], floor: s.floor, turn: s.turn, dead: false, log: [], scene: 'dungeon', pausedRun: null });
-  state.scene = 'dungeon';
+  state.scene = 'dungeon'; state.run.playMs = s.playMs || 0;   // el tiempo jugado sigue contando desde donde iba
   if (s.where?.dungeon?.tiles) restoreFloor(s.where); else newFloor();   // el mismo piso, tal como estaba (las fotos antiguas no lo traen)
 }
 // El piso tal como está (mapa, enemigos, objetos, lo explorado…), para continuar exactamente donde lo dejaste.
@@ -762,7 +762,13 @@ function restoreFloor(w) {
   showCard(def.name, `B${state.floor}F`); setTimeout(updateDungeonMusic, 0);
   updateVisibility(); render(); say('Continúas la exploración donde la dejaste.');
 }
-const runSnapshot = () => ({ where: floorSnapshot(), floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, turn: state.turn });
+const runSnapshot = () => ({ where: floorSnapshot(), playMs: state.run?.playMs || 0, floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, turn: state.turn });
+// ---------- tiempo jugado de verdad en la mazmorra (sin pestaña oculta, pausas ni pantalla de rescate) ----------
+let playTick = performance.now();
+setInterval(() => {
+  const now = performance.now(), dt = Math.min(2000, now - playTick); playTick = now;
+  if (state.scene === 'dungeon' && state.run && !state.dead && !state.run.ending && document.visibilityState === 'visible') state.run.playMs = (state.run.playMs || 0) + dt;
+}, 1000);
 // ---------- guardado automático (en cada piso, cada 10 turnos y al cerrar o esconder la pestaña) ----------
 // La foto va al servidor con un número de versión y, además, a este navegador. Al volver se usa la más reciente.
 const BACKUP_KEY = 'pmdt_run_backup';
@@ -945,7 +951,7 @@ async function endRun(outcome) {
     leader: state.player.name, lv0: state.player.runStartLevel ?? state.player.level, lv1: state.player.level,
     team: state.team.map(a => `${a.name} Nv${a.level}`), recruited: state.diary?.recruited || 0, missions: (state.missions || []).filter(m => m.done).length } : null;
   if (state.run) state.run.ending = true;   // ya no se autoguarda
-  const endBody = { outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] };
+  const endBody = { playMs: Math.round(state.run?.playMs || 0), outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] };
   const rid = state.run?.endRid || (state.run ? (state.run.endRid = newRequestId()) : newRequestId());
   try { localStorage.setItem(PENDING_KEY, JSON.stringify({ user: user?.name, rid, body: endBody, where: state.dungeonDef.name })); } catch {}
   let r = null, offline = false;

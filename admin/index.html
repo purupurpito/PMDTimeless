@@ -34,6 +34,9 @@
   .ipdup { color: var(--warn); font-weight: 600; }
   .dim { color: var(--dim); }
   .hidden { display: none !important; }
+  h3 { font-size: 15px; margin: 18px 0 8px; color: var(--gold); }
+  .twocol { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .twocol { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -47,6 +50,13 @@
   </form>
   <section id="panel" class="hidden">
     <div class="stats"><div class="stat"><span class="dim">Cuentas</span><b id="s-total">0</b></div><div class="stat"><span class="dim">Creadas hoy</span><b id="s-today">0</b></div><div class="stat"><span class="dim">Conexiones con varias cuentas</span><b id="s-dup">0</b></div></div>
+    <div class="stats"><div class="stat"><span class="dim">Horas jugadas (en mazmorra)</span><b id="s-hours">0</b></div><div class="stat"><span class="dim">Exploraciones terminadas</span><b id="s-runs">0</b></div><div class="stat"><span class="dim">Minutos por piso (media)</span><b id="s-mpf">—</b></div></div>
+    <div class="twocol">
+      <div><h3>Mazmorras</h3><div class="wrap"><table><thead><tr><th>Mazmorra</th><th class="num">Partidas</th><th class="num">Completadas</th><th class="num">Caídas</th><th class="num">Min. por partida</th><th class="num">Min. por piso</th></tr></thead><tbody id="dg"></tbody></table></div></div>
+      <div><h3>Iniciales</h3><div class="wrap"><table><thead><tr><th>Inicial</th><th class="num">Jugadores</th></tr></thead><tbody id="st"></tbody></table></div></div>
+    </div>
+    <p class="dim">El tiempo se mide solo mientras se juega en la mazmorra (sin contar la pestaña oculta ni las pausas). Las exploraciones de antes de medirlo no tienen tiempo.</p>
+    <h3>Cuentas</h3>
     <div class="tools"><input id="q" placeholder="Buscar por nombre, inicial, naturaleza…"><button class="link" id="reload">Actualizar</button></div>
     <div class="wrap"><table><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table></div>
     <p class="dim">«Conexión» es un identificador cifrado de la IP con la que se creó la cuenta: sirve para ver cuentas creadas desde el mismo sitio, no para saber dónde está nadie.</p>
@@ -56,8 +66,9 @@
 import { API_URL } from '../client/js/config.js';
 const $ = s => document.querySelector(s), KEY = 'pmdt_admin';
 const COLS = [['name', 'Nombre'], ['nature', 'Naturaleza'], ['starter', 'Inicial'], ['starters', 'Iniciales', 1], ['rank', 'Rango'], ['rankPts', 'Puntos', 1], ['pokes', 'Pokés', 1],
-  ['cleared', 'Mazmorras', 1], ['runs', 'Exploraciones', 1], ['runStatus', 'Última'], ['createdAt', 'Creada'], ['lastLogin', 'Último acceso'], ['ip', 'Conexión']];
+  ['cleared', 'Mazmorras', 1], ['runs', 'Exploraciones', 1], ['playMin', 'Tiempo jugado', 1], ['runStatus', 'Última'], ['createdAt', 'Creada'], ['lastLogin', 'Último acceso'], ['ip', 'Conexión']];
 let users = [], sort = ['createdAt', -1];
+const hm = m => !m ? '—' : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
 const fmt = d => d ? new Date(d).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 const STATUS = { active: 'en curso', paused: 'guardada', ended: 'terminada', rescue_pending: 'esperando rescate' };
 async function api(path, body) {
@@ -71,14 +82,21 @@ function draw() {
     .sort((a, b) => { const x = a[sort[0]] ?? '', y = b[sort[0]] ?? ''; return (x > y ? 1 : x < y ? -1 : 0) * sort[1]; });
   $('#head').innerHTML = COLS.map(([k, t, n]) => `<th data-k="${k}" class="${n ? 'num' : ''}">${t}${sort[0] === k ? (sort[1] > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('');
   $('#rows').innerHTML = list.map(u => `<tr>${COLS.map(([k, , n]) => {
-    let v = u[k]; if (k === 'createdAt' || k === 'lastLogin') v = fmt(v); if (k === 'runStatus') v = STATUS[v] || '—';
+    let v = u[k]; if (k === 'createdAt' || k === 'lastLogin') v = fmt(v); if (k === 'runStatus') v = STATUS[v] || '—'; if (k === 'playMin') v = hm(v);
     if (k === 'ip') return `<td class="${ipCount[v] > 1 ? 'ipdup' : 'dim'}">${v ? v + (ipCount[v] > 1 ? ` (×${ipCount[v]})` : '') : '—'}</td>`;
     return `<td class="${n ? 'num' : ''}">${String(v ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>`; }).join('')}</tr>`).join('');
   $('#s-dup').textContent = Object.values(ipCount).filter(n => n > 1).length;
   document.querySelectorAll('#head th').forEach(th => th.onclick = () => { sort = [th.dataset.k, sort[0] === th.dataset.k ? -sort[1] : 1]; draw(); });
 }
 async function load() {
-  try { const d = await api('/admin/users'); users = d.users; $('#s-total').textContent = d.total; $('#s-today').textContent = d.today; show(true); draw(); }
+  try {
+    const d = await api('/admin/users'); users = d.users; $('#s-total').textContent = d.total; $('#s-today').textContent = d.today; show(true); draw();
+    const s = await api('/admin/stats'); const esc = t => String(t ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+    $('#s-hours').textContent = s.totalHours; $('#s-runs').textContent = s.runs;
+    const fl = s.dungeons.reduce((a, x) => a + (x.minPerFloor ? 1 : 0), 0); $('#s-mpf').textContent = fl ? (s.dungeons.reduce((a, x) => a + (x.minPerFloor || 0), 0) / fl).toFixed(1) : '—';
+    $('#dg').innerHTML = s.dungeons.sort((a, b) => b.runs - a.runs).map(x => `<tr><td>${esc(x.name)}</td><td class="num">${x.runs}</td><td class="num">${x.clears} (${x.runs ? Math.round(x.clears / x.runs * 100) : 0} %)</td><td class="num">${x.deaths}</td><td class="num">${x.avgMin || '—'}</td><td class="num">${x.minPerFloor ?? '—'}</td></tr>`).join('') || '<tr><td colspan="6" class="dim">Sin datos todavía</td></tr>';
+    $('#st').innerHTML = s.starters.map(x => `<tr><td>${esc(x.starter)}</td><td class="num">${x.n}</td></tr>`).join('') || '<tr><td colspan="2" class="dim">Sin datos</td></tr>';
+  }
   catch (e) { if (e.status === 401) { sessionStorage.removeItem(KEY); show(false); } $('#msg').textContent = e.message; }
 }
 function show(logged) { $('#login').classList.toggle('hidden', logged); $('#panel').classList.toggle('hidden', !logged); $('#logout').classList.toggle('hidden', !logged); }
