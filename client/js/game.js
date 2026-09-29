@@ -7,6 +7,7 @@ import { hooks as engineHooks, T, createMon, computeStats, damage, hitCheck, app
 import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/data.js';
 import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
+import { storyLineFor, letterById } from '../../shared/story.js';
 import { HUB, VIEW } from './hub.js';
 import { HUB_OBJECTS } from './hub-objects.js';
 import { typeIconHTML, typeIconImg } from './typeicons.js';
@@ -234,7 +235,7 @@ export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
-  window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmOpenMain = () => openDungeonMainMenu(); window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
+  window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmOpenMain = () => openDungeonMainMenu(); window.__mmTalk = k => talkTo(k); window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
   window.__mmGainExp = (m, n) => gainExp(m, n); window.__mmExpToNext = expToNext; window.__mmBag = () => openBagMenu(); window.__mmIconOf = t => itemInText(t);
   window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
   window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l);
@@ -247,6 +248,7 @@ export async function startGame(me) {
       state.enemies = []; state.groundItems = [{ name: 'Semilla Revivir', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
   user = me.user; meta = me.user.meta; state.pausedRun = me.run;
   state.waitingRescue = !!me.rescue;
+  if (me.mailNews && !me.rescue) { const news = (tries = 0) => { if (state.scene === 'hub' && !state.dialog && !state.menu) openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Tienes correo! Pásate por el buzón de la plaza.' }]); else if (tries < 10) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1200); }
   if (me.rescue) setTimeout(() => showRescueWait(me.rescue), 300);   // tu equipo sigue esperando un rescate
   if (pendingEnd()) flushPendingEnd();   // un resultado que no llegó la última vez (se envía solo)
   document.getElementById('hud-user').textContent = user.name;
@@ -437,6 +439,7 @@ function enterHub() {
   const h = state.hub; if (!h.area) { h.area = 'plaza'; Object.assign(h, HUB.plaza.spawn); }
   spawnWanderers(); render(); checkSpecialDay(); checkMyRescue();
   setTimeout(() => { if (!state.dialog && !state.menu) fountainNews(); }, 700);
+  if (state.mailArrived) { const news = (tries = 0) => { if (state.scene !== 'hub') return; if (!state.dialog && !state.menu && !document.querySelector('.penalty-report')) { state.mailArrived = false; openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Te ha llegado una carta mientras estabas fuera! Pásate por el buzón de la plaza.' }]); } else if (tries < 20) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1500); }
   if (state.pausedRun) openMenu({ title: `Tienes una exploración a medias en ${dungeonById(state.pausedRun.dungeonId).name}`, items: ['Continuar ahora', 'Más tarde'], onSelect: i => { if (i === 0) resumeRun(); } });
   hubLoop();
 }
@@ -511,8 +514,8 @@ const KANGASKHAN_LINES = ['¡Hola, cielo! ¿Guardamos algo a buen recaudo?', 'Lo
 const GULPIN_LINES = ['…Gulp.', '¿Eh? Ah. Movimientos. Sí, sí… ¿qué querías?', '…Ñam. …¿Decías algo?'];
 // Murkrow, el cartero del gremio (junto al buzón de la plaza). También firma los anuncios del juego en Discord.
 const MURKROW_LINES = [
-  '¡Crrraaa! Soy Murkrow, el cartero del gremio. Muy pronto podrás dejar cartas en este buzón para otros exploradores.',
-  '¡Crrraaa! ¿Correo? Todavía no, todavía no… Pero cuando llegue, serás el primero en saberlo. ¡Palabra de cartero!',
+  '¡Crrraaa! Soy Murkrow, el cartero del gremio. Si te llega algo, lo guardo en este buzón hasta que pases a por ello.',
+  '¡Crrraaa! Cuando tengas correo, serás el primero en saberlo. ¡Palabra de cartero!',
   'Las noticias vuelan, y yo con ellas. ¡Crrraaa! Si pasa algo en el gremio, me enteraré antes que nadie.',
   '¿Sabías que llevo las novedades del gremio a todos los rincones? ¡Crrraaa! Nadie reparte como yo.',
 ];
@@ -558,13 +561,43 @@ function openDiaryMenu() {
     'Bandanas: ' + ((state.badges || []).join(', ') || 'ninguna'),
     'Volver'], onCancel: closeHub, onSelect: closeHub });
 }
+// ---------- historia: frases nuevas al empezar cada capítulo (shared/story.js) ----------
+const storySeenKey = () => `pmdt_story_${user?.name}`;
+const storySeen = () => { try { return new Set(JSON.parse(localStorage.getItem(storySeenKey())) || []); } catch { return new Set(); } };
 function talkTo(kind) {
+  const s = storyLineFor(kind, meta, storySeen());
+  if (s) {
+    const seen = storySeen(); seen.add(`${kind}:${s.chapter}`); try { localStorage.setItem(storySeenKey(), JSON.stringify([...seen])); } catch {}
+    const who = kind === 'rowlet' ? '???' : kind[0].toUpperCase() + kind.slice(1);
+    return openDialog(s.pages.map(p => ({ who, sp: kind, mood: p.mood || 'Normal', text: p.text })), s.then ? () => talkToBase(kind) : undefined);
+  }
+  return talkToBase(kind);
+}
+// ---------- buzón de Murkrow: las cartas de la historia ----------
+const unreadMail = () => (meta.mail || []).filter(x => !x.read).length;
+function openMailbox() {
+  const list = [...(meta.mail || [])].filter(x => letterById(x.id)).reverse();   // las más nuevas, arriba
+  if (!list.length) return openDialog([{ who: 'Murkrow', sp: 'murkrow', text: '¡Crrraaa! Tu buzón está vacío. Vuelve más tarde.' }]);
+  openMenu({ title: `Buzón · ${unreadMail()} sin leer`, items: list.map(x => `${x.read ? '   ' : '✉ '}${letterById(x.id).title}`), onSelect: i => readLetter(list[i].id) });
+}
+function readLetter(id) {
+  const l = letterById(id), x = (meta.mail || []).find(y => y.id === id);
+  const pages = l.pages.map(t => ({ who: l.from, ...(l.sp ? { sp: l.sp } : {}), text: t }));
+  if (l.murkrow && !x?.read) pages.push({ who: 'Murkrow', sp: 'murkrow', mood: 'Surprised', text: l.murkrow });   // su comentario, la primera vez
+  if (x && !x.read) { x.read = true; api('/mail/read', { id }).then(r => { if (r?.mail) meta.mail = r.mail; }).catch(() => {}); }
+  openDialog(pages, openMailbox);
+}
+function talkToBase(kind) {
   switch (kind) {
     case 'mawile':   // guarda la puerta del despacho: solo pasan los de rango Diamante o superior
       if (rankOf(meta.rankPts) < 4) return openDialog([{ who: 'Mawile', text: 'Lo siento, pero el jefe está ocupado. Por normas estipuladas del gremio, solamente gente de rango Diamante o superior pueden acceder de forma directa a su despacho.' }]);
       return openDialog([{ who: 'Mawile', text: `¡Rango Diamante! Adelante, ${user.name}. El jefe te recibirá.` }], () => openPidgeotOffice());
     case 'chatot_intro': return openDialog([{ who: 'Chatot', text: '¿Has cambiado de idea? ¡Estupendo!' }], () => tutorial(true));
-    case 'murkrow': return npcGreeting('Murkrow', MURKROW_LINES, 'mk');
+    case 'murkrow': {
+      const n = unreadMail();
+      return openMenu({ title: 'Murkrow', items: [n ? `Leer el correo (${n} sin leer)` : 'Leer el correo', 'Charlar', 'Nada, gracias'],
+        onSelect: i => { if (i === 0) openMailbox(); else if (i === 1) npcGreeting('Murkrow', MURKROW_LINES, 'mk', undefined, 'murkrow'); } });
+    }
     case 'rowlet': {   // «???»: una Rowlet que lleva en la fuente tanto tiempo como el maestro del gremio y nunca quiso evolucionar
       const r = (text, mood = 'Normal') => ({ who: '???', sp: 'rowlet', mood, text });
       if ((meta.stats?.deepestBy?.tiempo || 0) < 100) return openDialog([r('…'), r('Aún no sería bueno para ti evolucionar…', 'Worried'),
@@ -916,6 +949,7 @@ async function endRun(outcome) {
   try { r = await api('/run/end', endBody, { rid }); } catch (e) { if (e.status === 0) offline = true; else say(e.message); }
   finally { state.busy = false; render(); }
   if (r) { try { localStorage.removeItem(PENDING_KEY); } catch {} clearBackup(); }
+  if (r?.newMail) state.mailArrived = true;   // Murkrow avisa al volver al gremio
   // sin conexión: el resultado queda guardado y se envía solo cuando vuelva (no se pierde la exploración)
   if (!r && offline) { openMenu({ title: 'Sin conexión con el servidor', items: ['Reintentar ahora', 'Volver a la aldea (se enviará después)'], sticky: true, onSelect: async i => {
     if (i === 0) return endRun(outcome);

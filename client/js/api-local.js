@@ -1,5 +1,6 @@
 // ===== SERVIDOR LOCAL: el juego funciona sin servidor y guarda la partida en este navegador (localStorage) =====
 import { DELIVERY_ITEMS, bagSizeFor } from '../../shared/data.js';
+import { deliverMail } from '../../shared/story.js';
 import { expToNext, CFG, DUNGEONS, SPECIES, ITEMS, SHOP_FIXED, SHOP_ROTATING, SHOP_HELD, RANKS, MISSION_TYPES, MEGA_STONES, KECLEON_DISCOUNT, dungeonById, rankOf } from '../../shared/data.js';
 import { publicQuiz, scoreQuiz, NATURES } from '../../server/quiz.js';
 
@@ -59,7 +60,10 @@ async function localApi(path, body) {
       if (norm(body.name) !== norm(DB.user.name) || (DB.user.pass && hashPass(body.password) !== DB.user.pass)) fail('Nombre o código secreto incorrectos.', 401);
       token = 'local'; return { token, user: publicUser() };
     case '/auth/logout': token = null; return { ok: true };
-    case '/me': { if (!DB.user) fail('Sin sesión', 401); refreshBoard(m); const r = activeRun(); return { user: publicUser(), run: r ? runInfo(r) : null }; }
+    case '/me': { if (!DB.user) fail('Sin sesión', 401); refreshBoard(m); deliverMail(m);
+      const today = new Date().toISOString().slice(0, 10), mailNews = (m.mail || []).some(x => !x.read) && m.mailDay !== today; if (mailNews) m.mailDay = today;
+      const r = activeRun(); return { mailNews, user: publicUser(), run: r ? runInfo(r) : null }; }
+    case '/mail/read': { const x = (m.mail || []).find(l => l.id === body.id); if (!x) fail('Esa carta no está en tu buzón.', 404); x.read = true; return { mail: m.mail }; }
     case '/shop/buy': { if (activeRun()) fail('Tienes una run en curso.', 409); if (!m.shop.includes(body.item)) fail('Kecleon verde no vende eso ahora mismo.'); const isK = body.leader === 'kecleon' && m.starters.includes('kecleon'); const price = Math.round(ITEMS[body.item].buy * (isK ? KECLEON_DISCOUNT : 1)); if (m.pokes < price) fail('Kecleon verde: "Ejem… no te llega."'); if (m.bag.length >= bagSizeFor(m.rankPts)) fail('Tienes la bolsa llena.'); m.pokes -= price; m.bag.push(body.item); return { meta: m, price }; }
     case '/shop/sell': { if (body.keep) return { meta: m }; let gained = 0; if (body.all) m.bag = m.bag.filter(n => { if (ITEMS[n]?.sell) { gained += ITEMS[n].sell; return false; } return true; }); else { const n = m.bag[body.index]; if (!n || !ITEMS[n]?.sell) fail('Eso no se puede vender.'); gained = ITEMS[n].sell; m.bag.splice(body.index, 1); } m.pokes += gained; return { meta: m, gained }; }
     case '/missions/accept': { const i = m.board.findIndex(x => x.id === body.id); if (i < 0) fail('Esa misión ya no está.'); if (m.active.length >= 2) fail('Ya llevas dos misiones.'); m.active.push(m.board.splice(i, 1)[0]); refreshBoard(m); return { meta: m }; }
@@ -111,7 +115,7 @@ async function localApi(path, body) {
       (m.stats.deepestBy ||= {})[def.id] = Math.max(m.stats.deepestBy[def.id] || 0, f);
       const st = body.diary || {}; m.stats.runs++; m.stats.floors += Math.max(0, f - 1); m.stats.deaths += body.outcome === 'death' ? 1 : 0; m.stats.monsterHouses += st.monsterHouses | 0; m.stats.recruited += st.recruited | 0; m.stats.kecleonRobs += st.kecleonRobs | 0; m.stats.deepest = Math.max(m.stats.deepest, f);
       m.lostRecruits = body.lostRecruits || []; rotateShop(m); refreshBoard(m); r.status = 'ended'; r.state = { floor: f, player: body.player };
-      return { meta: m, messages: msgs, canRescue: false, result: { outcome: body.outcome, floor: f, penalty: typeof penalty !== 'undefined' ? penalty : null } };
+      const newMail = deliverMail(m); return { newMail,  meta: m, messages: msgs, canRescue: false, result: { outcome: body.outcome, floor: f, penalty: typeof penalty !== 'undefined' ? penalty : null } };
     }
     case '/rescue/list': return { rescues: [] };
     case '/rescue/mine': case '/rescue/status': return { rescued: false, rescues: [], waiting: [] };
