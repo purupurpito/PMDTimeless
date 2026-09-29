@@ -1,6 +1,6 @@
 // ===== SERVIDOR LOCAL: el juego funciona sin servidor y guarda la partida en este navegador (localStorage) =====
 import { DELIVERY_ITEMS, bagSizeFor } from '../../shared/data.js';
-import { deliverMail } from '../../shared/story.js';
+import { deliverMail, letterById } from '../../shared/story.js';
 import { expToNext, CFG, DUNGEONS, SPECIES, ITEMS, SHOP_FIXED, SHOP_ROTATING, SHOP_HELD, RANKS, MISSION_TYPES, MEGA_STONES, KECLEON_DISCOUNT, dungeonById, rankOf } from '../../shared/data.js';
 import { publicQuiz, scoreQuiz, NATURES } from '../../server/quiz.js';
 
@@ -61,7 +61,7 @@ async function localApi(path, body) {
       token = 'local'; return { token, user: publicUser() };
     case '/auth/logout': token = null; return { ok: true };
     case '/me': { if (!DB.user) fail('Sin sesión', 401); refreshBoard(m); deliverMail(m);
-      const today = new Date().toISOString().slice(0, 10), mailNews = (m.mail || []).some(x => !x.read) && m.mailDay !== today; if (mailNews) m.mailDay = today;
+      const today = new Date().toISOString().slice(0, 10), mailNews = (m.mail || []).some(x => !x.read && letterById(x.id)) && m.mailDay !== today; if (mailNews) m.mailDay = today;
       const r = activeRun(); return { mailNews, user: publicUser(), run: r ? runInfo(r) : null }; }
     case '/mail/read': { const x = (m.mail || []).find(l => l.id === body.id); if (!x) fail('Esa carta no está en tu buzón.', 404); x.read = true; return { mail: m.mail }; }
     case '/shop/buy': { if (activeRun()) fail('Tienes una run en curso.', 409); if (!m.shop.includes(body.item)) fail('Kecleon verde no vende eso ahora mismo.'); const isK = body.leader === 'kecleon' && m.starters.includes('kecleon'); const price = Math.round(ITEMS[body.item].buy * (isK ? KECLEON_DISCOUNT : 1)); if (m.pokes < price) fail('Kecleon verde: "Ejem… no te llega."'); if (m.bag.length >= bagSizeFor(m.rankPts)) fail('Tienes la bolsa llena.'); m.pokes -= price; m.bag.push(body.item); return { meta: m, price }; }

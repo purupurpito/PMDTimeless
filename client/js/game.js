@@ -575,7 +575,7 @@ function talkTo(kind) {
   return talkToBase(kind);
 }
 // ---------- buzón de Murkrow: las cartas de la historia ----------
-const unreadMail = () => (meta.mail || []).filter(x => !x.read).length;
+const unreadMail = () => (meta.mail || []).filter(x => !x.read && letterById(x.id)).length;   // las cartas que ya no existen no cuentan
 function openMailbox() {
   const list = [...(meta.mail || [])].filter(x => letterById(x.id)).reverse();   // las más nuevas, arriba
   if (!list.length) return openDialog([{ who: 'Murkrow', sp: 'murkrow', text: '¡Crrraaa! Tu buzón está vacío. Vuelve más tarde.' }]);

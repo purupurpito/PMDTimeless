@@ -25,27 +25,8 @@ export const LETTERS = [
     'Chatot insiste en que te escriba unas palabras de bienvenida.',
     'Bienvenido.' ] },
   { id: 'normas-47', chapter: 2, from: 'Chatot', sp: 'chatot', title: 'Normas del gremio (revisión 47)', pages: [
-    'Uno: no se corre por los pasillos. Dos: no se toca la rejilla. Tres: la cama de la ventana, en la zona de descanso, no se usa.',
-    'Cuatro: las normas no se discuten. Cinco: especialmente la tres.' ] },
-  { id: 'sobre-1', chapter: 2, from: '—', title: 'Un sobre sin nombre', pages: [
-    'Si el agua sigue quieta, todo va bien.',
-    'No la mires demasiado rato.' ],
-    murkrow: '¡Crrraaa…! Esta estaba al fondo de la saca. No me acuerdo de haberla recogido. Bueno, será la edad.' },
-  { id: 'sobre-2', chapter: 3, from: '—', title: 'Un sobre húmedo', pages: [
-    'He vuelto a pasar por la Cueva. Las marcas de la pared siguen ahí.',
-    'Alguien sigue contando.' ] },
-  { id: 'sobre-3', chapter: 4, from: '—', title: 'Un sobre con un nombre tachado', pages: [
-    '(El nombre del destinatario está tachado con tanta fuerza que el papel se ha roto.)',
-    'No hace falta que sigas esperando. De verdad.' ] },
-  { id: 'sobre-4', chapter: 5, from: '—', title: 'Un sobre con dos letras distintas', pages: [
-    'Hoy he encontrado una carta mía que no recuerdo haber escrito.',
-    '(Debajo, con otra letra:) Yo tampoco.' ] },
-  { id: 'sobre-5', chapter: 6, from: '—', title: 'Un sobre con una lista', pages: [
-    'Cosas que no cambian: el ruido de la rejilla. La cama de la ventana. El olor de la zona de descanso cuando llueve. Tu manera de' ],
-    murkrow: '¿Se acaba así? ¡Crrraaa! Habrá una segunda hoja… Pues no. No hay más.' },
-  { id: 'sobre-6', chapter: 7, from: '—', title: 'Un sobre casi vacío', pages: [
-    '(La hoja está en blanco. Entre los pliegues hay una pluma que no se parece a ninguna que hayas visto.)' ] },
-  { id: 'sobre-7', chapter: 8, from: '—', title: 'Un sobre muy ligero', pages: [ 'Ya casi.' ] },
+    'Uno: no se corre por los pasillos. Dos: no se toca la rejilla. Tres: lo que se entrega al maestro se deja en la bandeja de la puerta, no en el suelo. Ya van dos cosas que se pierden.',
+    'Cuatro: las normas no se discuten.' ] },
 ];
 export const letterById = id => LETTERS.find(l => l.id === id);
 // entrega las cartas que tocan (devuelve cuántas nuevas); meta.mail = [{ id, at, read }]
@@ -66,27 +47,6 @@ export const STORY_LINES = {
   gulpin: {   // al llegar a Bronce, Sableye se ha ido del mercado
     3: [{ text: '¡Gulp! Sableye ya se ha ido. Me ayudó a construir… y después a reparar mi cabaña. Es muy buena persona. Ahora está en el Café de Spinda… haciendo de tasador.', mood: 'Happy' },
         { text: '… Por cierto, ¿qué es un tasador? Gulp.', mood: 'Normal' }],
-  },
-  chatot: {
-    3: [{ text: '¿Tú también oyes la rejilla por las noches? …No, nada. Pregunta tonta. ¡A trabajar!', mood: 'Worried' }],
-    5: [{ text: 'El maestro ha pedido que no se ordene su despacho. Nunca. Ni el polvo. Yo no pregunto, y tú tampoco.', mood: 'Normal' }],
-    7: [{ text: 'Si algún día ves al maestro hablando solo en el tejado, no le interrumpas. Es una costumbre muy antigua.', mood: 'Sad' }],
-  },
-  diglett: {
-    2: [{ text: 'Tu huella es rarísima, ¿sabes? Pero no pasa nada. ¡Ya me acostumbraré!', mood: 'Happy' }],
-    7: [{ text: 'Hoy he registrado tu huella dos veces. Y tú solo has entrado una… ¿O no?', mood: 'Surprised' }],
-  },
-  murkrow: {
-    3: [{ text: '¡Crrraaa! A veces encuentro cartas en la saca que no recuerdo haber recogido. ¡Será la edad!', mood: 'Happy' }],
-    6: [{ text: 'Anoche soñé que le entregaba una carta a alguien que todavía no había llegado al gremio. ¡Crrraaa! Qué cosas.', mood: 'Normal' }],
-  },
-  rowlet: {
-    4: [{ text: 'El agua está muy quieta hoy. Eso es bueno.', mood: 'Normal' }], then: false,
-    6: [{ text: '¿Te ha hablado de mí? …No. Mejor no me lo digas.', mood: 'Sad' }],
-    7: [{ text: 'Hay caminos que solo se ven desde el final.', mood: 'Normal' }],
-  },
-  chansey: {
-    5: [{ text: '¿La cama de la ventana? Está reservada. Desde siempre. No me preguntes para quién, porque no lo sé.', mood: 'Normal' }],
   },
 };
 // La frase de capítulo pendiente para un personaje (o null). seen: conjunto de «personaje:capítulo» ya dichos.
