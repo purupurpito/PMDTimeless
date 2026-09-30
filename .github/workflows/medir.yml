@@ -10,7 +10,9 @@ jobs:
         run: |
           U=https://pmd-timeless-api.onrender.com
           for i in 1 2 3 4 5; do
-            curl -s -m 90 -o /dev/null -w "health  total %{time_total}s\n" $U/health
-            curl -s -m 90 -o /dev/null -D - -w "login   total %{time_total}s\n" -H "Content-Type: application/json" -d '{"name":"nadie-existe-xyz","password":"xxxxxx"}' $U/auth/login | grep -i -E "server-timing|total" || true
+            H=$(curl -s -m 90 -o /dev/null -w "%{time_total}" $U/health)
+            L=$(curl -s -m 90 -o /dev/null -D /tmp/h -w "%{time_total}" -H "Content-Type: application/json" -d '{"name":"nadie-existe-xyz","password":"xxxxxx"}' $U/auth/login)
+            T=$(grep -i server-timing /tmp/h | tr -d '\r' | cut -d' ' -f2-)
+            echo "::notice title=Medida $i::health ${H}s · login ${L}s · servidor: ${T}"
             sleep 2
           done
