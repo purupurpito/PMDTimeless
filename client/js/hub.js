@@ -16,7 +16,7 @@ export const HUB = {
     ],
     npcs: [
       { id: 'chatot', x: 446, y: 226, facing: [-1, 1], talk: 'chatot_intro', intro: true },                          // solo al empezar: te recibe en la entrada
-      { id: 'murkrow', x: 316, y: 214, facing: [1, 1], talk: 'murkrow', fixedFacing: true, reach: 40 },   // el cartero del gremio, junto al buzón
+      { id: 'murkrow', x: 315, y: 152, facing: [0, 1], talk: 'murkrow', fixedFacing: true, still: true, reach: 92 },   // el cartero del gremio, posado encima del buzón (quieto, de frente; se le habla desde todo el buzón)
     ],
     signs: [ { rect: [70, 170, 130, 230], text: 'Mercado de Kecleon ←' }, { rect: [440, 405, 500, 465], text: '↓ Aldea · Salida a las mazmorras' },
       // entrada al Café de Spinda (bajo tierra): dibujada por tools/build-cafe-hole.py; el café aún no está abierto
