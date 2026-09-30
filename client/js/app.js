@@ -111,7 +111,7 @@ async function startQuiz() {
     { text: 'Te haré unas preguntas. No hay respuestas buenas ni malas: responde lo primero que sientas.' },
     { text: 'Tus respuestas decidirán en qué te convertirás cuando abras los ojos.' },
     { text: '¿Preparado? Empecemos.' }]);
-  try { quiz.questions = (await loading).questions; } catch (e) { writeText(box, e.message); if (window.__netMode) { await new Promise(r => setTimeout(r, 2500)); show('#screen-auth'); offerOffline(e); msg($('#auth-msg'), e.message); } return; }
+  try { quiz.questions = (await loading).questions; } catch (e) { writeText(box, e.message);  return; }
   quiz.answers = []; saveQuiz();
   }
   for (let i = quiz.answers.length; i < quiz.questions.length; i++) {

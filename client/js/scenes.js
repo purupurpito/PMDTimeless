@@ -19,7 +19,7 @@ const now = () => performance.now();
 // ---------- reproducir un guion ----------
 export async function playScene(scene) {
   const S = D.state, h = S.hub;
-  if (S.cut) return;
+  if (S.cut || S.scene !== 'hub') return { skipped: false, aborted: true };   // solo en la aldea
   const saved = { area: h.area, x: h.x, y: h.y, facing: h.facing, menu: S.menu, dialog: S.dialog };
   S.menu = null; S.dialog = null;
   if (scene.area && scene.area !== h.area) h.area = scene.area;

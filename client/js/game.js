@@ -490,12 +490,13 @@ async function playPendingScenes() {
   let next = pendingScene(meta); if (!next) return;
   await whenIdle();   // nunca encima de un aviso o un menú abierto
   if (!user || state.tour || state.scene !== 'hub') return;
-  while (next) { await runScene(next); next = pendingScene(meta); }
+  while (next && state.scene === 'hub' && !state.cut && !state.dcut) { await runScene(next); next = pendingScene(meta); }   // (si entras en una mazmorra, se queda para la próxima vez)
 }
 const whenIdle = () => new Promise(res => { const t = () => (!state.dialog && !state.menu && !state.busy ? res() : setTimeout(t, 150)); t(); });
 // escena de historia: se reproduce, se marca como vista en el servidor y se enseña una sola vez
 async function runScene(sc) {
   let res = null; try { res = await playScene(sc); } catch (e) { console.error(e); }
+  if (res?.aborted) return;   // no se ha llegado a ver: no se marca
   (meta.scenes ||= []).includes(sc.id) || meta.scenes.push(sc.id);
   try { const r = await api('/scene/seen', { id: sc.id }); if (r?.meta) meta = r.meta; } catch {}
   track('scene', { id: sc.id, skipped: !!res?.skipped });
@@ -910,7 +911,7 @@ async function flushPendingEnd(quiet = false) {
 // ---------- rescates: al caer, esperar a que otro explorador venga a buscarte (como en el original) ----------
 // Solo con servidor (sin conexión nadie podría rescatarte). Mientras esperas no puedes jugar: pantalla de espera.
 async function deathChoice() {
-  if (window.__netMode?.current() !== 'server' || state.dungeonDef?.id === 'entrenamiento') return endRun('death');   // sin conexión nadie te rescata; el tutorial no tiene rescates
+  if (state.dungeonDef?.id === 'entrenamiento') return endRun('death');   // el tutorial no tiene rescates
   const where = `${state.dungeonDef.name}, piso B${state.floor}F`;
   openMenu({ title: `Tu equipo ha caído en ${where}`, items: ['Esperar un rescate', 'Rendirse y volver al gremio'], sticky: true, onSelect: async i => {
     if (i === 1) return endRun('death');
@@ -1100,7 +1101,7 @@ async function endRun(outcome) {
 // MAZMORRA
 // ---------- escenas en la mazmorra (el jefe del Campo de Entrenamiento) ----------
 const dwait = ms => window.__mmFast ? Promise.resolve() : new Promise(r => setTimeout(r, ms));
-const talk = pages => new Promise(res => openDialog(pages, res));
+const talk = pages => window.__mmFast ? Promise.resolve() : new Promise(res => openDialog(pages, res));   // (en modo rápido, sin diálogos)
 const emoteOn = (m, fx) => { (m.emotes ||= []).push({ fx, t0: performance.now() }); render(); };
 const poseOn = (m, name) => { m.anim = name ? { name, t0: performance.now(), dur: Infinity, loop: true } : null; render(); };
 function drawFlash() {
