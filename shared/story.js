@@ -99,8 +99,8 @@ export const SCENES = [
     area: 'aldea', startDark: false,
     actors: { chatot: { sp: 'chatot', x: 384, y: -40, dir: 'down' } },
     steps: [
-      { do: 'move', who: 'chatot', to: [[384, 300]], speed: 2.4 },   // llega corriendo por el camino
-      { at: [{ do: 'move', who: 'chatot', to: [[384, 392]], speed: 2.4 }, { do: 'turn', who: 'player', dir: 'up' }, { do: 'emote', who: 'player', fx: 'exclaim', nowait: true }] },
+      { do: 'move', who: 'chatot', to: [[384, 212], [454, 256]], speed: 2.4 },   // llega corriendo por el camino y rodea la fuente (ruta sacada del mapa de colisiones)
+      { at: [{ do: 'move', who: 'chatot', to: [[454, 334], [384, 392]], speed: 2.4 }, { do: 'turn', who: 'player', dir: 'up' }, { do: 'emote', who: 'player', fx: 'exclaim', nowait: true }] },
       { do: 'anim', who: 'chatot', anim: 'Hop', ms: 450 },
       { do: 'say', who: 'chatot', mood: 'Happy', text: '¡Hey, Recluta! ¿Vas ya hacia las mazmorras?' },
       { do: 'turn', who: 'chatot', dir: 'right' },
@@ -117,7 +117,7 @@ export const SCENES = [
       { at: [{ do: 'anim', who: 'chatot', anim: 'Hop', ms: 450 }, { do: 'emote', who: 'chatot', fx: 'shock', se: 'shock' }] },   // se da cuenta de que lleva un buen rato hablando
       { do: 'anim', who: 'chatot', anim: 'Idle' },
       { do: 'say', who: 'chatot', mood: 'Shouting', text: '¡Bueno, no tengo mucho tiempo para seguir escuchándote! Me voy, que tengo prisa.' },
-      { at: [{ do: 'move', who: 'chatot', to: [[424, 440], [424, 560]], speed: 3 }, { do: 'turn', who: 'player', dir: 'down' }] },   // y se va corriendo… hacia las mazmorras
+      { at: [{ do: 'move', who: 'chatot', to: [[408, 452], [408, 488], [384, 504], [384, 560]], speed: 3 }, { do: 'turn', who: 'player', dir: 'down' }] },   // y se va corriendo por tu lado… hacia las mazmorras (ruta comprobada con el mapa de colisiones)
       { do: 'hide', who: 'chatot' },
       { do: 'emote', who: 'player', fx: 'question' },
       { do: 'wait', ms: 500 },
