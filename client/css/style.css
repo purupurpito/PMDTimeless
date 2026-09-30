@@ -358,3 +358,15 @@ body.log-inside #log { display: none; }
 
 /* aviso de la telemetría de la beta, en la pantalla de inicio */
 .beta-note { font-size: 12px; line-height: 1.4; color: #9aa0c0; max-width: 420px; margin: 10px auto 0; text-align: center; }
+
+/* móvil tumbado: el juego centrado y del alto de la pantalla; la cruceta a la izquierda y los botones a la derecha,
+   a los lados del juego (sin taparlo); SELECT y START arriba a la derecha */
+@media (orientation: landscape) and (max-height: 560px) {
+  body.touch-on.in-game #screen-game { padding-bottom: 0; align-items: center; }
+  body.touch-on.in-game .touchpad { top: 0; bottom: 0; background: none; pointer-events: none; padding: 0; }
+  body.touch-on.in-game .touchpad button { pointer-events: auto; }
+  body.touch-on.in-game .tp-main { position: absolute; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); padding: 0; }
+  body.touch-on.in-game .tp-shoulders { position: absolute; left: 10px; right: 10px; bottom: calc(168px + env(safe-area-inset-bottom, 0px)); margin: 0; }
+  body.touch-on.in-game .tp-mid { position: fixed; top: calc(62px + env(safe-area-inset-top, 0px)); right: 10px; flex-direction: column; gap: 6px; }
+  body.touch-on.in-game .tp-dpad, body.touch-on.in-game .tp-face { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); }
+}

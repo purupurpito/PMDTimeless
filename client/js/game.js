@@ -2352,7 +2352,13 @@ const getScalePref = () => { try { return localStorage.getItem('mm_scale') || 'f
 function applyScale() {
   const pref = getScalePref(), dpr = window.devicePixelRatio || 1;
   let s;
-  if (document.body.classList.contains('touch-on')) s = Math.max(0.3, (canvas.parentElement?.clientWidth || LOG.w) / LOG.w); // móvil: todo el ancho
+  if (document.body.classList.contains('touch-on')) {
+    const pw = canvas.parentElement?.clientWidth || LOG.w;
+    if (window.innerWidth > window.innerHeight) {   // móvil tumbado: que quepa en el alto (los mandos van a los lados)
+      const head = document.querySelector('#screen-game header'), freeH = window.innerHeight - (head?.offsetHeight || 0) - 8;
+      s = Math.max(0.3, Math.min(pw / LOG.w, (window.innerWidth - 330) / LOG.w, freeH / LOG.h));
+    } else s = Math.max(0.3, pw / LOG.w); // móvil en vertical: todo el ancho
+  }
   else if (pref === 'fit') {
     // lo más grande que quepa: ancho libre junto al panel lateral y alto libre entre cabecera y pie
     const aside = document.querySelector('#screen-game aside'), head = document.querySelector('#screen-game header'), foot = document.querySelector('#screen-game footer');
@@ -2442,7 +2448,13 @@ function renderHub() {
   // dónde quedan en pantalla los que participan en la conversación (para no taparlos con el cuadro de diálogo)
   if (!state.dialog) state.talkNpc = null;
   const tg0 = state.tour?.guide;
-  state.dlgFocus = [h.y - cam.y, ...(state.talkNpc?.area === h.area ? [state.talkNpc.y - cam.y] : []), ...(tg0?.area === h.area ? [tg0.y - cam.y] : [])];
+  // Rectángulo en pantalla de quien participa en la conversación (cuerpo entero + hueco para los efectos de encima
+  // de la cabeza): el cuadro de diálogo y el retrato nunca deben taparlo. En una escena, el actor que habla.
+  const rectAt = (x, y, tall) => ({ l: x - cam.x - 28, r: x - cam.x + 28, t: y - cam.y - tall, b: y - cam.y + 8 });
+  const spk = state.cut?.speaking;
+  state.dlgFocus = spk ? [rectAt(spk.x, spk.y, 104)]
+    : [...(state.cut?.hidePlayer ? [] : [rectAt(h.x, h.y, 76)]), ...(state.talkNpc?.area === h.area ? [rectAt(state.talkNpc.x, state.talkNpc.y, 84)] : []), ...(tg0?.area === h.area ? [rectAt(tg0.x, tg0.y, 84)] : [])];
+  state.dlgCam = cam;
   ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, W, H);
   if (area?.img) ctx.drawImage(area.img, -cam.x, -cam.y); else { ctx.fillStyle = '#3f6b3a'; ctx.fillRect(0, 0, W, H); }
   if (state.showMask && area?.debug) ctx.drawImage(area.debug, -cam.x, -cam.y);
@@ -2752,10 +2764,29 @@ function renderDialog() {
   const page = d.pages[d.i], W = LOG.w, h = Math.round(114 * UIS()), x = 6, w = W - 12;   // como en el original: casi todo el ancho y ~¼ de la altura
   // Abajo, salvo que tape a quien habla: si alguien queda en la franja de abajo (y nadie arriba), el cuadro sube
   // y el retrato va debajo. Así se ve la escena (en la mazmorra la cámara te centra: siempre abajo).
-  const fys = state.scene === 'hub' ? (state.dlgFocus || []) : [];
-  const hitsBottom = fys.some(fy => fy > LOG.h - h - 16), hitsTop = fys.some(fy => fy - 52 < h + 12);
-  const top = hitsBottom && !hitsTop, y = top ? 6 : LOG.h - h - 6;
-  d.top = top;
+  const focus = state.scene === 'hub' ? (state.dlgFocus || []) : [];
+  // Dónde ocupa sitio el cuadro, y el retrato que va fuera de él, en cada colocación (abajo o arriba)
+  const PFb = 92, hasPor = !!(page.portraits?.length || speakerSpecies(page));
+  const regions = up => {
+    const yy = up ? 6 : LOG.h - h - 6, regs = [{ l: x, r: x + w, t: yy, b: yy + h }];
+    if (hasPor) { const px0 = page.side === 'right' ? x + w - 4 - PFb : x + 4, py0 = up ? yy + h + 4 : yy - PFb - 4; regs.push({ l: px0, r: px0 + PFb, t: py0, b: py0 + PFb }); }
+    return regs;
+  };
+  const overlap = (a, b) => Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l)) * Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t));
+  const cost = up => focus.reduce((s, f) => s + regions(up).reduce((q, r) => q + overlap(f, r), 0), 0);
+  // Se decide una vez por frase (para que no salte mientras lees): la colocación que no tapa a nadie; abajo si da igual
+  if (d.placedFor !== d.i) {
+    d.placedFor = d.i; const cb = cost(false), ct = cost(true); d.top = ct < cb;
+    // En una escena, si ninguna colocación deja libre a quien habla (pantallas bajas), la cámara se mueve lo justo
+    const spk = state.cut?.speaking, cam0 = state.dlgCam;
+    if (spk && state.cut.cam && Math.min(cb, ct) > 0 && cam0) {
+      const regs = regions(d.top), f = focus[0];
+      const bandT = d.top ? Math.max(...regs.map(r => r.b)) + 4 : 4, bandB = d.top ? LOG.h - 4 : Math.min(...regs.map(r => r.t)) - 4;
+      const need = ((f.t + f.b) / 2) - (bandT + bandB) / 2, mapH = HUB[state.hub.area]?.h || 515;
+      state.cut.cam.y = Math.max(0, Math.min(Math.max(0, mapH - LOG.h), cam0.y + need));
+    }
+  }
+  const top = d.top, y = top ? 6 : LOG.h - h - 6;
   if (d.pageStart !== d.i) { d.pageStart = d.i; d.t0 = performance.now(); }
   // caja
   ctx.fillStyle = '#10204a'; roundRect(x, y, w, h, 6); ctx.fill();
