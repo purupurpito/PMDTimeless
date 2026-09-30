@@ -62,6 +62,13 @@ async function runStep(step, c) {
     case 'camera': c.cam = { x: step.x, y: step.y }; D.render(); return;
     case 'bird': c.bird = { t0: now(), ms: step.ms || 1100, from: step.from || [824, 190], to: step.to || [-96, 400] }; if (!step.nowait) await delay(step.ms || 1100); return;
     case 'poster': return poster(c, step.kind || 'wanted');
+    case 'bed': {   // meter al jugador en una cama (tumbado, como al despertar tras caer) o levantarlo
+      const h = D.state.hub;
+      if (step.up) { h.inBed = null; h.movedAt = now(); if (step.to) { h.x = step.to[0]; h.y = step.to[1]; } h.facing = DIRS[step.dir || 'down']; }
+      else { const bed = D.beds?.()[step.bed ?? 0]; if (bed) { h.inBed = bed; h.x = bed.x; h.y = bed.y; h.facing = [0, 1]; } }
+      D.render(); return;
+    }
+    case 'shake': c.shake = { t0: now(), ms: step.ms || 700, amp: step.amp || 4 }; if (step.wait) await delay(step.ms || 700); return;
     case 'se': D.sfx?.(step.name); return;
     case 'music': D.music?.(step.track || null); return;
     case 'flag': D.flag?.(step); return;
@@ -124,7 +131,7 @@ async function emote(c, who, step) {
 async function say(c, who, step) {
   if (fast()) return;
   const page = { who: step.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: step.text, think: !!step.think };
-  if (step.unknown || who?.form) { page.who = step.name || '???'; page.sp = null; }
+  if (step.unknown || who?.form) { page.who = step.name ?? '???'; page.sp = null; }   // name: '' = una voz sin nombre (desde fuera de plano)
   // el retrato se voltea a la derecha para el segundo interlocutor (como en el original)
   page.side = c.lastSpeaker && c.lastSpeaker !== (who?.id || page.who) ? 'right' : 'left'; c.lastSpeaker = who?.id || page.who;
   if (who) { who.still = true; c.speaking = who; }
@@ -349,4 +356,11 @@ function drawWantedPoster(ctx, W, H, t0) {
   ctx.fillStyle = '#8a1a1a'; ctx.beginPath(); for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r = i % 2 ? 16 : 18; ctx.lineTo(pw / 2 - 36 + Math.cos(a) * r, sy + Math.sin(a) * r); } ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#b83030'; ctx.beginPath(); ctx.arc(pw / 2 - 36, sy, 11, 0, 7); ctx.fill(); ctx.fillStyle = '#f3d7a0'; ctx.font = 'bold 12px Georgia, serif'; ctx.fillText('G', pw / 2 - 36, sy + 1);
   ctx.restore(); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+}
+
+// desplazamiento de la cámara por el temblor (lo usa renderHub)
+export function sceneShake() {
+  const c = cut(), sh = c?.shake; if (!sh) return [0, 0];
+  const k = (now() - sh.t0) / sh.ms; if (k >= 1) { c.shake = null; return [0, 0]; }
+  const a = sh.amp * (1 - k); return [Math.round((Math.random() * 2 - 1) * a), Math.round((Math.random() * 2 - 1) * a)];
 }

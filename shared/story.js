@@ -62,7 +62,7 @@ export function storyLineFor(key, m, seen) {
 // ---------------------------------------------------------------------
 export const SCENES = [
   {
-    id: 'acto1-bandeja', when: m => chapterOf(m) >= 3,   // al llegar a Bronce: la noche en que desaparece la bandeja
+    id: 'acto1-bandeja', when: m => (m.scenes || []).includes('primera-noche'),   // esa misma noche: la sombra se lleva la bandeja
     area: 'plaza', night: true, hidePlayer: true, hideNpcs: true, cam: { x: 84, y: 40 }, music: 'tension',
     lights: [{ x: 384, y: 172, r: 70 }],
     actors: { chatot: { sp: 'chatot', x: 384, y: 172, dir: 'down', hidden: true }, sombra: { sp: 'sombra', x: 384, y: 575, dir: 'up' } },
@@ -90,6 +90,10 @@ export const SCENES = [
       { do: 'emote', who: 'chatot', fx: 'anger', hold: true },
       { do: 'say', who: 'chatot', mood: 'Angry', text: '… Gulpin. Tiene que haber sido Gulpin. ¡Ese se lo come todo!' },
       { do: 'emote', who: 'chatot', fx: 'none' },
+      { do: 'wait', ms: 500 },
+      { do: 'move', who: 'chatot', to: [[384, 206], [384, 172]], speed: 1.2 },   // y vuelve dentro del gremio, hecho una furia
+      { do: 'hide', who: 'chatot' },
+      { do: 'wait', ms: 500 },
       { do: 'fade', to: 'out', ms: 600 },
     ],
   },
@@ -170,6 +174,80 @@ export const SCENES = [
       { do: 'wait', ms: 400 },
       { do: 'say', who: 'murkrow', mood: 'Angry', text: '¡Crrraaa! ¡Yo solo reparto el correo!' },
       { do: 'emote', who: 'murkrow', fx: 'none' },
+    ],
+  },
+  {
+    // Al volver del Campo de Entrenamiento: la primera noche en el gremio. Solo estáis Chatot, Mawile y tú.
+    id: 'primera-noche', when: m => (m.cleared || []).includes('entrenamiento'),
+    area: 'descanso', night: true, lights: [{ x: 462, y: 84, r: 110, a: 0.3 }], hideNpcIds: ['chansey'], cam: { x: 84, y: 60 },   // toda la habitación a la vista
+    player: { x: 350, y: 392, dir: 'up-right' }, keepPlayer: true,
+    actors: { chatot: { sp: 'chatot', x: 400, y: 332, dir: 'down' }, mawile: { sp: 'mawile', x: 455, y: 372, dir: 'left' } },
+    steps: [
+      { do: 'narration', text: 'Esa noche, en el gremio…', ms: 2400 },
+      { do: 'fade', to: 'in', ms: 800 },
+      { do: 'wait', ms: 600 },
+      { do: 'say', who: 'chatot', mood: 'Normal', text: 'Hoy dormimos aquí nosotros tres. El resto de miembros están en una exploración continua; no sabemos cuánto tardarán en volver.' },
+      { do: 'turn', who: 'chatot', toward: 'player' },
+      { do: 'wait', ms: 400 },
+      { do: 'emote', who: 'chatot', fx: 'sweat' },
+      { do: 'say', who: 'chatot', mood: 'Angry', text: 'Cuando vuelvan… Ni se te ocurra hablar de lo de hoy, Novato.' },
+      { do: 'wait', ms: 500 },
+      { do: 'turn', who: 'mawile', dir: 'left' },
+      { do: 'say', who: 'mawile', mood: 'Happy', text: 'Ji, ji, ji…' },                          // se ríe en voz baja…
+      { do: 'wait', ms: 300 },
+      { do: 'move', who: 'mawile', to: [[545, 362], [650, 326]], speed: 1 },               // …y se va a dormir
+      { do: 'anim', who: 'mawile', anim: 'Sleep', hold: true },
+      { do: 'wait', ms: 900 },
+      { do: 'say', who: 'chatot', mood: 'Sigh', text: 'Haaah…' },                           // Chatot suspira…
+      { do: 'move', who: 'chatot', to: [[520, 432], [614, 434]], speed: 1 },               // …y se va a dormir
+      { do: 'anim', who: 'chatot', anim: 'Sleep', hold: true },
+      { do: 'wait', ms: 900 },
+      { do: 'move', who: 'player', to: [[230, 372], [116, 326]], speed: 1 },               // y tú, a tu cama
+      { do: 'bed', bed: 0 },
+      { do: 'wait', ms: 700 },
+      { do: 'emote', who: 'player', fx: 'dots' },
+      { do: 'wait', ms: 1300 },
+      { do: 'emote', who: 'player', fx: 'dots' },
+      { do: 'wait', ms: 1800 },
+      { do: 'fade', to: 'out', ms: 1000 },
+    ],
+  },
+  {
+    // A la mañana siguiente: alguien grita desde abajo. (Chatot acaba de descubrir que falta la bandeja.)
+    id: 'despertar', when: m => (m.scenes || []).includes('acto1-bandeja'),
+    area: 'descanso', keepPlayer: true, cam: { x: 84, y: 60 },
+    steps: [
+      { do: 'bed', bed: 0 },
+      { do: 'fade', to: 'in', ms: 900 },
+      { do: 'wait', ms: 1200 },
+      { do: 'shake', ms: 900, amp: 5 },
+      { do: 'say', unknown: true, name: '', text: '«¡¡¿Y SE PUEDE SABER QUIÉN HA SIDO?!! ¡Esa bandeja no se ha ido volando sola!»' },
+      { do: 'wait', ms: 300 },
+      { do: 'bed', up: true, to: [150, 348], dir: 'down' },                                // te despiertas de golpe
+      { do: 'emote', who: 'player', fx: 'shock' },
+      { do: 'wait', ms: 600 },
+      { do: 'emote', who: 'player', fx: 'question' },
+      { do: 'wait', ms: 1200 },
+    ],
+  },
+  {
+    // Al bajar al gremio esa mañana: Mawile te sale al paso (sin que le hables)
+    id: 'mawile-aviso', trigger: 'area:gremio', when: m => (m.scenes || []).includes('despertar'),
+    area: 'gremio', startDark: false, keepPlayer: true, hideNpcIds: ['mawile', 'chatot'],
+    actors: { mawile: { sp: 'mawile', x: 546, y: 256, dir: 'left' }, chatot: { sp: 'chatot', x: 440, y: 206, dir: 'down' } },
+    steps: [
+      { do: 'emote', who: 'chatot', fx: 'anger', hold: true },                             // al fondo, Chatot echa humo
+      { do: 'wait', ms: 500 },
+      { do: 'emote', who: 'mawile', fx: 'exclaim' },
+      { do: 'move', who: 'mawile', to: [[400, 262], [262, 262]], speed: 1.2 },             // Mawile se acerca
+      { do: 'turn', who: 'player', toward: 'mawile' },
+      { do: 'wait', ms: 300 },
+      { do: 'say', who: 'mawile', mood: 'Worried', text: '¡Buenos días! Oye… ¿Has oído los gritos?' },
+      { do: 'say', who: 'mawile', mood: 'Worried', text: 'Chatot está muy, muy enfadado. Mejor no molestarle hoy, ¿vale?' },
+      { do: 'wait', ms: 300 },
+      { do: 'move', who: 'mawile', to: [[400, 262], [546, 256]], speed: 1.2 },             // y vuelve a su puesto
+      { do: 'turn', who: 'mawile', dir: 'down-left' },
+      { do: 'wait', ms: 300 },
     ],
   },
 ];

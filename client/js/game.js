@@ -9,7 +9,7 @@ import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
-import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap } from './scenes.js';
+import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
 import { SCENES } from '../../shared/story.js';
 const SCENES_ALL = () => SCENES;
@@ -238,7 +238,7 @@ const canLeaderChoice = () => rankOf(meta.rankPts) >= CFG.leaderChoiceRank;
 // =====================================================================
 export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
-  initScenes({ state, render, openDialog, sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || sp, uis: UIS, sfx: n => { try { playSfx(n); } catch {} }, music: null });
+  initScenes({ state, render, openDialog, beds: () => HUB.descanso.beds, sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} }, music: null });
   window.__mmPlayScene = id => { const sc = SCENES_ALL().find(s => s.id === id); return sc ? playScene(sc) : Promise.resolve(); };
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
@@ -482,7 +482,7 @@ function enterHub() {
   const h = state.hub; if (!h.area) { h.area = 'plaza'; Object.assign(h, HUB.plaza.spawn); }
   spawnWanderers(); render(); hubLoop();
   const sc = user && !state.tour ? pendingScene(meta) : null;
-  if (sc) { runScene(sc).then(() => hubExtras()); } else hubExtras();
+  if (sc) { (async () => { let next = sc; while (next) { await runScene(next); next = pendingScene(meta); } hubExtras(); })(); } else hubExtras();   // varias seguidas si toca (la noche → la sombra → el despertar)
 }
 // escena de historia: se reproduce, se marca como vista en el servidor y se enseña una sola vez
 async function runScene(sc) {
@@ -535,7 +535,7 @@ function hubLoop() {
         const tryMove = (mx, my) => { const nx = h.x + mx, ny = h.y + my; if ([[-6, 0], [6, 0], [0, 2]].every(([ox, oy]) => Hub.walkable(h.area, nx + ox, ny + oy)) && !npcAtHub(nx, ny)) { h.x = nx; h.y = ny; return true; } return false; };
         if (!tryMove(dx * sp, dy * sp)) { tryMove(dx * sp, 0) || tryMove(0, dy * sp); }
         h.movedAt = performance.now();
-        for (const ex of area.exits) if (inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; const sc = user && !state.tour && pendingScene(meta, 'dungeon-exit'); if (sc) runScene(sc).then(() => openDungeonMenu()); else openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); fountainNews(); } break; }   // al irte de la plaza, Chatot entra en el gremio
+        for (const ex of area.exits) if (inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; const sc = user && !state.tour && pendingScene(meta, 'dungeon-exit'); if (sc) runScene(sc).then(() => openDungeonMenu()); else openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); fountainNews(); const asc = user && !state.tour && pendingScene(meta, 'area:' + h.area); if (asc) setTimeout(() => runScene(asc), 350); } break; }   // al irte de la plaza, Chatot entra en el gremio
       }
     }
     h.t++; if (h.t % 2 === 0) moveWanderers();
@@ -2546,6 +2546,7 @@ function renderHub() {
   if (state.scene === 'hub' && document.body.classList.contains('in-game') && state.hub?.area !== musicZone) { musicZone = state.hub?.area; playZone(musicZone); } // solo dentro del juego
   const W = LOG.w, H = LOG.h, h = state.hub, area = Hub.view(h.area), def = HUB[h.area];
   const cam = state.cut?.cam ? { x: state.cut.cam.x, y: state.cut.cam.y } : { x: Math.max(0, Math.min(768 - W, h.x - W / 2)), y: Math.max(0, Math.min(515 - H, h.y - H / 2)) };   // en una escena, la cámara la manda el guion
+  if (state.cut?.shake) { const [sx0, sy0] = sceneShake(); cam.x += sx0; cam.y += sy0; }   // temblor (alguien grita, un golpe…)
   // dónde quedan en pantalla los que participan en la conversación (para no taparlos con el cuadro de diálogo)
   if (!state.dialog) state.talkNpc = null;
   const tg0 = state.tour?.guide;
