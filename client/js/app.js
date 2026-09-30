@@ -15,15 +15,7 @@ import { VERSION_LABEL } from '../../shared/version.js';
 const $ = s => document.querySelector(s);
 const show = id => { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); $(id).classList.remove('hidden'); document.body.classList.toggle('in-game', id === '#screen-game'); if (id === '#screen-auth') playTrack('menu'); }; // música del menú (suena tras la primera pulsación, como exige el navegador)
 const msg = (el, text, ok = false) => { el.textContent = text; el.classList.toggle('ok', ok); };
-// Web: si el servidor no responde, se ofrece jugar sin conexión (y en ese modo, volver al servidor)
-const offerOffline = e => { if (e?.status === 0 && window.__netMode?.current() === 'server') document.getElementById('net-offline')?.classList.remove('hidden'); };
-if (window.__netMode) {
-  document.getElementById('btn-offline')?.addEventListener('click', () => window.__netMode.setLocal());
-  document.getElementById('btn-online')?.addEventListener('click', () => window.__netMode.setServer());
-  if (window.__netMode.current() === 'local') document.getElementById('net-local')?.classList.remove('hidden');
-  // partida de antes de las cuentas en el servidor (guardada solo en este navegador): Puru avisa de que ya no sirve
-  else if ((() => { try { return !!localStorage.getItem('pmdt_save'); } catch { return false; } })()) puruNotice();
-}
+const offerOffline = () => {};   // (el antiguo modo sin conexión ya no existe: el juego siempre usa el servidor)
 async function puruNotice() {
   const card = document.querySelector('#screen-auth .card'), choice = document.getElementById('auth-choice');
   const wrap = document.createElement('div'); wrap.className = 'puru-notice';

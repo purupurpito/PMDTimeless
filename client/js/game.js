@@ -10,6 +10,7 @@ import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
 import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay } from './scenes.js';
+import { drawEmote, EMOTE_LEN } from './emotes.js';
 import { SCENES } from '../../shared/story.js';
 const SCENES_ALL = () => SCENES;
 import { HUB, VIEW } from './hub.js';
@@ -260,7 +261,7 @@ export async function startGame(me) {
     }
     localStorage.setItem(ek, ep);
   } catch {}
-  sessionStart = Date.now(); track('session_start', { ...deviceInfo(), mode: window.__netMode?.current?.() || 'demo', rank: rankOf(meta.rankPts || 0), starter: meta.starters?.[0] }); flushTelemetry();
+  sessionStart = Date.now(); track('session_start', { ...deviceInfo(), mode: 'servidor', rank: rankOf(meta.rankPts || 0), starter: meta.starters?.[0] }); flushTelemetry();
   state.waitingRescue = !!me.rescue;
   if (me.mailNews && !me.rescue) { const news = (tries = 0) => { if (state.scene === 'hub' && !state.dialog && !state.menu) openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Tienes correo! Pásate por el buzón de la plaza.' }]); else if (tries < 10) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1200); }
   if (me.rescue) setTimeout(() => showRescueWait(me.rescue), 300);   // tu equipo sigue esperando un rescate
@@ -1069,6 +1070,66 @@ async function endRun(outcome) {
 
 // =====================================================================
 // MAZMORRA
+// ---------- escenas en la mazmorra (el jefe del Campo de Entrenamiento) ----------
+const dwait = ms => window.__mmFast ? Promise.resolve() : new Promise(r => setTimeout(r, ms));
+const talk = pages => new Promise(res => openDialog(pages, res));
+const emoteOn = (m, fx) => { (m.emotes ||= []).push({ fx, t0: performance.now() }); render(); };
+const poseOn = (m, name) => { m.anim = name ? { name, t0: performance.now(), dur: Infinity, loop: true } : null; render(); };
+function drawFlash() {
+  const f = state.flash; if (!f) return;
+  const k = (performance.now() - f.t0) / f.ms; if (k >= 1) { state.flash = null; return; }
+  ctx.fillStyle = `rgba(255,255,255,${k < 0.3 ? k / 0.3 : 1 - (k - 0.3) / 0.7})`; ctx.fillRect(0, 0, LOG.w, LOG.h); scheduleRender();
+}
+const flash = ms => { state.flash = { t0: performance.now(), ms }; scheduleRender(); return dwait(ms * 0.35); };
+const C = (mood, text) => ({ who: 'Chatot', sp: 'chatot', mood, text });
+// Antes de la pelea: Chatot, de espaldas, canta para sí mismo… hasta que te ve
+async function chatotBossIntro(boss) {
+  const p = state.player, first = !(meta.scenes || []).includes('chatot-jefe');
+  state.dcut = true;
+  try {
+    // colocarte a unos pasos de él, mirándole
+    for (const dy of [3, 2, 4]) if (walkableFor(p, boss.x, boss.y + dy) && !occupied(boss.x, boss.y + dy)) { p.x = boss.x; p.y = boss.y + dy; break; }
+    p.facing = [0, -1]; updateVisibility();
+    if (!first) { boss.facing = [0, 1]; poseOn(boss, 'Charge'); await talk([C('Determined', '¡Otra vez tú! ¡Esta vez no me dejaré ganar! Digo… ¡no te dejaré ganar!')]); return; }
+    boss.facing = [0, -1]; render(); await dwait(600);
+    await talk([C('Joyous', '♪ Chatot, el más apuesto del gremio… ♪ Chatot, el que mejor canta… ♪')]);
+    emoteOn(p, 'dots'); await dwait(1400);
+    boss.facing = [0, 1]; poseOn(boss, 'Hop'); emoteOn(boss, 'shock'); playSfx('menu'); await dwait(500); poseOn(boss, null);
+    await talk([C('Surprised', '¡¿Q-qué?! ¡¿Recluta?! ¿Tú aquí? ¡Qué… qué casualidad!')]);
+    boss.facing = [1, 0]; emoteOn(boss, 'sweat'); render(); await dwait(500);
+    await talk([C('Worried', 'Yo estaba… de paso. Inspeccionando la sala. Sí, eso.')]);
+    boss.facing = [0, 1]; poseOn(boss, 'Pose');
+    await talk([C('Inspired', '¡Pues bien! Para superar el Campo de Entrenamiento, tendrás que derrotar a su jefe…'), C('Joyous', '¡El más poderoso, carismático y apuesto del gremio!')]);
+    poseOn(boss, 'Charge');
+    await talk([C('Determined', '¡Yo! ¡En guardia, Recluta!')]);
+    (meta.scenes ||= []).push('chatot-jefe'); api('/scene/seen', { id: 'chatot-jefe' }).catch(() => {});
+  } finally { poseOn(boss, null); state.dcut = false; render(); }
+}
+// Después: pierde el equilibrio, reconoce tu victoria (a su manera) y se va con un Orbe Escape
+async function chatotBowsOut(e, by) {
+  const first = !(meta.scenes || []).includes('chatot-jefe-fin');
+  state.dcut = true; e.hp = 1; e.bowedOut = true;
+  try {
+    await dwait(400);
+    if (first) {
+      poseOn(e, 'LostBalance'); emoteOn(e, 'sweat');
+      await talk([C('Pain', '¡Aaay! ¡Mis plumas! ¡Mis preciosas plumas!')]);
+      poseOn(e, null); e.facing = [0, 1];
+      await talk([C('Sigh', '… Bien. Muy bien, Recluta. Has superado la prueba.')]);
+      poseOn(e, 'Pose'); emoteOn(e, 'anger');
+      await talk([C('Angry', '¡Pero que conste que me he dejado ganar! ¡Por… por pedagogía!')]);
+      poseOn(e, null);
+      await talk([C('Worried', 'Y ahora, si me disculpas, tengo asuntos muy importantes que atender. ¡Muy importantes!')]);
+      (meta.scenes ||= []).push('chatot-jefe-fin'); api('/scene/seen', { id: 'chatot-jefe-fin' }).catch(() => {});
+    } else {
+      poseOn(e, 'LostBalance'); await talk([C('Angry', '¡Otra vez! ¡Esto no quedará así, Recluta!')]); poseOn(e, null);
+    }
+    say('¡Chatot usa un Orbe Escape!'); await flash(900);
+    e.escaped = true; e.hp = 0;
+  } finally { state.dcut = false; }
+  defeatEnemy(e, by);   // la derrota de siempre: Pokés, experiencia, la MT… y la mazmorra se completa
+}
+
 // =====================================================================
 // Sala del jefe despejada: si era el jefe final, la mazmorra se completa sola; en las mazmorras sin fin aparece la escalera.
 // Espera a que se cierren los mensajes (entrega de la MD, reclutamiento…).
@@ -1155,8 +1216,11 @@ function newFloor() {
   for (const m of state.missions) if (!m.done && m.type === 'explorar' && m.dungeonId === def.id && state.floor >= m.floor) { m.done = true; say(`¡Misión de exploración cumplida: B${m.floor}F alcanzado!`); }
   if (built.kind === 'jirachi' || state.dungeon.arena) {
     // el jefe habla al llegar (la sala de descanso anterior ya ofrecía guardar o volver)
+    if (def.id === 'entrenamiento' && built.boss?.species === 'chatot') { chatotBossIntro(built.boss); }
+    else {
     const boss = built.boss, lines = BOSS_LINES[boss?.species] || [boss?.big ? `${boss.name} te espera con sus súbditos.` : `${boss?.name} aguarda al final de la sala. Su presencia llena el aire.`];
     openDialog(lines.map(t => ({ who: BOSS_LINES[boss?.species] ? boss.name : undefined, sp: BOSS_LINES[boss?.species] ? boss.species : undefined, mood: 'Determined', text: t })));
+    }
   } else if (built.kind === 'miniboss') say(`B${state.floor}F. Un guardián bloquea las escaleras…`);
   else if (def.eras && (state.floor - 1) % def.eraEvery === 0) say(`B${state.floor}F. El tiempo se retuerce… estás en un eco de ${dungeonById(state.era).name}.`);
   else say(`${def.name} B${state.floor}F.`);
@@ -1311,8 +1375,9 @@ function spawnWild() {
 
 // ---------- derrotas, experiencia, reclutamiento ----------
 function defeatEnemy(e, by) {
+  if (e.isBoss && !e.bowedOut && e.species === 'chatot' && state.dungeonDef?.id === 'entrenamiento') { chatotBowsOut(e, by); return; }   // se queda en pie para su escena
   if (by && onOurSide(by)) runStats().kills++;   // telemetría: enemigos derrotados en la exploración
-  playSfx('faint'); addFading(e);
+  if (!e.escaped) { playSfx('faint'); addFading(e); }   // (Chatot se va con un Orbe Escape: sin desmayo)
   state.enemies = state.enemies.filter(x => x !== e);
   const p = e.shopkeeper ? 0 : pokesFor(e.species, state.floor); state.runPokes += p; if (p) setTimeout(() => playSfx('coin'), 180);
   say(e.shopkeeper ? `¡${e.name} derrotado! (Un Kecleon nunca lleva Pokés encima…)` : `¡${e.name} derrotado! +${p} Pokés.`);
@@ -2090,6 +2155,7 @@ function weatherTick() {
   if (state.turn % 20 === 0) say(`${w.name}: castiga a los que no resisten.`);
 }
 function enemyTurn(e) {
+  if (e.bowedOut) return;   // Chatot, derrotado, está en su escena
   if (e.delay > 0) { e.delay--; return; }   // tarda en reaccionar (Kecleon tras un robo)
   const st = preTurn(e); if (st.skip || e.hp <= 0) return;
   if (fleeTurn(e)) return;   // asustado, con Fuga o forajido que huye
@@ -2399,7 +2465,7 @@ const isVisibleNow = (x, y) => {
 };
 // radio de luz en los pasillos (en las salas se ve la sala entera)
 function corridorSight() { return WEATHER[state.weather]?.sight ?? CFG.corridorSight; }
-function render() { if (!state.player && state.scene === 'dungeon') return; ctx.setTransform(RK, 0, 0, RK, 0, 0); state.scene === 'hub' ? renderHub() : renderDungeon(); renderFeed(); renderMenu(); renderDialog(); renderHud(); }
+function render() { if (!state.player && state.scene === 'dungeon') return; ctx.setTransform(RK, 0, 0, RK, 0, 0); state.scene === 'hub' ? renderHub() : renderDungeon(); drawFlash(); renderFeed(); renderMenu(); renderDialog(); renderHud(); }
 // ---- mensajes dentro de la pantalla (como en Mundo Misterioso): recuadro abajo que se desvanece a los pocos segundos ----
 const FEED_MS = 4200, FEED_FADE = 600;
 const logInside = () => { try { return localStorage.getItem('mm_log') !== 'outside'; } catch { return true; } };
@@ -2628,7 +2694,12 @@ function renderDungeon() {
     if (!Sprites.drawMon(ctx, e, px, py, tile)) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy, e.isBoss ? tile / 2 - 1 : tile / 2 - 4, 0, Math.PI * 2); ctx.fill(); drawFacingMark(cx, cy, e.facing, tile); }
     else animating = true;
     if (drawStatusIcon(e, px, py, tile)) animating = true;   // iconos animados de estado sobre el Pokémon
-    if (e.missionId) { ctx.fillStyle = e.outlaw ? '#e04848' : '#f2b544'; ctx.font = 'bold 10px sans-serif'; ctx.fillText(e.outlaw ? '☠' : '!', px + 3, py + 10); }   // forajido: calavera roja
+    if (e.emotes?.length) {   // efectos sobre la cabeza (escenas en la mazmorra)
+      const t = performance.now(); e.emotes = e.emotes.filter(em => (t - em.t0) / 1000 <= (EMOTE_LEN[em.fx] || 1));
+      for (const em of e.emotes) drawEmote(ctx, em.fx, cx, py + tile * 0.05, (t - em.t0) / 1000, Math.max(1, Math.round(tile / 24)));
+      animating = true;
+    }
+    if (e.missionId && !e.emotes?.length) { ctx.fillStyle = e.outlaw ? '#e04848' : '#f2b544'; ctx.font = 'bold 10px sans-serif'; ctx.fillText(e.outlaw ? '☠' : '!', px + 3, py + 10); }   // forajido: calavera roja
     if (e.maxHp) { ctx.fillStyle = '#000'; ctx.fillRect(px + 2, py + tile - 4, tile - 4, 3); ctx.fillStyle = e.isBoss ? '#f2b544' : isAlly(e) ? '#8fd0e6' : '#5fcf8a'; ctx.fillRect(px + 2, py + tile - 4, (tile - 4) * e.hp / e.maxHp, 3); }
   };
   for (const n of state.npcs) drawEntity(n, n.keeper ? '#4caf6d' : '#d98cb3', '#f2b544');
@@ -2913,7 +2984,7 @@ function bindInput() {
     if (state.tour && btn === 'START') { state.tour.skip = true; const d = state.dialog; state.dialog = null; d?.onDone?.(); render(); return; }
     if (state.cut && btn === 'START') { skipScene(); render(); return; }
     if (state.dialog) { if (btn === 'A' || btn === 'START') dialogAdvance(); render(); return; }
-    if (state.cut) return;   // durante una escena, solo se puede saltar (Start) o pasar el diálogo
+    if (state.cut || state.dcut) return;   // durante una escena, solo se puede saltar (Start) o pasar el diálogo
     if (state.menu) {
       const m = state.menu;
       if (btn === 'UP') { m.index = (m.index - 1 + m.items.length) % m.items.length; playSfx('cursor'); }
