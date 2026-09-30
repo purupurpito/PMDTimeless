@@ -30,6 +30,7 @@ export async function playScene(scene) {
   };
   for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: false, emotes: [], form: a.sp === 'sombra' };
   for (const [id, o] of Object.entries(scene.objects || {})) c.objects[id] = { id, ...o, alpha: 1 };
+  c.actors.player = { id: 'player', isPlayer: true, emotes: [], get x() { return D.state.hub.x; }, get y() { return D.state.hub.y; }, get facing() { return D.state.hub.facing; }, set facing(v) { D.state.hub.facing = v; } };
   if (scene.music) D.music?.(scene.music);
   D.render();
   try { for (const step of scene.steps) { if (c.skip) break; await runStep(step, c); } }
@@ -51,7 +52,7 @@ async function runStep(step, c) {
     case 'set': if ('night' in step) c.night = !!step.night; if (step.cam) c.cam = { ...step.cam }; D.render(); return;
     case 'show': if (who) who.hidden = false; return;
     case 'hide': if (who) who.hidden = true; return;
-    case 'turn': if (who) who.facing = step.toward ? dirToward(who, c.actors[step.toward]) : DIRS[step.dir] || who.facing; return;
+    case 'turn': if (who) { who.facing = step.toward ? dirToward(who, c.actors[step.toward]) : DIRS[step.dir] || who.facing; D.render(); } return;
     case 'move': return move(c, who, step);
     case 'anim': return anim(who, step);
     case 'emote': return emote(c, who, step);
@@ -88,6 +89,7 @@ async function move(c, who, step) {
 export function tickScenes() {
   const c = cut(); if (!c) return;
   for (const a of Object.values(c.actors)) {
+    if (a.isPlayer) continue;
     const p = a.path; if (!p) continue;
     const step = p.speed * (D.dtFrames?.() || 1);
     let left = step;
@@ -124,7 +126,10 @@ async function say(c, who, step) {
   // el retrato se voltea a la derecha para el segundo interlocutor (como en el original)
   page.side = c.lastSpeaker && c.lastSpeaker !== (who?.id || page.who) ? 'right' : 'left'; c.lastSpeaker = who?.id || page.who;
   if (who) { who.still = true; c.speaking = who; }
-  await new Promise(res => { c.dialogResolve = res; D.openDialog([page], () => { c.dialogResolve = null; res(); }); });
+  await new Promise(res => {
+    c.dialogResolve = res; D.openDialog([page], () => { c.dialogResolve = null; res(); });
+    if (step.auto) { const d0 = D.state.dialog; setTimeout(() => { if (D.state.dialog === d0) { D.state.dialog = null; c.dialogResolve = null; D.render(); res(); } }, step.auto); }   // se corta sola a media frase
+  });
   if (who) who.still = false; c.speaking = null;
   await delay(150);   // la micro-pausa del original al cerrar el cuadro
 }
@@ -143,7 +148,7 @@ export function sceneEntities(area) {
   const c = cut(); if (!c) return [];
   const ents = [];
   for (const o of Object.values(c.objects)) if (!o.hidden) ents.push({ kind: 'sceneobj', x: o.x, y: o.y, draw: (ctx, sx, sy) => drawObject(ctx, o, sx, sy), obj: o });
-  for (const a of Object.values(c.actors)) if (!a.hidden) ents.push({ kind: 'actor', actor: a, x: a.x, y: a.y, species: a.sp, facing: a.facing, movedAt: a.movedAt, anim: a.anim, still: a.still });
+  for (const a of Object.values(c.actors)) if (!a.hidden && !a.isPlayer) ents.push({ kind: 'actor', actor: a, x: a.x, y: a.y, species: a.sp, facing: a.facing, movedAt: a.movedAt, anim: a.anim, still: a.still });
   return ents;
 }
 export function drawSceneActor(ctx, e, sx, sy, scale, drawMon) {
@@ -167,6 +172,11 @@ function drawObject(ctx, o, sx, sy) {
 // capa de encima: noche (con luces), narración y fundido
 export function drawSceneOverlay(ctx, W, H, cam) {
   const c = cut(); if (!c) return;
+  const p = c.actors.player;   // los efectos del jugador (él no es un actor de la escena: lo dibuja la aldea)
+  if (p && !c.hidePlayer && p.emotes.length) {
+    const t = now(); p.emotes = p.emotes.filter(em => em.hold || (t - em.t0) / 1000 <= (EMOTE_LEN[em.fx] || 1));
+    for (const em of p.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, p.x - cam.x, p.y - cam.y - 52, tt, 2); }
+  }
   if (c.night) {
     ctx.fillStyle = 'rgba(8, 12, 40, 0.62)'; ctx.fillRect(0, 0, W, H);
     for (const l of c.lights) { const g = ctx.createRadialGradient(l.x - cam.x, l.y - cam.y, 4, l.x - cam.x, l.y - cam.y, l.r || 70); g.addColorStop(0, `rgba(255, 205, 120, ${l.a ?? 0.22})`); g.addColorStop(1, 'rgba(255, 205, 120, 0)'); ctx.fillStyle = g; ctx.fillRect(l.x - cam.x - 120, l.y - cam.y - 120, 240, 240); }

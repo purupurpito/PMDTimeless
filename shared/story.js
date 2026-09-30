@@ -93,5 +93,35 @@ export const SCENES = [
       { do: 'fade', to: 'out', ms: 600 },
     ],
   },
+  {
+    // La primera vez que vas a las mazmorras, Chatot llega corriendo… porque él es el jefe del Campo de Entrenamiento
+    id: 'chatot-mazmorras', trigger: 'dungeon-exit', when: m => !(m.cleared || []).includes('entrenamiento'),
+    area: 'aldea', startDark: false,
+    actors: { chatot: { sp: 'chatot', x: 384, y: -40, dir: 'down' } },
+    steps: [
+      { do: 'move', who: 'chatot', to: [[384, 300]], speed: 2.4 },   // llega corriendo por el camino
+      { at: [{ do: 'move', who: 'chatot', to: [[384, 392]], speed: 2.4 }, { do: 'turn', who: 'player', dir: 'up' }, { do: 'emote', who: 'player', fx: 'exclaim', nowait: true }] },
+      { do: 'anim', who: 'chatot', anim: 'Hop', ms: 450 },
+      { do: 'say', who: 'chatot', mood: 'Happy', text: '¡Hey, Recluta! ¿Vas ya hacia las mazmorras?' },
+      { do: 'turn', who: 'chatot', dir: 'right' },
+      { do: 'emote', who: 'chatot', fx: 'sweat' },
+      { do: 'say', who: 'chatot', mood: 'Worried', text: 'Qué casualidad. Yo también iba…' },
+      { do: 'turn', who: 'chatot', dir: 'down' },
+      { do: 'anim', who: 'chatot', anim: 'Pose', hold: true },
+      { do: 'say', who: 'chatot', mood: 'Inspired', text: 'Bueno, mucha suerte ahí dentro. Espero que no te encuentres ningún jefe demasiado poderoso, carismático, apuesto, que cante bien…' },
+      { do: 'anim', who: 'chatot', anim: 'Appeal', hold: true },   // y sigue, y sigue…
+      { do: 'say', who: 'chatot', mood: 'Joyous', auto: 2800, text: '…que baile de maravilla, con un plumaje precioso, una voz privilegiada, un porte de lo más elegante, una memoria prodigiosa para las normas del gremio, una puntualidad…' },
+      { do: 'emote', who: 'player', fx: 'dots' },
+      { do: 'wait', ms: 900 },
+      { at: [{ do: 'anim', who: 'chatot', anim: 'Hop', ms: 450 }, { do: 'emote', who: 'chatot', fx: 'shock', se: 'shock' }] },   // se da cuenta de que lleva un buen rato hablando
+      { do: 'anim', who: 'chatot', anim: 'Idle' },
+      { do: 'say', who: 'chatot', mood: 'Shouting', text: '¡Bueno, no tengo mucho tiempo para seguir escuchándote! Me voy, que tengo prisa.' },
+      { at: [{ do: 'move', who: 'chatot', to: [[424, 440], [424, 560]], speed: 3 }, { do: 'turn', who: 'player', dir: 'down' }] },   // y se va corriendo… hacia las mazmorras
+      { do: 'hide', who: 'chatot' },
+      { do: 'emote', who: 'player', fx: 'question' },
+      { do: 'wait', ms: 500 },
+    ],
+  },
 ];
-export const pendingScene = m => SCENES.find(sc => !(m.scenes || []).includes(sc.id) && sc.when(m)) || null;
+// trigger: 'hub' (al entrar en la aldea) o 'dungeon-exit' (al ir hacia las mazmorras)
+export const pendingScene = (m, trigger = 'hub') => SCENES.find(sc => (sc.trigger || 'hub') === trigger && !(m.scenes || []).includes(sc.id) && sc.when(m)) || null;

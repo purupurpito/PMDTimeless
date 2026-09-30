@@ -499,7 +499,7 @@ function hubLoop() {
         const tryMove = (mx, my) => { const nx = h.x + mx, ny = h.y + my; if ([[-6, 0], [6, 0], [0, 2]].every(([ox, oy]) => Hub.walkable(h.area, nx + ox, ny + oy)) && !npcAtHub(nx, ny)) { h.x = nx; h.y = ny; return true; } return false; };
         if (!tryMove(dx * sp, dy * sp)) { tryMove(dx * sp, 0) || tryMove(0, dy * sp); }
         h.movedAt = performance.now();
-        for (const ex of area.exits) if (inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); fountainNews(); } break; }   // al irte de la plaza, Chatot entra en el gremio
+        for (const ex of area.exits) if (inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; const sc = user && !state.tour && pendingScene(meta, 'dungeon-exit'); if (sc) runScene(sc).then(() => openDungeonMenu()); else openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); fountainNews(); } break; }   // al irte de la plaza, Chatot entra en el gremio
       }
     }
     h.t++; if (h.t % 2 === 0) moveWanderers();
@@ -2452,7 +2452,7 @@ function renderHub() {
   // de la cabeza): el cuadro de diálogo y el retrato nunca deben taparlo. En una escena, el actor que habla.
   const rectAt = (x, y, tall) => ({ l: x - cam.x - 28, r: x - cam.x + 28, t: y - cam.y - tall, b: y - cam.y + 8 });
   const spk = state.cut?.speaking;
-  state.dlgFocus = spk ? [rectAt(spk.x, spk.y, 104)]
+  state.dlgFocus = spk ? [rectAt(spk.x, spk.y, 104), ...(state.cut?.hidePlayer ? [] : [rectAt(h.x, h.y, 76)])]
     : [...(state.cut?.hidePlayer ? [] : [rectAt(h.x, h.y, 76)]), ...(state.talkNpc?.area === h.area ? [rectAt(state.talkNpc.x, state.talkNpc.y, 84)] : []), ...(tg0?.area === h.area ? [rectAt(tg0.x, tg0.y, 84)] : [])];
   state.dlgCam = cam;
   ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, W, H);
