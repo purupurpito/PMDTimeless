@@ -99,11 +99,15 @@ export const SCENES = [
     area: 'aldea', startDark: false,
     actors: { chatot: { sp: 'chatot', x: 384, y: -40, dir: 'down' } },
     steps: [
-      { do: 'move', who: 'chatot', to: [[384, 212], [454, 256]], speed: 2.4 },   // llega corriendo por el camino y rodea la fuente (ruta sacada del mapa de colisiones)
-      { at: [{ do: 'move', who: 'chatot', to: [[454, 334], [384, 392]], speed: 2.4 }, { do: 'turn', who: 'player', dir: 'up' }, { do: 'emote', who: 'player', fx: 'exclaim', nowait: true }] },
+      { do: 'move', who: 'chatot', to: [[384, 212], [454, 256], [454, 334], [384, 392]], speed: 2.4 },   // llega corriendo y rodea la fuente (ruta sacada del mapa de colisiones)
+      { do: 'wait', ms: 350 },
+      { do: 'turn', who: 'player', dir: 'up' },                                          // y cuando se para, te giras…
+      { do: 'emote', who: 'player', fx: 'exclaim' },
+      { do: 'wait', ms: 500 },
       { do: 'anim', who: 'chatot', anim: 'Hop', ms: 450 },
       { do: 'say', who: 'chatot', mood: 'Happy', text: '¡Hey, Recluta! ¿Vas ya hacia las mazmorras?' },
       { do: 'turn', who: 'chatot', dir: 'right' },
+      { do: 'wait', ms: 300 },
       { do: 'emote', who: 'chatot', fx: 'sweat' },
       { do: 'say', who: 'chatot', mood: 'Worried', text: 'Qué casualidad. Yo también iba…' },
       { do: 'turn', who: 'chatot', dir: 'down' },
@@ -111,16 +115,19 @@ export const SCENES = [
       { do: 'say', who: 'chatot', mood: 'Inspired', text: 'Bueno, mucha suerte ahí dentro.' },
       { do: 'say', who: 'chatot', mood: 'Inspired', text: 'Espero que no te encuentres ningún jefe demasiado poderoso, carismático, apuesto, que cante bien…' },
       { do: 'anim', who: 'chatot', anim: 'Appeal', hold: true },   // y sigue, y sigue…
-      { do: 'say', who: 'chatot', mood: 'Joyous', auto: 2800, text: '…que baile de maravilla, con un plumaje precioso, una voz privilegiada, un porte de lo más elegante, una memoria prodigiosa para las normas del gremio, una puntualidad…' },
+      { do: 'say', who: 'chatot', mood: 'Joyous', auto: 900, text: '…que baile de maravilla, con un plumaje precioso, una voz privilegiada, un porte elegantísimo… bla, bla, bla…' },
+      { do: 'wait', ms: 300 },
       { do: 'emote', who: 'player', fx: 'dots' },
-      { do: 'wait', ms: 900 },
+      { do: 'wait', ms: 1300 },
       { at: [{ do: 'anim', who: 'chatot', anim: 'Hop', ms: 450 }, { do: 'emote', who: 'chatot', fx: 'shock', se: 'shock' }] },   // se da cuenta de que lleva un buen rato hablando
       { do: 'anim', who: 'chatot', anim: 'Idle' },
+      { do: 'wait', ms: 400 },
       { do: 'say', who: 'chatot', mood: 'Shouting', text: '¡Bueno, no tengo mucho tiempo para seguir escuchándote! Me voy, que tengo prisa.' },
       { at: [{ do: 'move', who: 'chatot', to: [[408, 452], [408, 488], [384, 504], [384, 560]], speed: 3 }, { do: 'turn', who: 'player', dir: 'down' }] },   // y se va corriendo por tu lado… hacia las mazmorras (ruta comprobada con el mapa de colisiones)
       { do: 'hide', who: 'chatot' },
+      { do: 'wait', ms: 400 },
       { do: 'emote', who: 'player', fx: 'question' },
-      { do: 'wait', ms: 500 },
+      { do: 'wait', ms: 900 },
     ],
   },
   {
@@ -134,26 +141,33 @@ export const SCENES = [
       { do: 'fade', to: 'in', ms: 600 },
       { do: 'wait', ms: 800 },
       { do: 'bird', ms: 1100, nowait: true },                                        // una sombra cruza la plaza…
-      { do: 'wait', ms: 450 },
-      { at: [{ do: 'turn', who: 'player', dir: 'up' }, { do: 'emote', who: 'player', fx: 'question', nowait: true }] },
-      { do: 'wait', ms: 900 },
-      { do: 'object', id: 'carta', action: 'fall', ms: 2600 },                        // …y cae un papel del cielo
+      { do: 'wait', ms: 520 },                                                        // (justo cuando pasa por encima de ti)
+      { do: 'turn', who: 'player', dir: 'up' },
       { do: 'emote', who: 'player', fx: 'exclaim' },
+      { do: 'wait', ms: 1000 },                                                       // …pasa, y un momento después…
+      { do: 'object', id: 'carta', action: 'fall', ms: 2600 },                        // …cae un papel del cielo
+      { do: 'wait', ms: 600 },
+      { do: 'emote', who: 'player', fx: 'question' },                                 // ¿qué es esto?
+      { do: 'wait', ms: 700 },
       { do: 'move', who: 'player', to: [[392, 272]], speed: 1 },                      // te acercas y lo recoges
       { do: 'object', id: 'carta', action: 'hide' },
       { do: 'wait', ms: 300 },
       { do: 'poster', kind: 'wanted' },
-      { do: 'wait', ms: 400 },
+      { do: 'wait', ms: 800 },
       { do: 'emote', who: 'murkrow', fx: 'shock', se: 'shock' },
+      { do: 'wait', ms: 300 },
       { do: 'say', who: 'murkrow', mood: 'Surprised', text: '¡Crrraaa! ¿Una carta? ¡Esa no la he repartido yo!' },
+      { do: 'wait', ms: 400 },
       { do: 'turn', who: 'player', dir: 'up-left' },
-      { do: 'wait', ms: 500 },
+      { do: 'wait', ms: 600 },
       { do: 'emote', who: 'player', fx: 'dots' },                                     // le miras…
-      { do: 'wait', ms: 900 },
+      { do: 'wait', ms: 1300 },
       { do: 'emote', who: 'murkrow', fx: 'sweat' },
+      { do: 'wait', ms: 300 },
       { do: 'say', who: 'murkrow', mood: 'Worried', text: '¿Qué? ¿Por qué me miras así? … Vale, sí, me gustan las cosas brillantes.' },
       { do: 'say', who: 'murkrow', mood: 'Worried', text: '¡Pero no tanto!' },
       { do: 'emote', who: 'murkrow', fx: 'anger', hold: true },
+      { do: 'wait', ms: 400 },
       { do: 'say', who: 'murkrow', mood: 'Angry', text: '¡Crrraaa! ¡Yo solo reparto el correo!' },
       { do: 'emote', who: 'murkrow', fx: 'none' },
     ],

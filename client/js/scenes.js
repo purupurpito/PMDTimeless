@@ -130,7 +130,11 @@ async function say(c, who, step) {
   if (who) { who.still = true; c.speaking = who; }
   await new Promise(res => {
     c.dialogResolve = res; D.openDialog([page], () => { c.dialogResolve = null; res(); });
-    if (step.auto) { const d0 = D.state.dialog; setTimeout(() => { if (D.state.dialog === d0) { D.state.dialog = null; c.dialogResolve = null; D.render(); res(); } }, step.auto); }   // se corta sola a media frase
+    if (step.auto) {   // se cierra sola: cuando la frase está escrita entera y ha pasado «auto» ms (para leerla)
+      const d0 = D.state.dialog; let doneAt = 0;
+      const check = () => { if (D.state.dialog !== d0) return; if (d0.done && !doneAt) doneAt = now(); if (doneAt && now() - doneAt >= step.auto) { D.state.dialog = null; c.dialogResolve = null; D.render(); res(); } else setTimeout(check, 50); };
+      check();
+    }
   });
   if (who) who.still = !!who.fixedStill; c.speaking = null;
   await delay(150);   // la micro-pausa del original al cerrar el cuadro
