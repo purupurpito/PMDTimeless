@@ -104,6 +104,7 @@ export const SCENES = [
     actors: { chatot: { sp: 'chatot', x: 384, y: -40, dir: 'down' } },
     steps: [
       { do: 'move', who: 'chatot', to: [[384, 212], [454, 256], [454, 334], [384, 392]], speed: 2.4 },   // llega corriendo y rodea la fuente (ruta sacada del mapa de colisiones)
+      { do: 'turn', who: 'chatot', dir: 'down' },                                        // se para mirándote de frente
       { do: 'wait', ms: 350 },
       { do: 'turn', who: 'player', dir: 'up' },                                          // y cuando se para, te giras…
       { do: 'emote', who: 'player', fx: 'exclaim' },

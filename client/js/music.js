@@ -28,6 +28,7 @@ const TRACKS = {
   mega:    { url: 'client/assets/music/mega.mp3', loop: 16 * 4 * 60 / 140, set: 'B', approved: false },        // guardián Mega
   monster_house: { url: 'client/assets/music/monster_house.mp3', loop: 8 * 4 * 60 / 160, set: 'B', approved: false },
   shop:    { url: 'client/assets/music/shop.mp3', loop: 8 * 4 * 60 / 112, set: 'B', approved: false },         // tienda de Kecleon (en la mazmorra)
+  tension: { url: 'client/assets/music/ruinas.mp3', loop: 16 * 4 * 60 / 82, set: 'B', approved: false },     // escenas de misterio (provisional: la de las Ruinas)
   // fanfarrias (una sola vez, sin bucle)
   clear:   { url: 'client/assets/music/clear.mp3', once: true, set: 'B', approved: false },
   defeat:  { url: 'client/assets/music/defeat.mp3', once: true, set: 'B', approved: false },
@@ -111,6 +112,7 @@ export async function playTrack(key) {
   current = { key, src, gain };
 }
 export const stopMusic = () => playTrack(null);
+if (typeof window !== 'undefined') window.__mmMusicNow = () => current?.key || null;   // qué pista suena (para las pruebas)
 export function setVolume(pos) { try { localStorage.setItem('mm_music_pos', String(pos)); } catch {} if (master) master.gain.setTargetAtTime(gainOf(pos), ctx.currentTime, 0.02); }
 export const getVolume = prefVol;
 // al empezar solo se precargan las pistas de fuera de las mazmorras; las demás se descargan al necesitarlas

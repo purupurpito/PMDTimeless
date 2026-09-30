@@ -27,7 +27,7 @@ export async function playScene(scene) {
   const c = S.cut = {
     id: scene.id, skip: false, night: !!scene.night, lights: scene.lights || [], hidePlayer: !!scene.hidePlayer, hideNpcs: !!scene.hideNpcs, hideNpcIds: scene.hideNpcIds || [], bird: null, poster: null,
     fade: scene.startDark === false ? 0 : 1, narration: null, cam: scene.cam ? { ...scene.cam } : null,
-    actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0,
+    actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null,
   };
   for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra' };
   for (const [id, o] of Object.entries(scene.objects || {})) c.objects[id] = { id, ...o, alpha: 1 };

@@ -238,7 +238,7 @@ const canLeaderChoice = () => rankOf(meta.rankPts) >= CFG.leaderChoiceRank;
 // =====================================================================
 export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
-  initScenes({ state, render, openDialog, beds: () => HUB.descanso.beds, sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} }, music: null });
+  initScenes({ state, render, openDialog, beds: () => HUB.descanso.beds, music: key => key ? playTrack(key) : playZone(state.hub.area), sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} } });
   window.__mmPlayScene = id => { const sc = SCENES_ALL().find(s => s.id === id); return sc ? playScene(sc) : Promise.resolve(); };
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
@@ -1221,6 +1221,7 @@ function newFloor() {
   state.rng = makeRng(floorSeed(state.run.seed, state.floor));
   const built = buildFloor(state.rng, state.dungeonDef, state.floor, state.missions, state.flags, state.run.seed);
   state.era = built.dungeon.eraId || state.dungeonDef.id; state.weather = built.weather || 'none';
+  for (const e of [...built.enemies, ...(built.npcs || [])]) { const m = Sprites.mons[e.species]; if (m && !m.requested) Sprites.ensure(m); }   // se descargan ya, antes de que se vean
   Object.assign(state, { dungeon: built.dungeon, enemies: built.enemies, groundItems: built.groundItems, npcs: built.npcs, monsterHouse: built.monsterHouse, shop: built.shop ? { ...built.shop, unpaid: [], robbed: false } : null });
   const p = state.player, def = state.dungeonDef;
   Object.assign(p, state.dungeon.start); p.facing = [0, -1];
@@ -1414,7 +1415,7 @@ function defeatEnemy(e, by) {
     else say(`¡${e.name} suelta su ${e.dropsStone.name}!`);
   }
   else if (e.isBoss && !e.shopkeeper) { const move = state.rng.pick(TM_POOL); addItem(`MT: ${move}`); say(`${e.name} deja caer una MT: ${move}.`); }
-  else if (state.rng.random() < 0.15) { addItem('Baya Aranja'); say('Ha soltado una Baya Aranja.'); }
+  dropCarried(e);   // solo suelta lo que hubiera recogido, y al suelo (no a tu bolsa)
   tryRecruit(e, by);
   arenaCleared();   // ¿era el jefe de la sala?
 }
@@ -2058,7 +2059,7 @@ async function resolveTurn(playerActed) {
       if (!alive()) return;
       for (let k = actsOf(e); k > 0 && e.hp > 0 && alive(); k--) {
         if (first && moved0 && cheb(e, p) <= 2 && e.hp > 0) { first = false; await pace(STEP_MS()); }   // que termine tu paso antes de que te ataquen
-        enemyTurn(e);
+        enemyTurn(e); enemyPickup(e);
         if (state.attacked) { state.attacked = false; render(); await pace(ATTACK_PAUSE()); await waitFading(); }
       }
     }
@@ -2169,6 +2170,21 @@ function weatherTick() {
   const hit = m => { if (w.immune.some(t => SPECIES[m.species].types.includes(t)) || m.hp <= 0 || ITEMS[m.held]?.weatherImmune || hasAbility(m, 'MAGIC_GUARD')) return; const d = Math.max(1, Math.floor(m.maxHp * w.tick)); m.hp = Math.max(0, m.hp - d); state.effects.push({ x: m.x, y: m.y, text: `-${d}`, t: performance.now(), color: w.color }); if (m.hp <= 0) { if (isAlly(m)) downed(m); else defeatEnemy(m, null); } };
   hit(state.player); for (const a of [...state.team]) hit(a); for (const e of [...state.enemies]) hit(e);
   if (state.turn % 20 === 0) say(`${w.name}: castiga a los que no resisten.`);
+}
+// Un enemigo que pisa un objeto lo recoge (y lo suelta en el suelo si lo derrotas)
+function enemyPickup(e) {
+  if (e.hp <= 0 || e.shopkeeper || e.isBoss) return;
+  const i = state.groundItems.findIndex(g => g.x === e.x && g.y === e.y && !g.shop && !g.missionId); if (i < 0) return;
+  const [g] = state.groundItems.splice(i, 1); (e.carried ||= []).push(g.name);
+  if (isVisibleNow(e.x, e.y)) say(`${e.name} recoge ${g.name}.`);
+}
+function dropCarried(e) {   // lo que llevaba, al suelo: en su casilla o en la más cercana libre de objetos
+  for (const name of e.carried || []) {
+    const spots = [[0, 0], ...DIRS8, [2, 0], [-2, 0], [0, 2], [0, -2]].map(([dx, dy]) => ({ x: e.x + dx, y: e.y + dy }));
+    const s = spots.find(p => state.dungeon.tiles[p.y]?.[p.x] === T.FLOOR && !state.groundItems.some(g => g.x === p.x && g.y === p.y)) || { x: e.x, y: e.y };
+    state.groundItems.push({ name, x: s.x, y: s.y }); say(`${e.name} suelta ${name}.`);
+  }
+  e.carried = [];
 }
 function enemyTurn(e) {
   if (e.bowedOut) return;   // Chatot, derrotado, está en su escena
@@ -2472,7 +2488,7 @@ function applyScale() {
   render();
 }
 canvas.width = LOG.w; canvas.height = LOG.h;
-window.addEventListener('resize', () => { if (state.player && document.body.classList.contains('in-game')) applyScale(); }); // no dibujar el juego antes de entrar
+window.addEventListener('resize', () => { document.body.classList.toggle('log-inside', logInside()); if (state.player && document.body.classList.contains('in-game')) applyScale(); }); // no dibujar el juego antes de entrar
 const isVisibleNow = (x, y) => {
   const p = state.player, rm = state.inRoom;
   if (state.dungeon?.arena) return true;
@@ -2484,7 +2500,10 @@ function corridorSight() { return WEATHER[state.weather]?.sight ?? CFG.corridorS
 function render() { if (!state.player && state.scene === 'dungeon') return; ctx.setTransform(RK, 0, 0, RK, 0, 0); state.scene === 'hub' ? renderHub() : renderDungeon(); drawFlash(); renderFeed(); renderMenu(); renderDialog(); renderHud(); }
 // ---- mensajes dentro de la pantalla (como en Mundo Misterioso): recuadro abajo que se desvanece a los pocos segundos ----
 const FEED_MS = 4200, FEED_FADE = 600;
-const logInside = () => { try { return localStorage.getItem('mm_log') !== 'outside'; } catch { return true; } };
+const logInside = () => {   // por defecto, fuera (debajo del juego, como la pantalla de abajo de la DS); con el móvil tumbado no hay sitio: dentro
+  if (document.body.classList.contains('touch-on') && window.innerWidth > window.innerHeight) return true;
+  try { return localStorage.getItem('mm_log') === 'inside'; } catch { return false; }
+};
 let feedTimer = null;
 function feedPush(msg) {
   if (state.scene !== 'dungeon') return;   // en la aldea no hay registro dentro de la pantalla
@@ -2543,7 +2562,7 @@ function renderFeed() {
 const HUB_SCALE = 2; // los sprites van al doble en la aldea para casar con la escala de los edificios
 let musicZone = null;
 function renderHub() {
-  if (state.scene === 'hub' && document.body.classList.contains('in-game') && state.hub?.area !== musicZone) { musicZone = state.hub?.area; playZone(musicZone); } // solo dentro del juego
+  if (state.scene === 'hub' && document.body.classList.contains('in-game') && !state.cut?.music && state.hub?.area !== musicZone) { musicZone = state.hub?.area; playZone(musicZone); } // solo dentro del juego (una escena con música propia manda)
   const W = LOG.w, H = LOG.h, h = state.hub, area = Hub.view(h.area), def = HUB[h.area];
   const cam = state.cut?.cam ? { x: state.cut.cam.x, y: state.cut.cam.y } : { x: Math.max(0, Math.min(768 - W, h.x - W / 2)), y: Math.max(0, Math.min(515 - H, h.y - H / 2)) };   // en una escena, la cámara la manda el guion
   if (state.cut?.shake) { const [sx0, sy0] = sceneShake(); cam.x += sx0; cam.y += sy0; }   // temblor (alguien grita, un golpe…)
@@ -2562,7 +2581,7 @@ function renderHub() {
   if (state.showMask && area?.debug) ctx.drawImage(area.debug, -cam.x, -cam.y);
   // entidades ordenadas por y para que el que está más abajo tape al de arriba
   const tg = state.tour?.guide, tourNpc = tg && tg.area === h.area ? [{ id: 'chatot', x: tg.x, y: tg.y, facing: tg.facing, movedAt: tg.movedAt, kind: 'npc' }] : [];
-  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden && !state.cut?.hideNpcs && !state.cut?.hideNpcIds?.includes(n.id)).map(n => ({ ...n, kind: 'npc', still: !!n.still || (!!state.dialog && state.talkNpc?.x === n.x && state.talkNpc?.y === n.y) })), ...tourNpc, ...(state.cut ? [] : h.wanderers.map(w => ({ ...w, kind: 'w' }))), ...sceneEntities(area), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].filter(e => !(state.cut?.hidePlayer && e.kind === 'me')).sort((a, b) => a.y - b.y);
+  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden && !state.cut?.hideNpcs && !state.cut?.hideNpcIds?.includes(n.id)).map(n => ({ ...n, kind: 'npc', still: !n.idle || !!n.still || (!!state.dialog && state.talkNpc?.x === n.x && state.talkNpc?.y === n.y) })), ...tourNpc, ...(state.cut ? [] : h.wanderers.map(w => ({ ...w, kind: 'w' }))), ...sceneEntities(area), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].filter(e => !(state.cut?.hidePlayer && e.kind === 'me')).sort((a, b) => a.y - b.y);
   const fg = (def.fg || []).map(f => ({ ...f, drawn: false }));
   const drawFg = f => {   // capa de primer plano: un trozo de la imagen redibujado encima; con poly, solo esa forma (p. ej. un mostrador en diagonal)
     if (f.drawn || !area?.img) return; f.drawn = true;
@@ -2590,7 +2609,7 @@ function renderHub() {
       ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = `bold ${HUB_SCALE * 7}px sans-serif`; ctx.fillText('z', sx + HUB_SCALE * 8, sy - HUB_SCALE * 20 - 3 * Math.sin(performance.now() / 400));
       continue;
     }
-    if (!Sprites.drawMon(ctx, { species: key, facing: e.facing, movedAt: e.movedAt, still: e.still || (e.kind === 'me' && !!state.dialog) }, sx - HUB_SCALE * 12, sy - HUB_SCALE * 24, HUB_SCALE * 24)) { ctx.fillStyle = e.kind === 'me' ? '#f2b544' : '#4caf6d'; ctx.beginPath(); ctx.arc(sx, sy - 10 * HUB_SCALE, 10 * HUB_SCALE, 0, Math.PI * 2); ctx.fill(); }
+    if (!Sprites.drawMon(ctx, { species: key, facing: e.facing, movedAt: e.movedAt, still: e.still || (e.kind === 'me' && !!state.dialog) }, sx - HUB_SCALE * 12, sy - HUB_SCALE * 24, HUB_SCALE * 24)) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(sx, sy - 2, 10 * HUB_SCALE / 2, 3 * HUB_SCALE / 2, 0, 0, Math.PI * 2); ctx.fill(); }   // aún descargando: solo su sombra
   }
   fg.forEach(drawFg);
   drawSceneOverlay(ctx, W, H, cam);   // noche, narración y fundidos de las escenas
@@ -2708,7 +2727,7 @@ function renderDungeon() {
     if (vx < -1 || vy < -1 || vx > CFG.view.w || vy > CFG.view.h || !isVisibleNow(e.x, e.y)) return;
     const px = vx * tile, py = vy * tile, cx = px + tile / 2, cy = py + tile / 2;
     if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, tile / 2 - 2, 0, Math.PI * 2); ctx.stroke(); }
-    if (!Sprites.drawMon(ctx, e, px, py, tile)) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy, e.isBoss ? tile / 2 - 1 : tile / 2 - 4, 0, Math.PI * 2); ctx.fill(); drawFacingMark(cx, cy, e.facing, tile); }
+    if (!Sprites.drawMon(ctx, e, px, py, tile)) { ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(cx, py + tile - 4, tile / 3, tile / 9, 0, 0, Math.PI * 2); ctx.fill(); animating = true; }   // aún descargando: solo su sombra
     else animating = true;
     if (drawStatusIcon(e, px, py, tile)) animating = true;   // iconos animados de estado sobre el Pokémon
     if (e.emotes?.length) {   // efectos sobre la cabeza (escenas en la mazmorra)

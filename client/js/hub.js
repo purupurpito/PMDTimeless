@@ -61,7 +61,7 @@ export const HUB = {
       { id: 'kecleon_green', x: 230, y: 300, facing: [1, 1], talk: 'shop', fixedFacing: true, reach: 84 },   // atiende tras el mostrador (que le tapa de cintura para abajo)
       { id: 'kecleon_purple', x: 362, y: 235, facing: [1, 1], talk: 'sell', fixedFacing: true, reach: 84 },
       { id: 'kangaskhan', x: 540, y: 235, facing: [-1, 1], talk: 'storage', fixedFacing: true },
-      { id: 'sableye', x: 452, y: 418, facing: [1, 0], talk: 'sableye_gulpin', untilRank: 1, reach: 40 },   // Sableye, ayudando a Gulpin con su cabaña (hasta Bronce)
+      { id: 'sableye', x: 452, y: 418, facing: [1, 0], talk: 'sableye_gulpin', untilRank: 1, reach: 40, idle: true },   // (está trabajando: se mueve)   // Sableye, ayudando a Gulpin con su cabaña (hasta Bronce)
       { id: 'gulpin', x: 532, y: 380, facing: [-1, 0], talk: 'gulpin', fixedFacing: true, reach: 78, approach: [420, 360, 500, 452] },   // dentro de la cabaña, en la entrada // en la puerta de la cabaña: solo se le habla desde delante
     ],
     // Capas de primer plano: los mostradores (con su poste delantero) se dibujan por encima de los Kecleon, que atienden detrás
@@ -78,7 +78,7 @@ export const HUB = {
       { rect: [345, 0, 425, 22], to: 'plaza', at: { x: 384, y: 468 } },
       { rect: [345, 493, 425, 515], action: 'dungeons', label: 'Salida a las mazmorras', back: { x: 384, y: 470 } },
     ],
-    npcs: [ { id: 'wobbuffet', x: 250, y: 300, facing: [0, 1], talk: 'wobbuffet' } ],
+    npcs: [ { id: 'wobbuffet', x: 250, y: 300, facing: [0, 1], talk: 'wobbuffet', idle: true } ],   // su balanceo es su gracia
     wanderers: 4, // Pokémon sueltos paseando (sin función por ahora)
   },
 };
