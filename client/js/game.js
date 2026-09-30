@@ -9,7 +9,7 @@ import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
-import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake } from './scenes.js';
+import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
 import { SCENES } from '../../shared/story.js';
 const SCENES_ALL = () => SCENES;
@@ -271,9 +271,10 @@ export async function startGame(me) {
   await Sprites.load();
   bindInput();
   if (!meta.tutorialDone) { state.hub.area = 'plaza'; Object.assign(state.hub, { x: 404, y: 262, facing: [1, -1] }); state.hub.introChatot = true; }   // Chatot te espera en la entrada
-  enterHub();
+  enterHub({ noScenes: true });
   if (!meta.tutorialDone) tutorial(); else say(`Bienvenido de nuevo, ${user.name}.`);
   await hubAssetsReady();   // la pantalla de carga se quita cuando la aldea y los sprites de la zona están descargados
+  setTimeout(() => playPendingScenes(), 250);   // las escenas que toquen, ya con la aldea a la vista
 }
 // Lo que enseña la tarjeta de la pantalla de inicio (nombre, Pokémon, nivel y Pokés), guardado en el navegador
 function saveLastSeen() {
@@ -405,7 +406,7 @@ async function tutorial(skipAsk = false) {
   await tourWalk(405, 500);
   await tourArea('plaza', { x: 384, y: 226 }, { x: 384, y: 252 });
   tourFace(0, -1);
-  await tourSay(['Diglett vigila la entrada del gremio desde su túnel. Ya os conocéis, ¿verdad?',
+  await tourSay(['¿Ves esa bandeja junto a la puerta? Ahí se deja todo lo que sea para el maestro. Y NADIE la toca. Es mi bandeja.', 'Diglett vigila la entrada del gremio desde su túnel. Ya os conocéis, ¿verdad?',
                  { who: 'Diglett', text: '¡Huella registrada! ¡Bienvenido, bienvenido!' }]);
   // 5) mercado
   await tourSay(['Ahora, el mercado. ¡Por aquí!']);
@@ -476,20 +477,28 @@ async function tourDone(declined) {
 // =====================================================================
 // ESCENA: BASE
 // =====================================================================
-function enterHub() {
+function enterHub(opts = {}) {
   state.scene = 'hub'; state.menu = null; state.dead = false; state.enemies = []; state.team = []; state.npcs = []; state.effects = []; state.run = null;
   if (!state.player) state.player = createPlayer(meta.starters[0]);
   const h = state.hub; if (!h.area) { h.area = 'plaza'; Object.assign(h, HUB.plaza.spawn); }
   spawnWanderers(); render(); hubLoop();
-  const sc = user && !state.tour ? pendingScene(meta) : null;
-  if (sc) { (async () => { let next = sc; while (next) { await runScene(next); next = pendingScene(meta); } hubExtras(); })(); } else hubExtras();   // varias seguidas si toca (la noche → la sombra → el despertar)
+  if (opts.noScenes) hubExtras(); else playPendingScenes().then(hubExtras);   // (al volver de una mazmorra, las escenas esperan al informe)
 }
+// Las escenas de historia que toquen, una detrás de otra (la noche → la sombra → el despertar)
+async function playPendingScenes() {
+  if (!user || state.tour) return;
+  let next = pendingScene(meta); if (!next) return;
+  await whenIdle();   // nunca encima de un aviso o un menú abierto
+  if (!user || state.tour || state.scene !== 'hub') return;
+  while (next) { await runScene(next); next = pendingScene(meta); }
+}
+const whenIdle = () => new Promise(res => { const t = () => (!state.dialog && !state.menu && !state.busy ? res() : setTimeout(t, 150)); t(); });
 // escena de historia: se reproduce, se marca como vista en el servidor y se enseña una sola vez
 async function runScene(sc) {
-  try { await playScene(sc); } catch (e) { console.error(e); }
+  let res = null; try { res = await playScene(sc); } catch (e) { console.error(e); }
   (meta.scenes ||= []).includes(sc.id) || meta.scenes.push(sc.id);
   try { const r = await api('/scene/seen', { id: sc.id }); if (r?.meta) meta = r.meta; } catch {}
-  track('scene', { id: sc.id, skipped: false });
+  track('scene', { id: sc.id, skipped: !!res?.skipped });
 }
 function hubExtras() {
   checkSpecialDay(); checkMyRescue();
@@ -585,7 +594,8 @@ function fountainNews() {
 }
 function npcGreeting(who, lines, key, next, sp) {
   const c = hubCounters(); c[key] = (c[key] || 0) + 1; saveHubCounters(c);
-  return openDialog([{ who, ...(sp ? { sp } : {}), text: lines[(c[key] - 1) % lines.length] }], next);
+  const portrait = sp || who.toLowerCase();   // sin retrato indicado: el de su especie
+  return openDialog([{ who, sp: portrait, text: lines[(c[key] - 1) % lines.length] }], next);
 }
 function hubInteract() {
   const h = state.hub, area = HUB[h.area], fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
@@ -627,8 +637,9 @@ function talkTo(kind) {
   const s = storyLineFor(kind, meta, storySeen());
   if (s) {
     const seen = storySeen(); seen.add(`${kind}:${s.chapter}`); try { localStorage.setItem(storySeenKey(), JSON.stringify([...seen])); } catch {}
-    const who = kind === 'rowlet' ? '???' : kind[0].toUpperCase() + kind.slice(1);
-    return openDialog(s.pages.map(p => ({ who, sp: kind, mood: p.mood || 'Normal', text: p.text })), s.then ? () => talkToBase(kind) : undefined);
+    const SPK = { shop: ['Kecleon', 'kecleon'], sell: ['Kecleon', 'kecleon_purple'], storage: ['Kangaskhan', 'kangaskhan'], rowlet: ['???', 'rowlet'] };
+    const [who, sp] = SPK[kind] || [kind[0].toUpperCase() + kind.slice(1), kind];
+    return openDialog(s.pages.map(p => ({ who, sp, mood: p.mood || 'Normal', text: p.text })), s.then ? () => talkToBase(kind) : undefined);
   }
   return talkToBase(kind);
 }
@@ -650,9 +661,9 @@ function readLetter(id) {
 function talkToBase(kind) {
   switch (kind) {
     case 'mawile':   // guarda la puerta del despacho: solo pasan los de rango Diamante o superior
-      if (rankOf(meta.rankPts) < 4) return openDialog([{ who: 'Mawile', text: 'Lo siento, pero el jefe está ocupado. Por normas estipuladas del gremio, solamente gente de rango Diamante o superior pueden acceder de forma directa a su despacho.' }]);
-      return openDialog([{ who: 'Mawile', text: `¡Rango Diamante! Adelante, ${user.name}. El jefe te recibirá.` }], () => openPidgeotOffice());
-    case 'chatot_intro': return openDialog([{ who: 'Chatot', text: '¿Has cambiado de idea? ¡Estupendo!' }], () => tutorial(true));
+      if (rankOf(meta.rankPts) < 4) return openDialog([{ who: 'Mawile', sp: 'mawile', mood: 'Worried', text: 'Lo siento, pero el jefe está ocupado. Por normas estipuladas del gremio, solamente gente de rango Diamante o superior pueden acceder de forma directa a su despacho.' }]);
+      return openDialog([{ who: 'Mawile', sp: 'mawile', mood: 'Happy', text: `¡Rango Diamante! Adelante, ${user.name}. El jefe te recibirá.` }], () => openPidgeotOffice());
+    case 'chatot_intro': return openDialog([{ who: 'Chatot', sp: 'chatot', mood: 'Happy', text: '¿Has cambiado de idea? ¡Estupendo!' }], () => tutorial(true));
     case 'sableye_gulpin': return openDialog([{ who: 'Sableye', sp: 'sableye', mood: 'Happy', text: SABLEYE_LINES.helpingGulpin }]);   // ayudando a Gulpin (hasta Bronce)
     case 'murkrow': {
       const n = unreadMail();
@@ -666,17 +677,17 @@ function talkToBase(kind) {
         r('Aunque puedas vivir sin ella.', 'Happy')]);
       return openDialog([r('…'), r('Has llegado muy lejos. Lo noto.', 'Happy'), r('La fuente aún duerme… Cuando despierte, vuelve a verme.', 'Normal')]);
     }
-    case 'chansey': return openDialog([{ who: 'Chansey', text: '¡Bienvenidos a la zona de descanso! Aquí os recuperáis después de cada expedición. Descansad bien, que mañana será otro día de aventuras.' }]);
-    case 'diglett': return openDialog([{ who: 'Diglett', text: '¡Huella reconocida! Pasa, pasa. Y no toques la rejilla.' }]);
-    case 'chatot': return openDialog([{ who: 'Chatot', text: `¿Dudas, ${user.name}? El tablón está justo ahí. El maestro Pidgeot está… ocupado. Siempre está ocupado.` }], () => openMenu({ title: 'Chatot', items: ['Rango y progreso', 'Diario de exploración', 'Repetir el tutorial', 'Nada, gracias'], onCancel: closeHub, onSelect: i => i === 0 ? openRankMenu() : i === 1 ? openDiaryMenu() : i === 2 ? tutorial() : closeHub() }));
+    case 'chansey': return openDialog([{ who: 'Chansey', sp: 'chansey', mood: 'Happy', text: '¡Bienvenidos a la zona de descanso! Aquí os recuperáis después de cada expedición. Descansad bien, que mañana será otro día de aventuras.' }]);
+    case 'diglett': return openDialog([{ who: 'Diglett', sp: 'diglett', mood: 'Happy', text: '¡Huella reconocida! Pasa, pasa. Y no toques la rejilla.' }]);
+    case 'chatot': return openDialog([{ who: 'Chatot', sp: 'chatot', text: `¿Dudas, ${user.name}? El tablón está justo ahí. El maestro Pidgeot está… ocupado. Siempre está ocupado.` }], () => openMenu({ title: 'Chatot', items: ['Rango y progreso', 'Diario de exploración', 'Repetir el tutorial', 'Nada, gracias'], onCancel: closeHub, onSelect: i => i === 0 ? openRankMenu() : i === 1 ? openDiaryMenu() : i === 2 ? tutorial() : closeHub() }));
     case 'shop': return npcGreeting('Kecleon', KECLEON_GREEN_LINES, 'kg', openShopMenu);
     case 'sell': return npcGreeting('Kecleon', KECLEON_PURPLE_LINES, 'kp', openSellMenu, 'kecleon_purple');   // el morado, con sus propios retratos
     case 'storage': return npcGreeting('Kangaskhan', KANGASKHAN_LINES, 'kk', openStorageMenu);
     case 'gulpin': return npcGreeting('Gulpin', GULPIN_LINES, 'gu', openGulpinMenu);
     case 'wobbuffet': {
       const c = hubCounters(); c.wob = (c.wob || 0) + 1; saveHubCounters(c);
-      if (c.wob === 50 && !c.wobPrize) { c.wobPrize = true; saveHubCounters(c); return openDialog([{ who: 'Wobbuffet', text: 'Wobbuffet! (Le has hablado 50 veces. Conmovido, te da algo que guardaba.)' }], async () => { const r = await call('/hub/gift', { item: 'Semilla Revivir' }); if (r) meta = r.meta; }); }
-      return openDialog([{ who: 'Wobbuffet', text: c.wob % 10 === 0 ? ('Wobbuffet! (Van ' + c.wob + '. Parece que le caes bien.)') : 'Wobbuffet!' }]);
+      if (c.wob === 50 && !c.wobPrize) { c.wobPrize = true; saveHubCounters(c); return openDialog([{ who: 'Wobbuffet', sp: 'wobbuffet', mood: 'Joyous', text: 'Wobbuffet! (Le has hablado 50 veces. Conmovido, te da algo que guardaba.)' }], async () => { const r = await call('/hub/gift', { item: 'Semilla Revivir' }); if (r) meta = r.meta; }); }
+      return openDialog([{ who: 'Wobbuffet', sp: 'wobbuffet', text: c.wob % 10 === 0 ? ('Wobbuffet! (Van ' + c.wob + '. Parece que le caes bien.)') : 'Wobbuffet!' }]);
     }
   }
 }
@@ -1070,7 +1081,7 @@ async function endRun(outcome) {
   // al volver de cualquier exploración apareces en la zona de descanso del gremio
   state.hub.area = 'descanso'; Object.assign(state.hub, HUB.descanso.spawn); state.hub.facing = [0, -1]; state.hub.inBed = null;
   if (outcome === 'death') { const bed = HUB.descanso.beds[Math.floor(Math.random() * HUB.descanso.beds.length)]; Object.assign(state.hub, { x: bed.x, y: bed.y, facing: [0, 1] }); state.hub.inBed = bed; }  // al caer, despiertas en una cama (las camas no chocan)
-  enterHub(); saveLastSeen();
+  enterHub({ noScenes: true }); saveLastSeen();
   if (outcome === 'death') { musicZone = 'descanso'; playTrack('sad'); }   // escena triste: despiertas tras caer (hasta que Chansey termina)
   if (outcome === 'death' && r.result?.penalty) await showPenaltyReport(r.result.penalty, fallen);   // qué llevabas, qué has perdido y qué conservas
   if (summary) await showClearReport(summary);   // pantalla de mazmorra completada, como en el original
@@ -1081,6 +1092,7 @@ async function endRun(outcome) {
   }
   r.messages.forEach(say);
   // (el rescate se ofrece al caer, antes de volver al gremio: ver deathChoice)
+  whenIdle().then(() => whenIdle()).then(() => playPendingScenes());   // las escenas, cuando ya se ha leído todo lo demás
   if (lost.length) openDialog([{ who: lost.map(s => SPECIES[s].name).join(', '), text: `${lost.length > 1 ? '(Al unísono) ' : ''}Me había equivocado, pensaba que eras más fuerte…`, portraits: lost }]);
 }
 
@@ -2581,7 +2593,7 @@ function renderHub() {
   if (state.showMask && area?.debug) ctx.drawImage(area.debug, -cam.x, -cam.y);
   // entidades ordenadas por y para que el que está más abajo tape al de arriba
   const tg = state.tour?.guide, tourNpc = tg && tg.area === h.area ? [{ id: 'chatot', x: tg.x, y: tg.y, facing: tg.facing, movedAt: tg.movedAt, kind: 'npc' }] : [];
-  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden && !state.cut?.hideNpcs && !state.cut?.hideNpcIds?.includes(n.id)).map(n => ({ ...n, kind: 'npc', still: !n.idle || !!n.still || (!!state.dialog && state.talkNpc?.x === n.x && state.talkNpc?.y === n.y) })), ...tourNpc, ...(state.cut ? [] : h.wanderers.map(w => ({ ...w, kind: 'w' }))), ...sceneEntities(area), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].filter(e => !(state.cut?.hidePlayer && e.kind === 'me')).sort((a, b) => a.y - b.y);
+  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden && !state.cut?.hideNpcs && !state.cut?.hideNpcIds?.includes(n.id)).map(n => ({ ...n, kind: 'npc', still: !n.idle || !!n.still || (!!state.dialog && state.talkNpc?.x === n.x && state.talkNpc?.y === n.y) })), ...tourNpc, ...(state.cut ? [] : h.wanderers.map(w => ({ ...w, kind: 'w' }))), ...sceneEntities(area), ...(h.area === 'plaza' && !state.cut && !(meta.scenes || []).includes('acto1-bandeja') ? [{ kind: 'sceneobj', x: 432, y: 196, draw: (c, sx, sy) => drawSceneObjectAt(c, 'tray', sx, sy) }] : []), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].filter(e => !(state.cut?.hidePlayer && e.kind === 'me')).sort((a, b) => a.y - b.y);
   const fg = (def.fg || []).map(f => ({ ...f, drawn: false }));
   const drawFg = f => {   // capa de primer plano: un trozo de la imagen redibujado encima; con poly, solo esa forma (p. ej. un mostrador en diagonal)
     if (f.drawn || !area?.img) return; f.drawn = true;

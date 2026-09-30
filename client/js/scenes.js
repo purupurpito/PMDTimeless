@@ -13,7 +13,7 @@ export function initScenes(deps) { D = deps; }
 
 const cut = () => D.state.cut;
 const fast = () => !!(window.__mmFast || cut()?.skip);
-const delay = ms => fast() ? Promise.resolve() : new Promise(r => setTimeout(r, ms));
+const delay = ms => new Promise(r => { const t0 = now(); const t = () => (fast() || now() - t0 >= ms) ? r() : setTimeout(t, 40); t(); });   // se acorta si se salta la escena
 const now = () => performance.now();
 
 // ---------- reproducir un guion ----------
@@ -36,12 +36,13 @@ export async function playScene(scene) {
   D.render();
   try { for (const step of scene.steps) { if (c.skip) break; await runStep(step, c); } }
   catch (e) { console.error('escena', scene.id, e); }
+  const skipped = c.skip;
   // al acabar: se apaga todo lo que se mantenía y se vuelve a la aldea
   S.cut = null; if (!scene.keepPlayer) { h.area = saved.area; h.x = saved.x; h.y = saved.y; h.facing = saved.facing; }
   if (scene.music) D.music?.(null);
-  D.render();
+  D.render(); return { skipped };
 }
-export const skipScene = () => { const c = cut(); if (c) { c.skip = true; if (D.state.dialog) { D.state.dialog = null; c.dialogResolve?.(); } } };
+export const skipScene = () => { const c = cut(); if (c) { c.skip = true; if (D.state.dialog) { D.state.dialog = null; c.dialogResolve?.(); } c.poster?.close(); } };
 
 async function runStep(step, c) {
   if (step.at) { await Promise.all(step.at.map(s => runStep(s, c))); return; }
@@ -191,6 +192,7 @@ export function drawSceneActor(ctx, e, sx, sy, scale, drawMon) {
   const t = now(); a.emotes = a.emotes.filter(em => em.hold || (t - em.t0) / 1000 <= (EMOTE_LEN[em.fx] || 1));
   for (const em of a.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, sx, sy - scale * 26, tt, 2); }
 }
+export const drawSceneObjectAt = (ctx, kind, sx, sy) => drawObject(ctx, { kind, alpha: 1 }, sx, sy);   // (la bandeja de la plaza, antes del robo)
 function drawObject(ctx, o, sx, sy) {
   ctx.save(); ctx.globalAlpha = o.alpha ?? 1;
   if (o.kind === 'paper') {   // un papel doblado; mientras cae, se balancea y gira

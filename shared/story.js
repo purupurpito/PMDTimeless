@@ -25,8 +25,8 @@ export const LETTERS = [
     'Chatot insiste en que te escriba unas palabras de bienvenida.',
     'Bienvenido.' ] },
   { id: 'normas-47', chapter: 2, from: 'Chatot', sp: 'chatot', title: 'Normas del gremio (revisión 47)', pages: [
-    'Uno: no se corre por los pasillos. Dos: no se toca la rejilla. Tres: lo que se entrega al maestro se deja en la bandeja de la puerta, no en el suelo. Ya van dos cosas que se pierden.',
-    'Cuatro: las normas no se discuten.' ] },
+    'Uno: no se corre por los pasillos. Dos: no se toca la rejilla. Tres: lo que se entrega al maestro se deja en la bandeja de la puerta. Cuando vuelva a haber bandeja.',
+    'Cuatro: NADIE toca lo que no es suyo. Y esto va por quien ya sabe. Cinco: las normas no se discuten.' ] },
 ];
 export const letterById = id => LETTERS.find(l => l.id === id);
 // entrega las cartas que tocan (devuelve cuántas nuevas); meta.mail = [{ id, at, read }]
@@ -43,17 +43,44 @@ export const SABLEYE_LINES = {
   helpingGulpin: '¡Hola! Tú eres nuevo, ¿verdad? Estoy echando una mano a Gulpin con su cabaña. La tasación, cerrada por un tiempo. ¡Je!',
   appraiser: '¡Bienvenido! Soy Sableye, tasador de cofres. Llevo aquí más años que la mitad del gremio, ¡je! Si te sale un cofre en alguna mazmorra, tráemelo y te lo abro sin romper nada de dentro. ¡Palabra de tasador!',
 };
+const afterWake = m => (m.scenes || []).includes('despertar');   // la mañana en que Chatot descubre que falta la bandeja
 export const STORY_LINES = {
-  gulpin: {   // al llegar a Bronce, Sableye se ha ido del mercado
+  chatot: {   // el día del robo: mejor no molestarle (Mawile ya te lo avisó)
+    1: { when: afterWake, then: false, pages: [
+      { text: '¡Ahora no, Novato! ¿No ves que estoy OCUPADO?', mood: 'Angry' },
+      { text: 'La bandeja de las entregas. Desaparecida. ¡DESAPARECIDA! Con todo lo que había dentro.', mood: 'Shouting' },
+      { text: '… Como el maestro se entere de que la he perdido yo… No. No la he perdido yo. Ha sido Gulpin. Seguro.', mood: 'Worried' }] },
+    3: [   // Bronce: el segundo robo
+      { text: '¡Mi pluma de escribir! ¡DESAPARECIDA! Primero la bandeja, luego una baya de Kangaskhan… y ahora mi pluma.', mood: 'Shouting' },
+      { text: 'Y no pienso mirar a nadie. Todavía.', mood: 'Angry' }],
+  },
+  gulpin: {
+    1: { when: afterWake, pages: [   // el primer sospechoso
+      { text: 'Gulp… Chatot dice que me he comido la bandeja. Yo no como bandejas. … Creo.', mood: 'Sad' },
+      { text: 'Todo el mundo me mira raro. Yo solo como comida. Casi siempre.', mood: 'Worried' }] },
     3: [{ text: '¡Gulp! Sableye ya se ha ido. Me ayudó a construir… y después a reparar mi cabaña. Es muy buena persona. Ahora está en el Café de Spinda… haciendo de tasador.', mood: 'Happy' },
         { text: '… Por cierto, ¿qué es un tasador? Gulp.', mood: 'Normal' }],
+  },
+  storage: {   // Kangaskhan: no es solo la bandeja
+    2: [{ text: 'Qué raro, cielo… Juraría que tenía una Baya Aranja más. Seguro que me he equivocado al contar.', mood: 'Worried' }],
+  },
+  murkrow: {   // el rumor (y luego resulta que el sospechoso es él)
+    3: [{ text: '¡Crrraaa! Dicen por ahí que Gulpin se lo come todo, ¡hasta lo que no es comida! Yo no digo nada. Pero lo digo.', mood: 'Happy' }],
+  },
+  shop: {   // Kecleon desconfía
+    3: [{ text: 'Por si acaso, a los nuevos os cobramos por adelantado. No es nada personal. Es que últimamente… desaparecen cosas.', mood: 'Worried' }],
   },
 };
 // La frase de capítulo pendiente para un personaje (o null). seen: conjunto de «personaje:capítulo» ya dichos.
 export function storyLineFor(key, m, seen) {
   const byCh = STORY_LINES[key]; if (!byCh) return null;
   const ch = chapterOf(m);
-  for (let c = ch; c >= 1; c--) if (byCh[c]) return seen.has(`${key}:${c}`) ? null : { chapter: c, pages: byCh[c], then: byCh.then !== false };
+  for (let c = ch; c >= 1; c--) {
+    const e = byCh[c]; if (!e) continue;
+    const pages = Array.isArray(e) ? e : e.pages; if (!Array.isArray(e) && e.when && !e.when(m)) continue;   // aún no toca: mira capítulos anteriores
+    if (seen.has(`${key}:${c}`)) return null;
+    return { chapter: c, pages, then: (Array.isArray(e) ? byCh.then : (e.then ?? byCh.then)) !== false };
+  }
   return null;
 }
 
