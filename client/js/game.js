@@ -1586,7 +1586,7 @@ function drawDtef(t, x, y, px, py, tile) {
   const h = ((x * 73856093) ^ (y * 19349663)) >>> 0, cell = Math.floor(slot / 6) * 18 + col0 + slot % 6;
   let v = h % 9 === 0 ? 1 : h % 9 === 1 ? 2 : 0; if (v && (!ts.img[v] || ts.empty[v]?.[cell])) v = 0;   // de vez en cuando, una variante
   const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(ts.img[v], (col0 + slot % 6) * 24, Math.floor(slot / 6) * 24, 24, 24, px, py, tile, tile);
+  ctx.drawImage(ts.img[v], (col0 + slot % 6) * 24, Math.floor(slot / 6) * 24, 24, 24, px, py, tile + 0.75, tile + 0.75);   // un pelín más grande: sin huecos al escalar
   ctx.imageSmoothingEnabled = prev; return true;
 }
 
@@ -2630,12 +2630,12 @@ const TILE_KEYS = { [T.WALL]: 'wall', [T.FLOOR]: 'floor', [T.STAIRS]: 'stairs', 
 const h32 = (x, y) => { let v = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) >>> 0; v = Math.imul(v ^ (v >>> 13), 1274126177) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
 const texFor = key => Sprites.images[`${key}_${state.era || state.dungeonDef?.id}`] || Sprites.images[key];
 function drawTex(img, x, y, px, py, w, h, cropH = CFG.tile) {
-  if (img.width <= CFG.tile * 2) { ctx.drawImage(img, px, py, w, h); return; }
+  if (img.width <= CFG.tile * 2) { ctx.drawImage(img, px, py, w + 0.75, h + 0.75); return; }
   const sw = img.width / 4, hv = h32(x >> 1, y >> 1);
   const ox = hv % (img.width - 2 * sw), oy = (hv >>> 8) % (img.height - 2 * sw), flip = (hv >>> 16) & 1;
   const u = ox + (x & 1) * sw, v = oy + (y & 1) * sw, sh = sw * cropH / CFG.tile;
   if (flip) { ctx.save(); ctx.translate(px + w, py); ctx.scale(-1, 1); ctx.drawImage(img, u, v, sw, sh, 0, 0, w, h); ctx.restore(); }
-  else ctx.drawImage(img, u, v, sw, sh, px, py, w, h);
+  else ctx.drawImage(img, u, v, sw, sh, px, py, w + 0.75, h + 0.75);
 }
 const tint = (px, py, w, h, color, a) => { ctx.globalAlpha = a; ctx.fillStyle = color; ctx.fillRect(px, py, w, h); ctx.globalAlpha = 1; };
 function wallOutline(x, y, px, py, tile) { // contorno continuo de la masa de pared, dibujado desde el lado del suelo
@@ -2698,6 +2698,7 @@ function renderDungeon() {
   // cámara: sigue la posición deslizada del jugador (entre dos casillas mientras camina)
   sliding = false; const pv = vpos(p), camX = (pv.x - p.x) * tile, camY = (pv.y - p.y) * tile;
   ctx.save(); ctx.translate(LOG.w / 2, LOG.h / 2); ctx.scale(zoom, zoom); ctx.translate(-pcx - camX, -pcy - camY);
+  { const m = ctx.getTransform(); ctx.setTransform(m.a, m.b, m.c, m.d, Math.round(m.e), Math.round(m.f)); }   // origen en píxeles enteros: sin costuras entre casillas
   lastCam = { ox, oy, zoom, pcx, pcy, camX, camY };   // para convertir un toque en pantalla en una casilla
   for (let vy = -1; vy <= CFG.view.h; vy++) for (let vx = -1; vx <= CFG.view.w; vx++) {
     const x = ox + vx, y = oy + vy;
