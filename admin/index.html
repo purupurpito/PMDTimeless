@@ -39,6 +39,9 @@
   .twocol .wrap { max-height: 380px; overflow-y: auto; }
   h4 { font-size: 13px; margin: 14px 0 6px; color: var(--text); }
   .grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .danger { margin-top: 28px; padding: 14px; border: 1px solid #a05050; border-radius: 10px; background: rgba(90, 30, 30, .25); }
+  .danger h3 { color: #f08080; }
+  #reset-all { background: #7a2020; border: 1px solid #c05050; color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
   .unstick { margin-left: 6px; padding: 2px 8px; font-size: 12px; background: #5a2a2a; border: 1px solid #a05050; color: #fff; border-radius: 5px; cursor: pointer; }
   select { background: #0a0c18; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px; }
   .twocol { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
@@ -81,6 +84,11 @@
     <div class="tools"><input id="q" placeholder="Buscar por nombre, inicial, naturaleza…"><button class="link" id="reload">Actualizar</button></div>
     <div class="wrap"><table><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table></div>
     <p class="dim">«Conexión» es un identificador cifrado de la IP con la que se creó la cuenta: sirve para ver cuentas creadas desde el mismo sitio, no para saber dónde está nadie.</p>
+  </section>
+  <section class="danger">
+    <h3>Zona peligrosa</h3>
+    <p class="dim">Reinicia la partida de <b>todas</b> las cuentas: vuelven a como estaban recién registradas, solo con el inicial de su test (se conservan el nombre, el código y la sesión). Haz antes una copia en Neon (Branches → Create branch).</p>
+    <button id="reset-all">Reiniciar todas las partidas…</button> <span class="dim" id="reset-msg"></span>
   </section>
 </main>
 <script type="module">
@@ -130,6 +138,12 @@ $('#login').onsubmit = async ev => {
 };
 $('#logout').onclick = () => { sessionStorage.removeItem(KEY); users = []; show(false); };
 $('#reload').onclick = load; $('#q').oninput = draw;
+$('#reset-all').onclick = async () => {
+  const txt = prompt('Esto reinicia la partida de TODAS las cuentas y no se puede deshacer.\nEscribe REINICIAR TODO para confirmar:');
+  if (txt !== 'REINICIAR TODO') { $('#reset-msg').textContent = 'Cancelado.'; return; }
+  try { const r = await api('/admin/reset-all', { confirm: txt }); $('#reset-msg').textContent = `Hecho: ${r.users} cuentas reiniciadas.`; load(); }
+  catch (e) { $('#reset-msg').textContent = e.message; }
+};
 // Desatascar: cierra la exploración a medias de una cuenta (le devuelve los objetos con los que entró)
 $('#rows').addEventListener('click', async ev => {
   const b = ev.target.closest('.unstick'); if (!b) return;

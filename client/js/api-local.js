@@ -17,7 +17,7 @@ const saveDB = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(DB));
 // el código secreto nunca se guarda tal cual (FNV-1a de 32 bits: basta para una partida local)
 const hashPass = s => { let h = 0x811c9dc5; for (const c of 'pmdt:' + String(s)) { h ^= c.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); };
 const norm = s => String(s || '').trim().toLowerCase();
-const defaultMeta = starter => ({ pokes: 800, rankPts: 0, starters: [starter], bag: ['Baya Aranja', 'Baya Aranja', 'Manzana'], storage: [], movepool: {}, cleared: [], active: [], board: [], bonds: {}, legendaries: [], shop: [], tutorialDone: false, lostRecruits: [], gifts: [], stats: { runs: 0, floors: 0, deaths: 0, monsterHouses: 0, recruited: 0, kecleonRobs: 0, itemsSold: 0, deepest: 0 }, badges: [], stones: [], story: 'none', dreamUnlocked: false, progress: {} });
+const defaultMeta = starter => ({ pokes: 0, rankPts: 0, starters: [starter], bag: [], storage: [], movepool: {}, cleared: [], active: [], board: [], bonds: {}, legendaries: [], shop: [], tutorialDone: false, lostRecruits: [], gifts: [], stats: { runs: 0, floors: 0, deaths: 0, monsterHouses: 0, recruited: 0, kecleonRobs: 0, itemsSold: 0, deepest: 0 }, badges: [], stones: [], story: 'none', dreamUnlocked: false, progress: {} });
 const poolOf = def => def.eras ? [...new Set(def.eras.flatMap(id => dungeonById(id).pool))] : def.pool;
 function generateMission(meta) {
   const rank = rankOf(meta.rankPts), pool = DUNGEONS.filter(d => d.rank <= rank && (meta.cleared || []).includes(d.id)); if (!pool.length) return null; const dungeon = pick(pool); // solo mazmorras completadas
@@ -72,7 +72,7 @@ async function localApi(path, body) {
     case '/missions/abandon': m.active = m.active.filter(x => x.id !== body.id); return { meta: m };
     case '/storage/deposit': { const n = m.bag[body.index]; if (!n) fail('No hay nada ahí.'); if (m.storage.length >= CFG.storageSize) fail('Almacén lleno.'); m.bag.splice(body.index, 1); m.storage.push(n); return { meta: m }; }
     case '/storage/withdraw': { const n = m.storage[body.index]; if (!n) fail('No hay nada ahí.'); if (m.bag.length >= bagSizeFor(m.rankPts)) fail('Bolsa llena.'); m.storage.splice(body.index, 1); m.bag.push(n); return { meta: m }; }
-    case '/tutorial/done': m.tutorialDone = true; return { ok: true };
+    case '/tutorial/done': { const gift = !m.tutorialDone; m.tutorialDone = true; if (gift) m.bag.push('Manzana', 'Baya Aranja', 'Baya Aranja'); saveDB(); return { ok: true, gift, meta: m }; }
     case '/hub/gift': { if (ITEMS[body.item] && !m.gifts.includes('wob') && m.bag.length < bagSizeFor(m.rankPts)) { m.bag.push(body.item); m.gifts.push('wob'); } return { meta: m }; }
     case '/hub/today': return { special: null, claimed: false, stats: m.stats, badges: m.badges };
     case '/pidgeot': return { open: rankOf(m.rankPts) >= 4, story: m.story, stones: m.stones, allStones: MEGA_STONES, dreamUnlocked: m.dreamUnlocked };

@@ -253,6 +253,13 @@ export async function startGame(me) {
       state.dungeon.tiles[p.y][p.x + 2] = T.FLOOR; state.shop = { carpet, unpaid: [], keeper: { x: p.x, y: p.y - 1 }, room: roomOf(p) || { x: p.x - 1, y: p.y - 1, w: 3, h: 3 }, robbed: false };
       state.enemies = []; state.groundItems = [{ name: 'Semilla Revivir', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
   user = me.user; meta = me.user.meta; state.pausedRun = me.run;
+  try {   // reinicio general: el navegador olvida también lo suyo (frases de la historia oídas, avisos, copias de seguridad)
+    const ek = `pmdt_epoch_${user.name}`, ep = String(meta.epoch || 0);
+    if (localStorage.getItem(ek) !== ep && meta.epoch) {
+      for (const k of [`pmdt_story_${user.name}`, `pmdt_fuente_${user.name}`, 'mm_hub', 'pmdt_run_backup', 'pmdt_pending_end']) localStorage.removeItem(k);
+    }
+    localStorage.setItem(ek, ep);
+  } catch {}
   sessionStart = Date.now(); track('session_start', { ...deviceInfo(), mode: window.__netMode?.current?.() || 'demo', rank: rankOf(meta.rankPts || 0), starter: meta.starters?.[0] }); flushTelemetry();
   state.waitingRescue = !!me.rescue;
   if (me.mailNews && !me.rescue) { const news = (tries = 0) => { if (state.scene === 'hub' && !state.dialog && !state.menu) openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Tienes correo! Pásate por el buzón de la plaza.' }]); else if (tries < 10) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1200); }
@@ -433,7 +440,19 @@ async function tourDone(declined) {
   state.tour = null; state.tutorialFocus = null; held.clear();
   if (declined) await new Promise(res => openDialog([{ who: 'Chatot', text: state.hub.introChatot ? '¡Como quieras! Estaré por aquí un rato… y luego dentro del gremio, junto al tablón.' : '¡Como quieras! Si cambias de idea, ya sabes dónde encontrarme.' }], res));
   else if (skipped) say('Recorrido terminado. Chatot vuelve al gremio.');
-  if (!meta.tutorialDone) { meta.tutorialDone = true; await call('/tutorial/done', {}); }
+  if (!meta.tutorialDone) {
+    meta.tutorialDone = true; const r = await call('/tutorial/done', {});
+    if (r?.meta) meta = r.meta;
+    if (r?.gift) await new Promise(res => openDialog([   // el regalo de Chatot (a escondidas del maestro)
+      { who: 'Chatot', sp: 'chatot', mood: 'Normal', text: '¡Ah! Antes de que te vayas, Recluta…' },
+      { who: 'Chatot', sp: 'chatot', mood: 'Happy', text: 'Toma. Una Manzana, recién salida de la despensa del gremio.' },
+      { who: '', text: '¡Has recibido una Manzana!' },
+      { who: 'Chatot', sp: 'chatot', mood: 'Worried', text: 'Pero ni una palabra al maestro Pidgeot, ¿eh? Esto no ha pasado.' },
+      { who: 'Chatot', sp: 'chatot', mood: 'Inspired', text: 'Y ya que estamos… Nos ha llegado un cargamento de Bayas Aranja y, qué cosas, han sobrado dos.' },
+      { who: '', text: '¡Has recibido dos Bayas Aranja!' },
+      { who: 'Chatot', sp: 'chatot', mood: 'Normal', text: 'Las Bayas Aranja curan un poco de salud. ¡No las malgastes!' },
+    ], res));
+  }
   closeHub(); render();
 }
 
