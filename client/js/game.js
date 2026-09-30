@@ -272,6 +272,17 @@ export async function startGame(me) {
   if (!meta.tutorialDone) { state.hub.area = 'plaza'; Object.assign(state.hub, { x: 404, y: 262, facing: [1, -1] }); state.hub.introChatot = true; }   // Chatot te espera en la entrada
   enterHub();
   if (!meta.tutorialDone) tutorial(); else say(`Bienvenido de nuevo, ${user.name}.`);
+  await hubAssetsReady();   // la pantalla de carga se quita cuando la aldea y los sprites de la zona están descargados
+}
+// ¿Están descargados la imagen de la zona y los sprites de tu personaje y de los vecinos a la vista? (máximo 8 s)
+function hubAssetsReady() {
+  const t0 = performance.now();
+  const ready = () => {
+    const area = Hub.view(state.hub.area), def = HUB[state.hub.area]; if (!area?.img?.complete) return false;
+    const keys = [state.player?.species, ...(def?.npcs || []).filter(n => npcShown(n) && !n.hidden).map(n => n.id), ...(state.hub.wanderers || []).map(w => w.species)].filter(Boolean);
+    return keys.every(k => { const m = Sprites.mons[k]; if (!m) return true; if (!m.requested) Sprites.ensure(m); return !!(m.sheetImg && (m.idleImg || !m.idle)); });
+  };
+  return new Promise(res => { const tick = () => { render(); if (ready() || performance.now() - t0 > 8000) res(); else setTimeout(tick, 100); }; tick(); });
 }
 
 // =====================================================================

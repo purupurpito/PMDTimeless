@@ -370,3 +370,10 @@ body.log-inside #log { display: none; }
   body.touch-on.in-game .tp-mid { position: fixed; top: calc(62px + env(safe-area-inset-top, 0px)); right: 10px; flex-direction: column; gap: 6px; }
   body.touch-on.in-game .tp-dpad, body.touch-on.in-game .tp-face { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); }
 }
+
+/* pantalla de carga */
+.loading { position: fixed; inset: 0; z-index: 60; background: #0b0d1a; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #e9e3d3; }
+.loading-logo { width: min(60vw, 260px); image-rendering: pixelated; }
+.loading-gear { width: 56px; height: 56px; animation: gear-spin 1.6s linear infinite; }
+@keyframes gear-spin { to { transform: rotate(360deg); } }
+.loading p { margin: 0; font-family: var(--pmd-font); color: #9aa0c0; }

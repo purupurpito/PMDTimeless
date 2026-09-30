@@ -46,6 +46,7 @@ const waking = () => toast('Despertando a Kecleon… el servidor gratuito tarda 
 // ---- elección / login / registro ----
 document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
   const to = b.dataset.go;
+  if (to === 'login' && hasToken()) return enterGame();   // sesión guardada: se entra directamente
   ['choice', 'login'].forEach(k => $(`#auth-${k}`)?.classList.toggle('hidden', k !== to && !(to === 'quiz' && k === 'choice')));
   msg($('#auth-msg'), '');
   if (to === 'quiz') startQuiz();
@@ -198,14 +199,15 @@ async function chatotScene() {
 
 // ---- juego ----
 async function enterGame() {
+  const loading = $('#loading'); loading.classList.remove('hidden');   // pantalla de carga hasta que la aldea esté lista
   try {
     const me = await api('/me', undefined, { onWaking: waking });
     try { localStorage.setItem('mm_known', '1'); } catch {}
     show('#screen-game');
-    startGame(me);
+    await startGame(me);
   } catch (e) {
-    setToken(null); show('#screen-auth'); (offerOffline(e), msg($('#auth-msg'), e.message));
-  }
+    setToken(null); show('#screen-auth'); msg($('#auth-msg'), e.message);
+  } finally { loading.classList.add('hidden'); }
 }
 $('#logout').addEventListener('click', async () => { try { await api('/auth/logout', {}); } catch {} setToken(null); location.reload(); });
 
@@ -239,4 +241,4 @@ document.addEventListener('mousedown', ev => { if (ev.detail > 1 && !ev.target.c
 }
 // "Continuar" solo tiene sentido si ya jugaste en este dispositivo
 // «Continuar» siempre disponible: la cuenta vive en el servidor, así que puede existir aunque este navegador no lo sepa
-if (hasToken()) enterGame(); else show('#screen-auth');
+show('#screen-auth');
