@@ -108,7 +108,8 @@ export const SCENES = [
       { do: 'say', who: 'chatot', mood: 'Worried', text: 'Qué casualidad. Yo también iba…' },
       { do: 'turn', who: 'chatot', dir: 'down' },
       { do: 'anim', who: 'chatot', anim: 'Pose', hold: true },
-      { do: 'say', who: 'chatot', mood: 'Inspired', text: 'Bueno, mucha suerte ahí dentro. Espero que no te encuentres ningún jefe demasiado poderoso, carismático, apuesto, que cante bien…' },
+      { do: 'say', who: 'chatot', mood: 'Inspired', text: 'Bueno, mucha suerte ahí dentro.' },
+      { do: 'say', who: 'chatot', mood: 'Inspired', text: 'Espero que no te encuentres ningún jefe demasiado poderoso, carismático, apuesto, que cante bien…' },
       { do: 'anim', who: 'chatot', anim: 'Appeal', hold: true },   // y sigue, y sigue…
       { do: 'say', who: 'chatot', mood: 'Joyous', auto: 2800, text: '…que baile de maravilla, con un plumaje precioso, una voz privilegiada, un porte de lo más elegante, una memoria prodigiosa para las normas del gremio, una puntualidad…' },
       { do: 'emote', who: 'player', fx: 'dots' },
