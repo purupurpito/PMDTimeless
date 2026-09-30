@@ -58,16 +58,16 @@ export const HUB = {
     img: 'client/assets/hub/mercado.png', mask: 'client/assets/hub/mercado_mask.png', spawn: { x: 730, y: 300 },
     exits: [ { rect: [746, 245, 768, 335], to: 'plaza', at: { x: 48, y: 265 } } ],
     npcs: [
-      { id: 'kecleon_green', x: 230, y: 300, facing: [1, 1], talk: 'shop', fixedFacing: true, reach: 84 },   // atiende tras el mostrador (que le tapa de cintura para abajo)
-      { id: 'kecleon_purple', x: 362, y: 235, facing: [1, 1], talk: 'sell', fixedFacing: true, reach: 84 },
+      { id: 'kecleon_green', x: 246, y: 313, facing: [1, 1], talk: 'shop', fixedFacing: true, reach: 84 },   // atiende tras el mostrador (que le tapa de cintura para abajo)
+      { id: 'kecleon_purple', x: 366, y: 251, facing: [1, 1], talk: 'sell', fixedFacing: true, reach: 84 },
       { id: 'kangaskhan', x: 540, y: 235, facing: [-1, 1], talk: 'storage', fixedFacing: true },
       { id: 'sableye', x: 452, y: 418, facing: [1, 0], talk: 'sableye_gulpin', untilRank: 1, reach: 40, idle: true },   // (está trabajando: se mueve)   // Sableye, ayudando a Gulpin con su cabaña (hasta Bronce)
-      { id: 'gulpin', x: 532, y: 380, facing: [-1, 0], talk: 'gulpin', fixedFacing: true, reach: 78, approach: [420, 360, 500, 452] },   // dentro de la cabaña, en la entrada // en la puerta de la cabaña: solo se le habla desde delante
+      { id: 'gulpin', x: 546, y: 392, facing: [-1, 1], talk: 'gulpin', fixedFacing: true, reach: 78, approach: [420, 360, 500, 452] },   // dentro de la cabaña, en la entrada // en la puerta de la cabaña: solo se le habla desde delante
     ],
     // Capas de primer plano: los mostradores (con su poste delantero) se dibujan por encima de los Kecleon, que atienden detrás
     fg: [
-      { poly: [[184, 288], [191, 288], [191, 319], [270, 281], [289, 292], [289, 313], [196, 344], [191, 342], [191, 358], [184, 358]], sortY: 305 },
-      { poly: [[316, 215], [324, 215], [324, 256], [401, 212], [421, 224], [421, 245], [325, 290], [316, 288]], sortY: 240 },
+      { poly: [[184, 288], [191, 288], [191, 319], [270, 281], [289, 292], [289, 313], [196, 344], [191, 342], [191, 358], [184, 358]], sortY: 330 },
+      { poly: [[316, 215], [324, 215], [324, 256], [401, 212], [421, 224], [421, 245], [325, 290], [316, 288]], sortY: 268 },
     ],
     // Capas de primer plano: mostradores y frente de la cabaña se dibujan por encima de quien esté detrás
     // mostradores, toldos (los Kecleon quedan bajo el toldo, dentro del puesto) y frente de la cabaña
