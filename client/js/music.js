@@ -51,7 +51,11 @@ function ensureCtx() {
   return ctx;
 }
 // los navegadores solo dejan sonar audio tras una interacción: se desbloquea con la primera tecla o toque
-['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, () => { ensureCtx(); if (ctx?.state === 'suspended') ctx.resume(); }, { passive: true }));
+let unlocked = false;
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, () => {
+  if (!unlocked) { unlocked = true; ensureCtx(); const k = current?.key; current = null; if (k) playTrack(k); }   // la que tocaba sonar empieza ahora
+  if (ctx?.state === 'suspended') ctx.resume();
+}, { passive: true }));
 
 async function load(key) {
   if (buffers[key]) return buffers[key];
@@ -93,6 +97,7 @@ export async function playZone(zone) { return playTrack(ZONE_TRACK[zone] || null
 export async function playTrack(key) {
   if (sting) { pendingKey = key; return; }            // una fanfarria está sonando: esta música empezará después
   if (current?.key === key) return;
+  if (!unlocked) { current = key ? { key } : null; return; }   // aún sin tocar la pantalla: se recuerda y suena al primer toque
   const prev = current; current = key ? { key } : null;
   if (!ensureCtx()) return;
   const now = ctx.currentTime;

@@ -3,9 +3,10 @@ import { api, setToken, hasToken, ApiError, onNetStatus } from './api.js';
 import { track } from './telemetry.js';
 import { API_URL } from './config.js';
 // Despierta al servidor nada más abrir la página, mientras el jugador aún está en la pantalla de inicio
-try { if (API_URL) fetch(API_URL + '/health', { cache: 'no-store' }).catch(() => {}); } catch {}
+try { if (API_URL) fetch(API_URL + '/health', { cache: 'no-store', mode: 'no-cors' }).catch(() => {}); } catch {}
 import { startGame } from './game.js';
 import { SPECIES } from '../../shared/data.js';
+import { publicQuiz, scoreQuiz } from '../../server/quiz.js';   // el test se hace entero en el navegador (el servidor lo recalcula al crear la cuenta)
 import { dialog, menu, keyboard, writeText, loadManifest, portraitOf, portraitURL, asset } from './ui.js';
 import { initTouchControls } from './touch.js';
 import { playTrack, stopMusic } from './music.js';
@@ -109,7 +110,7 @@ async function startQuiz() {
     quiz.questions = resume.questions; quiz.answers = resume.answers || [];
     await dialog(box, [{ text: '…Ah, has vuelto.' }, { text: 'Sigamos donde lo dejamos.' }]);
   } else {
-  const loading = api('/quiz', undefined, { onWaking: waking }); loading.catch(() => {});   // el error se trata al esperar el test
+  const loading = Promise.resolve({ questions: publicQuiz() });   // las preguntas, al instante: sin esperar al servidor
   await dialog(box, [{ text: 'Hola.' }, { text: '¿Hola…? ¿Estás ahí?' }, { text: '¡Despierta, que te estoy hablando!' },
     // antes de las preguntas: explicar al jugador por qué se las hacemos
     { text: '…Bien. Ya me oyes.' },
@@ -132,7 +133,8 @@ async function startQuiz() {
   box.classList.remove('asking'); $('#quiz-tab').classList.add('hidden');
   let result;
   const quizT0 = quiz.t0 || Date.now();
-  try { result = await api('/quiz/preview', { answers: quiz.answers }, { onWaking: waking }); track('quiz_done', { nature: result.nature, starter: result.starter, answers: quiz.answers.length }); }
+  try { result = scoreQuiz(quiz.answers);   // el resultado, al instante (el servidor lo vuelve a calcular al registrarte)
+ track('quiz_done', { nature: result.nature, starter: result.starter, answers: quiz.answers.length }); }
   catch (e) {   // sin conexión: las respuestas están guardadas; al volver a «Nueva partida» se retoma aquí
     writeText(box, e.message); await new Promise(r => setTimeout(r, 2500)); stopQuizBg();
     show('#screen-auth'); offerOffline(e); msg($('#auth-msg'), e.status === 0 ? 'Tus respuestas están guardadas: pulsa «Nueva partida» para seguir.' : e.message); return;
@@ -150,6 +152,8 @@ async function startQuiz() {
 }
 
 // ---- escena de la puerta: Diglett reconoce (o no) la huella sobre la rejilla ----
+// huellas dibujadas que hay en client/assets/footprints (las demás se muestran como «?»)
+const FOOTPRINTS = ['charmander'];
 const imageExists = src => new Promise(res => { const i = new Image(); i.onload = () => res(true); i.onerror = () => res(false); i.src = src; });
 async function diglettScene(result) {
   await loadManifest();
@@ -164,7 +168,7 @@ async function diglettScene(result) {
   const say = async pages => dialog(box, await Promise.all(pages.map(async ([t, mood]) => ({ who: 'Diglett', text: t, portrait: await portraitURL('diglett', mood) }))), { portraitEl });
   await say([['¡Alerta de intruso! ¡Alerta de intruso!', 'Shouting'], ['¿De quién es esa huella? ¿De quién es esa huella?', 'Surprised']]);
   const src = asset('fp_' + result.starter, `client/assets/footprints/${result.starter}.png`);
-  const known = await imageExists(src);
+  const known = FOOTPRINTS.includes(result.starter);   // sin intentar descargarla: así no hay errores 404 en la consola
   const fp = document.createElement('div'); fp.className = below ? 'footprint-on-gate from-below' : 'footprint-on-gate';
   fp.innerHTML = known ? `<img src="${src}" alt="">` : '<span>?</span>';
   layer.appendChild(fp);

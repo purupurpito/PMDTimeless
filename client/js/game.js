@@ -61,12 +61,12 @@ const Sprites = {
   // animaciones de combate (Attack, Shoot, Hurt, Sleep, Faint): se descargan la primera vez que se usan
   ensureAnim(m, name) {
     const a = m.anims?.[name]; if (!a || (m.animImg ||= {})[name] !== undefined) return;
-    m.animImg[name] = null; const img = new Image(); img.onload = () => { m.animImg[name] = img; scheduleRender(); }; img.src = a.sheet;
+    m.animImg[name] = null; const load = (tries = 0) => { const img = new Image(); img.onload = () => { m.animImg[name] = img; scheduleRender(); }; img.onerror = () => { if (tries < 4) setTimeout(() => load(tries + 1), [1500, 4000, 10000, 30000][tries]); }; img.src = a.sheet; }; load();
   },
   // descarga (una sola vez) las hojas de un Pokémon; al llegar, se vuelve a dibujar
   ensure(m) {
     if (m.requested) return; m.requested = true;
-    const get = (src, field) => { if (!src) return; const img = new Image(); img.onload = () => { m[field] = img; scheduleRender(); }; img.src = src; };
+    const get = (src, field, tries = 0) => { if (!src) return; const img = new Image(); img.onload = () => { m[field] = img; scheduleRender(); }; img.onerror = () => { if (tries < 4) setTimeout(() => get(src, field, tries + 1), [1500, 4000, 10000, 30000][tries]); }; img.src = src; };   // si falla, se reintenta
     get(m.sheet, 'sheetImg'); get(m.idle, 'idleImg');
   },
   draw(ctx, key, x, y, w, h = w) {
@@ -1096,7 +1096,7 @@ function newRestArea() {
 }
 // Dibujo de la sala de descanso: si hay imagen (dungeon_rest.png) cubre la sala y su borde;
 // si no, se dibuja una estatua de piedra genérica sobre su casilla
-let restImg; (() => { const src = asset('dungeon_rest', 'client/assets/dungeon/dungeon_rest.png'); const im = new Image(); im.onload = () => { restImg = im; render(); }; im.src = src; })();
+let restImg; (() => { const src = window.__ASSETS?.dungeon_rest; if (!src) return; const im = new Image(); im.onload = () => { restImg = im; render(); }; im.src = src; })();   // solo si se ha añadido esa imagen
 function drawRestArea(ox, oy, tile) {
   const r = state.dungeon.rooms[0], s = state.dungeon.statue;
   if (restImg) { ctx.drawImage(restImg, (r.x - 1 - ox) * tile, (r.y - 1 - oy) * tile, (r.w + 2) * tile, (r.h + 2) * tile); return; }

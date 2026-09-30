@@ -1,0 +1,16 @@
+name: Medir el servidor
+on:
+  workflow_dispatch:
+jobs:
+  medir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Tiempos
+        run: |
+          U=https://pmd-timeless-api.onrender.com
+          for i in 1 2 3 4 5; do
+            curl -s -m 90 -o /dev/null -w "health  total %{time_total}s\n" $U/health
+            curl -s -m 90 -o /dev/null -D - -w "login   total %{time_total}s\n" -H "Content-Type: application/json" -d '{"name":"nadie-existe-xyz","password":"xxxxxx"}' $U/auth/login | grep -i -E "server-timing|total" || true
+            sleep 2
+          done
