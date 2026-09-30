@@ -123,6 +123,41 @@ export const SCENES = [
       { do: 'wait', ms: 500 },
     ],
   },
+  {
+    // Rango Plata: la sombra de un pájaro cruza muy alto, cae un cartel de «SE BUSCA» delante del gremio… y Murkrow,
+    // desde su buzón, jura que esa carta no la ha repartido él. (A los Murkrow les gustan las cosas brillantes.)
+    id: 'se-busca', when: m => chapterOf(m) >= 4,
+    area: 'plaza', player: { x: 384, y: 330, dir: 'up' }, keepPlayer: true, hideNpcIds: ['murkrow'],
+    actors: { murkrow: { sp: 'murkrow', x: 315, y: 152, dir: 'down', still: true } },   // en su buzón, quieto
+    objects: { carta: { kind: 'paper', x: 392, y: 248, y0: 60, hidden: true } },
+    steps: [
+      { do: 'fade', to: 'in', ms: 600 },
+      { do: 'wait', ms: 800 },
+      { do: 'bird', ms: 1100, nowait: true },                                        // una sombra cruza la plaza…
+      { do: 'wait', ms: 450 },
+      { at: [{ do: 'turn', who: 'player', dir: 'up' }, { do: 'emote', who: 'player', fx: 'question', nowait: true }] },
+      { do: 'wait', ms: 900 },
+      { do: 'object', id: 'carta', action: 'fall', ms: 2600 },                        // …y cae un papel del cielo
+      { do: 'emote', who: 'player', fx: 'exclaim' },
+      { do: 'move', who: 'player', to: [[392, 272]], speed: 1 },                      // te acercas y lo recoges
+      { do: 'object', id: 'carta', action: 'hide' },
+      { do: 'wait', ms: 300 },
+      { do: 'poster', kind: 'wanted' },
+      { do: 'wait', ms: 400 },
+      { do: 'emote', who: 'murkrow', fx: 'shock', se: 'shock' },
+      { do: 'say', who: 'murkrow', mood: 'Surprised', text: '¡Crrraaa! ¿Una carta? ¡Esa no la he repartido yo!' },
+      { do: 'turn', who: 'player', dir: 'up-left' },
+      { do: 'wait', ms: 500 },
+      { do: 'emote', who: 'player', fx: 'dots' },                                     // le miras…
+      { do: 'wait', ms: 900 },
+      { do: 'emote', who: 'murkrow', fx: 'sweat' },
+      { do: 'say', who: 'murkrow', mood: 'Worried', text: '¿Qué? ¿Por qué me miras así? … Vale, sí, me gustan las cosas brillantes.' },
+      { do: 'say', who: 'murkrow', mood: 'Worried', text: '¡Pero no tanto!' },
+      { do: 'emote', who: 'murkrow', fx: 'anger', hold: true },
+      { do: 'say', who: 'murkrow', mood: 'Angry', text: '¡Crrraaa! ¡Yo solo reparto el correo!' },
+      { do: 'emote', who: 'murkrow', fx: 'none' },
+    ],
+  },
 ];
 // trigger: 'hub' (al entrar en la aldea) o 'dungeon-exit' (al ir hacia las mazmorras)
 export const pendingScene = (m, trigger = 'hub') => SCENES.find(sc => (sc.trigger || 'hub') === trigger && !(m.scenes || []).includes(sc.id) && sc.when(m)) || null;

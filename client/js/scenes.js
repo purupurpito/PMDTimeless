@@ -23,20 +23,21 @@ export async function playScene(scene) {
   const saved = { area: h.area, x: h.x, y: h.y, facing: h.facing, menu: S.menu, dialog: S.dialog };
   S.menu = null; S.dialog = null;
   if (scene.area && scene.area !== h.area) h.area = scene.area;
+  if (scene.player) { h.x = scene.player.x; h.y = scene.player.y; h.facing = DIRS[scene.player.dir || 'down']; }
   const c = S.cut = {
-    id: scene.id, skip: false, night: !!scene.night, lights: scene.lights || [], hidePlayer: !!scene.hidePlayer, hideNpcs: !!scene.hideNpcs,
+    id: scene.id, skip: false, night: !!scene.night, lights: scene.lights || [], hidePlayer: !!scene.hidePlayer, hideNpcs: !!scene.hideNpcs, hideNpcIds: scene.hideNpcIds || [], bird: null, poster: null,
     fade: scene.startDark === false ? 0 : 1, narration: null, cam: scene.cam ? { ...scene.cam } : null,
     actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0,
   };
-  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: false, emotes: [], form: a.sp === 'sombra' };
+  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra' };
   for (const [id, o] of Object.entries(scene.objects || {})) c.objects[id] = { id, ...o, alpha: 1 };
-  c.actors.player = { id: 'player', isPlayer: true, emotes: [], get x() { return D.state.hub.x; }, get y() { return D.state.hub.y; }, get facing() { return D.state.hub.facing; }, set facing(v) { D.state.hub.facing = v; } };
+  c.actors.player = { id: 'player', isPlayer: true, emotes: [], get x() { return D.state.hub.x; }, get y() { return D.state.hub.y; }, get facing() { return D.state.hub.facing; }, set facing(v) { D.state.hub.facing = v; }, set x(v) { D.state.hub.x = v; }, set y(v) { D.state.hub.y = v; }, set movedAt(v) { D.state.hub.movedAt = v; } };
   if (scene.music) D.music?.(scene.music);
   D.render();
   try { for (const step of scene.steps) { if (c.skip) break; await runStep(step, c); } }
   catch (e) { console.error('escena', scene.id, e); }
   // al acabar: se apaga todo lo que se mantenía y se vuelve a la aldea
-  S.cut = null; h.area = saved.area; h.x = saved.x; h.y = saved.y; h.facing = saved.facing;
+  S.cut = null; if (!scene.keepPlayer) { h.area = saved.area; h.x = saved.x; h.y = saved.y; h.facing = saved.facing; }
   if (scene.music) D.music?.(null);
   D.render();
 }
@@ -59,6 +60,8 @@ async function runStep(step, c) {
     case 'say': return say(c, who, step);
     case 'object': return object(c, c.objects[step.id], step.action, step.ms);
     case 'camera': c.cam = { x: step.x, y: step.y }; D.render(); return;
+    case 'bird': c.bird = { t0: now(), ms: step.ms || 1100, from: step.from || [824, 190], to: step.to || [-96, 400] }; if (!step.nowait) await delay(step.ms || 1100); return;
+    case 'poster': return poster(c, step.kind || 'wanted');
     case 'se': D.sfx?.(step.name); return;
     case 'music': D.music?.(step.track || null); return;
     case 'flag': D.flag?.(step); return;
@@ -89,7 +92,6 @@ async function move(c, who, step) {
 export function tickScenes() {
   const c = cut(); if (!c) return;
   for (const a of Object.values(c.actors)) {
-    if (a.isPlayer) continue;
     const p = a.path; if (!p) continue;
     const step = p.speed * (D.dtFrames?.() || 1);
     let left = step;
@@ -130,11 +132,25 @@ async function say(c, who, step) {
     c.dialogResolve = res; D.openDialog([page], () => { c.dialogResolve = null; res(); });
     if (step.auto) { const d0 = D.state.dialog; setTimeout(() => { if (D.state.dialog === d0) { D.state.dialog = null; c.dialogResolve = null; D.render(); res(); } }, step.auto); }   // se corta sola a media frase
   });
-  if (who) who.still = false; c.speaking = null;
+  if (who) who.still = !!who.fixedStill; c.speaking = null;
   await delay(150);   // la micro-pausa del original al cerrar el cuadro
+}
+async function poster(c, kind) {   // cartel a pantalla completa: espera a que lo cierres (A)
+  if (fast()) return;
+  await new Promise(res => { c.poster = { kind, t0: now(), close: () => { c.poster = null; D.render(); res(); } }; D.render(); });
+  await delay(250);
+}
+// ¿Consume la escena esta pulsación de A? (p. ej. para cerrar el cartel)
+export function sceneTap() {
+  const c = cut(); if (!c?.poster) return false;
+  if (now() - c.poster.t0 > 500) c.poster.close(); return true;
 }
 async function object(c, o, action, ms = 600) {
   if (!o) return;
+  if (action === 'fall') {   // cae del cielo balanceándose y se queda en el suelo
+    o.hidden = false; o.fall = { t0: now(), ms, x: o.x, y0: o.y0 ?? o.y - 200, y1: o.y };
+    if (!fast()) await delay(ms); o.fall.done = true; return;
+  }
   if (action === 'show') { o.hidden = false; o.alpha = 1; return; }
   if (action === 'hide') { o.hidden = true; return; }
   if (action === 'flicker-hide') {
@@ -147,7 +163,12 @@ async function object(c, o, action, ms = 600) {
 export function sceneEntities(area) {
   const c = cut(); if (!c) return [];
   const ents = [];
-  for (const o of Object.values(c.objects)) if (!o.hidden) ents.push({ kind: 'sceneobj', x: o.x, y: o.y, draw: (ctx, sx, sy) => drawObject(ctx, o, sx, sy), obj: o });
+  if (c.bird) ents.push({ kind: 'sceneobj', x: 0, y: -1e9, draw: (ctx, sx) => drawBird(ctx, c, -sx) });   // la sombra, por el suelo: debajo de todo
+  for (const o of Object.values(c.objects)) if (!o.hidden) {
+    let oy = o.y;
+    if (o.fall && !o.fall.done) { const k = Math.min(1, (now() - o.fall.t0) / o.fall.ms); oy = o.fall.y0 + (o.fall.y1 - o.fall.y0) * k; }
+    ents.push({ kind: 'sceneobj', x: o.x, y: o.fall && !o.fall.done ? 1e9 : oy, draw: (ctx, sx, sy) => drawObject(ctx, o, sx, o.fall && !o.fall.done ? sy - (o.fall.y1 * 0 + 1e9 - oy) : sy), obj: o });   // mientras cae, por encima de todo
+  }
   for (const a of Object.values(c.actors)) if (!a.hidden && !a.isPlayer) ents.push({ kind: 'actor', actor: a, x: a.x, y: a.y, species: a.sp, facing: a.facing, movedAt: a.movedAt, anim: a.anim, still: a.still });
   return ents;
 }
@@ -161,6 +182,15 @@ export function drawSceneActor(ctx, e, sx, sy, scale, drawMon) {
 }
 function drawObject(ctx, o, sx, sy) {
   ctx.save(); ctx.globalAlpha = o.alpha ?? 1;
+  if (o.kind === 'paper') {   // un papel doblado; mientras cae, se balancea y gira
+    let sway = 0, rot = 0.15, squash = 1;
+    if (o.fall && !o.fall.done) { const k = Math.min(1, (now() - o.fall.t0) / o.fall.ms); sway = Math.sin(k * 11) * 26 * (1 - k * 0.7); rot = Math.sin(k * 11 + 1) * 0.6; squash = 0.55 + 0.45 * Math.abs(Math.cos(k * 11)); }
+    else { ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(sx, sy + 6, 12, 3, 0, 0, 7); ctx.fill(); }
+    ctx.translate(sx + sway, sy); ctx.rotate(rot); ctx.scale(1, squash);
+    ctx.fillStyle = '#5a4020'; ctx.fillRect(-11, -8, 22, 16); ctx.fillStyle = '#f1e0b8'; ctx.fillRect(-10, -7, 20, 14);
+    ctx.fillStyle = '#8a2a1a'; ctx.fillRect(-7, -4, 14, 2); ctx.fillStyle = '#6a5230'; ctx.fillRect(-7, 0, 10, 1); ctx.fillRect(-7, 3, 12, 1);
+    ctx.fillStyle = '#c0282a'; ctx.beginPath(); ctx.arc(0, -7, 2, 0, 7); ctx.fill();
+  }
   if (o.kind === 'tray') {   // la bandeja de las entregas: tabla con una carta y una manzana
     const s = 1.6; ctx.translate(sx, sy); ctx.scale(s, s);
     ctx.fillStyle = '#3a2210'; ctx.fillRect(-17, -5, 34, 12); ctx.fillStyle = '#9a6030'; ctx.fillRect(-15, -3, 30, 8); ctx.fillStyle = '#c08048'; ctx.fillRect(-15, -3, 30, 2);
@@ -181,6 +211,7 @@ export function drawSceneOverlay(ctx, W, H, cam) {
     ctx.fillStyle = 'rgba(8, 12, 40, 0.62)'; ctx.fillRect(0, 0, W, H);
     for (const l of c.lights) { const g = ctx.createRadialGradient(l.x - cam.x, l.y - cam.y, 4, l.x - cam.x, l.y - cam.y, l.r || 70); g.addColorStop(0, `rgba(255, 205, 120, ${l.a ?? 0.22})`); g.addColorStop(1, 'rgba(255, 205, 120, 0)'); ctx.fillStyle = g; ctx.fillRect(l.x - cam.x - 120, l.y - cam.y - 120, 240, 240); }
   }
+  if (c.poster) drawWantedPoster(ctx, W, H, c.poster.t0);
   if (c.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${c.fade})`; ctx.fillRect(0, 0, W, H); }
   if (c.narration) {
     const k = Math.min(1, (now() - c.narration.t0) / 500); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -220,4 +251,98 @@ function drawForm(ctx, a, sx, sy, scale) {
   const cur = FORM_SPECIES[i % FORM_SPECIES.length], next = FORM_SPECIES[(i + 1) % FORM_SPECIES.length];
   for (const sp of FORM_SPECIES) { const m = D.sprites.mons[sp]; if (m && !m.sheetImg) D.sprites.ensure?.(m); }
   if (k < 0.8) one(cur, 0.96); else { const c2 = (k - 0.8) / 0.2; one(cur, 0.96 * (1 - c2)); one(next, 0.96 * c2); }
+}
+
+// ---------- la sombra de un pájaro que cruza muy alto (nadie ve quién es) ----------
+function drawBird(ctx, c, camX) {
+  const b = c.bird, k = (now() - b.t0) / b.ms; if (k >= 1) { c.bird = null; return; }
+  const cam = { x: camX, y: D.state.dlgCam?.y ?? 0 };
+  const [x0, y0] = b.from, [x1, y1] = b.to, x = x0 + (x1 - x0) * k - cam.x, y = y0 + (y1 - y0) * k - cam.y;
+  const flap = Math.sin(now() / 70), span = 46 * (0.72 + 0.28 * Math.abs(flap)), sweep = 6 * flap;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(y1 - y0, x1 - x0)); ctx.scale(1.06, 1.06); ctx.filter = 'blur(1.8px)'; ctx.fillStyle = 'rgba(8, 10, 22, .32)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 17, 6, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(17, 0, 5, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(22, -2); ctx.lineTo(29, 0); ctx.lineTo(22, 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-12, -4); ctx.lineTo(-30, -11); ctx.lineTo(-27, -4); ctx.lineTo(-31, 0); ctx.lineTo(-27, 4); ctx.lineTo(-30, 11); ctx.lineTo(-12, 4); ctx.fill();
+  for (const s of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(8, s * 3);
+    ctx.quadraticCurveTo(10, s * span * 0.55, 2 - sweep, s * span);
+    ctx.lineTo(-4 - sweep, s * (span - 3)); ctx.lineTo(-3 - sweep, s * (span - 9));
+    ctx.lineTo(-10 - sweep, s * (span - 7)); ctx.lineTo(-8 - sweep, s * (span - 14));
+    ctx.lineTo(-15 - sweep, s * (span - 13)); ctx.lineTo(-12 - sweep, s * (span - 20));
+    ctx.quadraticCurveTo(-14, s * span * 0.35, -8, s * 4); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+// ---------- el cartel de «SE BUSCA» (a pantalla completa) ----------
+function drawWantedPoster(ctx, W, H, t0) {
+  const k = Math.min(1, (now() - t0) / 260), s = 0.85 + 0.15 * (1 - Math.pow(1 - k, 3));
+  ctx.fillStyle = `rgba(3,5,15,${0.7 * k})`; ctx.fillRect(0, 0, W, H);
+  const pw = 300, ph = 388; ctx.save(); ctx.translate(W / 2, H / 2 + 4); ctx.scale(s * 0.98, s * 0.98); ctx.rotate(-0.012); ctx.globalAlpha = k;
+  // papel envejecido, con los bordes irregulares
+  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(-pw / 2 + 7, -ph / 2 + 9, pw, ph);
+  ctx.beginPath(); const jag = (i, n, a, b) => a + (b - a) * i / n + ((i * 37) % 5 - 2);
+  ctx.moveTo(-pw / 2, -ph / 2); for (let i = 0; i <= 20; i++) ctx.lineTo(jag(i, 20, -pw / 2, pw / 2), -ph / 2 + ((i * 13) % 3));
+  for (let i = 0; i <= 26; i++) ctx.lineTo(pw / 2 - ((i * 11) % 3), jag(i, 26, -ph / 2, ph / 2));
+  for (let i = 0; i <= 20; i++) ctx.lineTo(jag(i, 20, pw / 2, -pw / 2), ph / 2 - ((i * 7) % 3));
+  for (let i = 0; i <= 26; i++) ctx.lineTo(-pw / 2 + ((i * 17) % 3), jag(i, 26, ph / 2, -ph / 2)); ctx.closePath();
+  const g = ctx.createRadialGradient(0, 0, 40, 0, 0, 260); g.addColorStop(0, '#f6e8c4'); g.addColorStop(0.75, '#e6cf9c'); g.addColorStop(1, '#bf9d62'); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#6b4a22'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = 'rgba(107,74,34,.5)'; ctx.lineWidth = 1; ctx.strokeRect(-pw / 2 + 12, -ph / 2 + 22, pw - 24, ph - 34);
+  // chincheta
+  ctx.fillStyle = '#7a1010'; ctx.beginPath(); ctx.arc(0, -ph / 2 + 9, 8, 0, 7); ctx.fill(); ctx.fillStyle = '#d83030'; ctx.beginPath(); ctx.arc(-1, -ph / 2 + 8, 6, 0, 7); ctx.fill(); ctx.fillStyle = '#ff9090'; ctx.beginPath(); ctx.arc(-3, -ph / 2 + 6, 2, 0, 7); ctx.fill();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#8a2418'; ctx.font = 'bold 13px Georgia, serif'; ctx.fillText('— ATENCIÓN, EXPLORADORES —', 0, -ph / 2 + 36);
+  ctx.fillStyle = '#3a2410'; ctx.font = 'bold 44px Georgia, serif'; ctx.fillText('SE BUSCA', 0, -ph / 2 + 72);
+  // retrato: una silueta que nadie ha visto bien
+  const T = -ph / 2, fw = 132, fh = 84, fx = -fw / 2, fy = T + 94;
+  ctx.fillStyle = '#6b4a22'; ctx.fillRect(fx - 4, fy - 4, fw + 8, fh + 8); ctx.fillStyle = '#d9c28f'; ctx.fillRect(fx, fy, fw, fh);
+  // retrato robot fallido: los testigos dibujaron a los sospechosos de siempre… y los tacharon
+  ctx.save(); ctx.beginPath(); ctx.rect(fx, fy, fw, fh); ctx.clip(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const pencil = (w, a = 0.75) => { ctx.strokeStyle = `rgba(60, 48, 36, ${a})`; ctx.lineWidth = w; };
+  // un bicho redondo y tripón, con una bocaza y una pluma en la cabeza (se parece sospechosamente a alguien)
+  pencil(1.7); const gx = fx + 34, gy = fy + 50;
+  ctx.beginPath(); ctx.ellipse(gx, gy, 24, 22, 0, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gx - 16, gy + 4); ctx.quadraticCurveTo(gx, gy + 16, gx + 16, gy + 4); ctx.quadraticCurveTo(gx, gy + 8, gx - 16, gy + 4); ctx.stroke();   // la bocaza
+  ctx.beginPath(); ctx.moveTo(gx - 8, gy - 8); ctx.lineTo(gx - 3, gy - 6); ctx.moveTo(gx + 3, gy - 6); ctx.lineTo(gx + 8, gy - 8); ctx.stroke();   // ojos entornados
+  ctx.beginPath(); ctx.moveTo(gx - 2, gy - 22); ctx.quadraticCurveTo(gx - 8, gy - 34, gx + 2, gy - 36); ctx.stroke();   // la pluma
+  ctx.beginPath(); ctx.moveTo(gx - 5, gy + 22); ctx.lineTo(gx, gy + 16); ctx.lineTo(gx + 5, gy + 22); ctx.stroke();   // el rombo
+  // un pájaro con pico y sombrero de ala ancha (también sospechosamente conocido)
+  pencil(1.7); const mx = fx + 98, my = fy + 52;
+  ctx.beginPath(); ctx.ellipse(mx, my, 16, 18, 0, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(mx - 26, my - 14); ctx.quadraticCurveTo(mx, my - 20, mx + 26, my - 14); ctx.stroke();   // ala del sombrero
+  ctx.beginPath(); ctx.moveTo(mx - 14, my - 16); ctx.quadraticCurveTo(mx - 4, my - 42, mx + 18, my - 36); ctx.quadraticCurveTo(mx + 8, my - 28, mx + 12, my - 16); ctx.stroke();   // copa doblada
+  ctx.beginPath(); ctx.moveTo(mx - 6, my - 2); ctx.lineTo(mx - 20, my + 4); ctx.lineTo(mx - 6, my + 7); ctx.stroke();   // el pico
+  ctx.beginPath(); ctx.arc(mx + 3, my - 5, 2, 0, 7); ctx.stroke();
+  // tachados de un solo trazo (que se vea a quién)
+  pencil(2.6, 0.85);
+  ctx.beginPath(); ctx.moveTo(gx - 26, gy - 26); ctx.lineTo(gx + 26, gy + 26); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(mx + 24, my - 30); ctx.lineTo(mx - 24, my + 22); ctx.stroke();
+  ctx.restore();
+  // y encima, un gran «?» en lápiz rojo
+  ctx.save(); ctx.translate(2, fy + 30); ctx.rotate(0.1); ctx.fillStyle = 'rgba(176, 34, 28, .92)'; ctx.font = 'bold 40px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', 0, 0); ctx.restore();
+  // sello «LADRÓN», cruzando la esquina del retrato
+  ctx.save(); ctx.translate(66, fy + 78); ctx.rotate(-0.18); ctx.strokeStyle = 'rgba(180,30,30,.85)'; ctx.lineWidth = 3; ctx.strokeRect(-44, -13, 88, 26); ctx.lineWidth = 1; ctx.strokeRect(-40, -9, 80, 18);
+  ctx.fillStyle = 'rgba(180,30,30,.9)'; ctx.font = 'bold 16px Georgia, serif'; ctx.fillText('LADRÓN', 0, 1); ctx.restore();
+  // ficha: etiqueta a la izquierda, valor alineado a la derecha de todas las etiquetas
+  const L = -pw / 2 + 28, V = L + 86, rows = [['Especie', ['Desconocida']], ['Visto', ['Plaza del gremio, de noche']], ['Botín', ['La bandeja de las entregas,', 'una Baya Aranja y la pluma', 'de escribir de Chatot']], ['Peligro', ['¿?']]];
+  ctx.textAlign = 'left'; let ry = fy + fh + 22;
+  for (const [a, vals] of rows) {
+    ctx.fillStyle = '#5a3a18'; ctx.font = 'bold 12px Georgia, serif'; ctx.fillText(a + ':', L, ry);
+    ctx.fillStyle = '#2a1a0a'; ctx.font = '12px Georgia, serif'; for (const v of vals) { ctx.fillText(v, V, ry); ry += 15; }
+    ry += 2;
+  }
+  // recompensa
+  ctx.strokeStyle = 'rgba(107,74,34,.45)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-pw / 2 + 30, ry + 2); ctx.lineTo(pw / 2 - 30, ry + 2); ctx.stroke();
+  ry += 16; ctx.textAlign = 'center';
+  ctx.fillStyle = '#8a2418'; ctx.font = 'bold 12px Georgia, serif'; ctx.fillText('RECOMPENSA', 0, ry); ry += 22;
+  ctx.fillStyle = '#b8891c'; ctx.beginPath(); ctx.arc(-78, ry, 10, 0, 7); ctx.fill(); ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(-78, ry, 7, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3a2410'; ctx.font = 'bold 24px Georgia, serif'; ctx.fillText('3.000 Pokés', 6, ry + 1); ry += 24;
+  ctx.fillStyle = '#4a3014'; ctx.font = 'italic 11px Georgia, serif'; ctx.fillText('Cualquier pista, comunicádsela a Chatot.', -16, ry); ctx.fillText('¡No actuéis por vuestra cuenta!', -16, ry + 13);
+  // firma y sello de lacre del gremio, abajo
+  const sy = ph / 2 - 30;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#8a1a1a'; ctx.beginPath(); for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r = i % 2 ? 16 : 18; ctx.lineTo(pw / 2 - 36 + Math.cos(a) * r, sy + Math.sin(a) * r); } ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#b83030'; ctx.beginPath(); ctx.arc(pw / 2 - 36, sy, 11, 0, 7); ctx.fill(); ctx.fillStyle = '#f3d7a0'; ctx.font = 'bold 12px Georgia, serif'; ctx.fillText('G', pw / 2 - 36, sy + 1);
+  ctx.restore(); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
 }

@@ -9,7 +9,7 @@ import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
-import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay } from './scenes.js';
+import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
 import { SCENES } from '../../shared/story.js';
 const SCENES_ALL = () => SCENES;
@@ -2561,7 +2561,7 @@ function renderHub() {
   if (state.showMask && area?.debug) ctx.drawImage(area.debug, -cam.x, -cam.y);
   // entidades ordenadas por y para que el que está más abajo tape al de arriba
   const tg = state.tour?.guide, tourNpc = tg && tg.area === h.area ? [{ id: 'chatot', x: tg.x, y: tg.y, facing: tg.facing, movedAt: tg.movedAt, kind: 'npc' }] : [];
-  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden && !state.cut?.hideNpcs).map(n => ({ ...n, kind: 'npc', still: !!n.still || (!!state.dialog && state.talkNpc?.x === n.x && state.talkNpc?.y === n.y) })), ...tourNpc, ...(state.cut ? [] : h.wanderers.map(w => ({ ...w, kind: 'w' }))), ...sceneEntities(area), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].filter(e => !(state.cut?.hidePlayer && e.kind === 'me')).sort((a, b) => a.y - b.y);
+  const ents = [...(area?.objs || []).map(o => ({ ...o, kind: 'obj', oy: o.y, y: o.base })), ...def.npcs.filter(n => npcShown(n) && !n.hidden && !state.cut?.hideNpcs && !state.cut?.hideNpcIds?.includes(n.id)).map(n => ({ ...n, kind: 'npc', still: !!n.still || (!!state.dialog && state.talkNpc?.x === n.x && state.talkNpc?.y === n.y) })), ...tourNpc, ...(state.cut ? [] : h.wanderers.map(w => ({ ...w, kind: 'w' }))), ...sceneEntities(area), { species: state.player?.species, x: h.x, y: h.y, facing: h.facing, movedAt: h.movedAt, kind: 'me' }].filter(e => !(state.cut?.hidePlayer && e.kind === 'me')).sort((a, b) => a.y - b.y);
   const fg = (def.fg || []).map(f => ({ ...f, drawn: false }));
   const drawFg = f => {   // capa de primer plano: un trozo de la imagen redibujado encima; con poly, solo esa forma (p. ej. un mostrador en diagonal)
     if (f.drawn || !area?.img) return; f.drawn = true;
@@ -2999,6 +2999,7 @@ function bindInput() {
     // Start termina el tutorial en cualquier momento (también con un diálogo abierto)
     if (state.tour && btn === 'START') { state.tour.skip = true; const d = state.dialog; state.dialog = null; d?.onDone?.(); render(); return; }
     if (state.cut && btn === 'START') { skipScene(); render(); return; }
+    if (state.cut && btn === 'A' && sceneTap()) { render(); return; }   // cerrar el cartel de la escena
     if (state.dialog) { if (btn === 'A' || btn === 'START') dialogAdvance(); render(); return; }
     if (state.cut || state.dcut) return;   // durante una escena, solo se puede saltar (Start) o pasar el diálogo
     if (state.menu) {
