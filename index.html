@@ -15,8 +15,14 @@
     <img class="logo hidden" id="title-logo" alt="PMD: Timeless">
     <p class="joke version-tag" id="version-tag"></p>
     <div id="auth-choice" class="stack">
+      <!-- con sesión guardada: la tarjeta de tu aventura (se rellena con lo guardado la última vez) -->
+      <button class="session-card hidden" data-go="login" id="session-card" type="button">
+        <canvas id="session-sprite" width="64" height="96" aria-hidden="true"></canvas>
+        <span class="session-text"><span class="session-title">Continuar mi aventura</span><span id="session-info" class="session-info"></span></span>
+      </button>
       <button class="btn primary" data-go="login" id="btn-continue">Continuar</button>
       <button class="btn" data-go="quiz">Nueva aventura</button>
+      <button class="btn link hidden" data-go="login" data-force="1" id="btn-switch" type="button">Cambiar de cuenta</button>
     </div>
     <form id="auth-login" class="stack hidden" autocomplete="on">
       <label>Nombre de explorador<input name="name" required maxlength="20" autocomplete="username"></label>

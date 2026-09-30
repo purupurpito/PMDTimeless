@@ -46,7 +46,7 @@ const waking = () => toast('Despertando a Kecleon… el servidor gratuito tarda 
 // ---- elección / login / registro ----
 document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
   const to = b.dataset.go;
-  if (to === 'login' && hasToken()) return enterGame();   // sesión guardada: se entra directamente
+  if (to === 'login' && hasToken() && !b.dataset.force) return enterGame();   // sesión guardada: se entra directamente («Cambiar de cuenta» sí abre el formulario)
   ['choice', 'login'].forEach(k => $(`#auth-${k}`)?.classList.toggle('hidden', k !== to && !(to === 'quiz' && k === 'choice')));
   msg($('#auth-msg'), '');
   if (to === 'quiz') startQuiz();
@@ -242,3 +242,16 @@ document.addEventListener('mousedown', ev => { if (ev.detail > 1 && !ev.target.c
 // "Continuar" solo tiene sentido si ya jugaste en este dispositivo
 // «Continuar» siempre disponible: la cuenta vive en el servidor, así que puede existir aunque este navegador no lo sepa
 show('#screen-auth');
+// Con sesión guardada: la tarjeta «Continuar mi aventura» con lo que se guardó la última vez, y «Cambiar de cuenta»
+(async () => {
+  if (!hasToken()) return;
+  let last = null; try { last = JSON.parse(localStorage.getItem('mm_last') || 'null'); } catch {}
+  $('#btn-switch').classList.remove('hidden');
+  if (!last) return;
+  $('#session-info').innerHTML = `<b>${String(last.name).replace(/[<>&]/g, '')}</b><br>${last.speciesName} · Nivel ${last.level} · ${last.pokes} Pokés`;
+  $('#session-card').classList.remove('hidden'); $('#btn-continue').classList.add('hidden');
+  try {   // el sprite: el primer fotograma de reposo de su Pokémon
+    const m = await loadManifest(), e = m[last.species]; if (!e?.idle) return;
+    const img = new Image(); img.onload = () => { const cv = $('#session-sprite'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false; const [fw, fh] = e.idleFrame; cv.width = fw * 2; cv.height = fh * 2; g.drawImage(img, 0, 0, fw, fh, 0, 0, fw * 2, fh * 2); }; img.src = e.idle;
+  } catch {}
+})();

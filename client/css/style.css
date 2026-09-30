@@ -377,3 +377,11 @@ body.log-inside #log { display: none; }
 .loading-gear { width: 56px; height: 56px; animation: gear-spin 1.6s linear infinite; }
 @keyframes gear-spin { to { transform: rotate(360deg); } }
 .loading p { margin: 0; font-family: var(--pmd-font); color: #9aa0c0; }
+
+/* tarjeta de la sesión guardada en la pantalla de inicio */
+.session-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--pmd-gold); background: var(--pmd-navy); color: #f8f8f8; cursor: pointer; font: inherit; }
+.session-card:hover { filter: brightness(1.12); }
+.session-card canvas { width: 48px; height: 72px; image-rendering: pixelated; flex: none; background: transparent; border: 0; box-shadow: none; }
+.session-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.session-title { font-family: var(--pmd-font); color: var(--pmd-gold); font-size: 14px; }
+.session-info { font-size: 13px; color: #d8dcf0; line-height: 1.3; }

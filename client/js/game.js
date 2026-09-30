@@ -267,12 +267,17 @@ export async function startGame(me) {
   if (me.rescue) setTimeout(() => showRescueWait(me.rescue), 300);   // tu equipo sigue esperando un rescate
   if (pendingEnd()) flushPendingEnd();   // un resultado que no llegó la última vez (se envía solo)
   document.getElementById('hud-user').textContent = user.name;
+  saveLastSeen();   // para la tarjeta «Continuar mi aventura» de la pantalla de inicio
   await Sprites.load();
   bindInput();
   if (!meta.tutorialDone) { state.hub.area = 'plaza'; Object.assign(state.hub, { x: 404, y: 262, facing: [1, -1] }); state.hub.introChatot = true; }   // Chatot te espera en la entrada
   enterHub();
   if (!meta.tutorialDone) tutorial(); else say(`Bienvenido de nuevo, ${user.name}.`);
   await hubAssetsReady();   // la pantalla de carga se quita cuando la aldea y los sprites de la zona están descargados
+}
+// Lo que enseña la tarjeta de la pantalla de inicio (nombre, Pokémon, nivel y Pokés), guardado en el navegador
+function saveLastSeen() {
+  try { const sp = meta.starters?.[0]; localStorage.setItem('mm_last', JSON.stringify({ name: user.name, species: sp, speciesName: SPECIES[sp]?.name || sp, level: meta.progress?.[sp]?.level || CFG.startLevel, pokes: meta.pokes || 0 })); } catch {}
 }
 // ¿Están descargados la imagen de la zona y los sprites de tu personaje y de los vecinos a la vista? (máximo 8 s)
 function hubAssetsReady() {
@@ -1065,7 +1070,7 @@ async function endRun(outcome) {
   // al volver de cualquier exploración apareces en la zona de descanso del gremio
   state.hub.area = 'descanso'; Object.assign(state.hub, HUB.descanso.spawn); state.hub.facing = [0, -1]; state.hub.inBed = null;
   if (outcome === 'death') { const bed = HUB.descanso.beds[Math.floor(Math.random() * HUB.descanso.beds.length)]; Object.assign(state.hub, { x: bed.x, y: bed.y, facing: [0, 1] }); state.hub.inBed = bed; }  // al caer, despiertas en una cama (las camas no chocan)
-  enterHub();
+  enterHub(); saveLastSeen();
   if (outcome === 'death') { musicZone = 'descanso'; playTrack('sad'); }   // escena triste: despiertas tras caer (hasta que Chansey termina)
   if (outcome === 'death' && r.result?.penalty) await showPenaltyReport(r.result.penalty, fallen);   // qué llevabas, qué has perdido y qué conservas
   if (summary) await showClearReport(summary);   // pantalla de mazmorra completada, como en el original
