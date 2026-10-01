@@ -61,6 +61,7 @@ export const HUB = {
       { id: 'kecleon_green', x: 246, y: 313, facing: [1, 1], talk: 'shop', fixedFacing: true, reach: 84 },   // atiende tras el mostrador (que le tapa de cintura para abajo)
       { id: 'kecleon_purple', x: 366, y: 251, facing: [1, 1], talk: 'sell', fixedFacing: true, reach: 84 },
       { id: 'kangaskhan', x: 540, y: 235, facing: [-1, 1], talk: 'storage', fixedFacing: true },
+      { id: 'sneasel', x: 330, y: 300, facing: [1, 1], talk: 'sneasel', afterScene: 'recien-llegado', reach: 34 },   // el recién llegado: se queda en la aldea
       { id: 'sableye', x: 452, y: 418, facing: [1, 0], talk: 'sableye_gulpin', untilRank: 1, reach: 40, idle: true },   // (está trabajando: se mueve)   // Sableye, ayudando a Gulpin con su cabaña (hasta Bronce)
       { id: 'gulpin', x: 546, y: 392, facing: [-1, 1], talk: 'gulpin', fixedFacing: true, reach: 120, approach: [436, 394, 508, 442] },   // dentro de la cabaña, en la entrada // en la puerta de la cabaña: solo se le habla desde delante
     ],

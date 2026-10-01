@@ -86,7 +86,7 @@ const Sprites = {
       if (aimg) {
         const [fw, fh] = a.frame, rows = Math.max(1, Math.round(aimg.height / fh)), dur = a.durations?.length ? a.durations : [8];
         const total = dur.reduce((s, d) => s + d, 0), t0 = act ? act.t0 : 0;
-        let f = (now - t0) / (1000 / 60); f = act && !act.loop ? Math.min(f, total - 0.01) : f % total;   // una vez (golpes), o en bucle (dormir, poses mantenidas)
+        let f = (now - t0) / (1000 / 60) / (act?.slow || 1); f = act && !act.loop ? Math.min(f, total - 0.01) : f % total;   // una vez (golpes), o en bucle (dormir, poses mantenidas)
         let col = 0; for (let acc = 0; col < dur.length - 1 && (acc += dur[col]) <= f; col++);
         const row = rows === 1 ? 0 : (DIR_ROW[`${mon.facing?.[0] ?? 0},${mon.facing?.[1] ?? 1}`] ?? 0);
         const scale = tile / 24, feet = py + tile - 2 * scale;
@@ -238,7 +238,7 @@ const canLeaderChoice = () => rankOf(meta.rankPts) >= CFG.leaderChoiceRank;
 // =====================================================================
 export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
-  initScenes({ state, render, openDialog, beds: () => HUB.descanso.beds, music: key => key ? playTrack(key) : playZone(state.hub.area), sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} } });
+  initScenes({ state, render, openDialog, beds: () => HUB.descanso.beds, drawItem: (c, name, x, y, size) => drawItemIcon(c, name, x, y, size), music: key => key ? playTrack(key) : playZone(state.hub.area), sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} } });
   window.__mmPlayScene = id => { const sc = SCENES_ALL().find(s => s.id === id); return sc ? playScene(sc) : Promise.resolve(); };
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
@@ -248,6 +248,7 @@ export async function startGame(me) {
   window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l);
   window.__mmDefeat = (e, by) => defeatEnemy(e, by); window.__mmMoves = MOVES; window.__mmSlot = i => useMoveSlot(i); window.__mmAct = (k, dx, dy) => playerAction(k, dx, dy); window.__mmPath = (to) => dungeonPath(state.player, to); window.__mmUseItem = i => useItem(i); window.__mmDescend = () => descend(); window.__mmPassing = () => !!passTimer; window.__mmEndTurn = () => endTurn(false);
   window.__mmVisibleNpcs = () => HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden).map(n => n.id); window.__mmHubPath = hubPath; window.__mmHubFree = hubFree; window.__mmGetMeta = () => meta; window.__mmEndRun = o => endRun(o); // pruebas automáticas
+  window.__mmPending = t => pendingScene(meta, t)?.id || null;   // (pruebas: qué escena toca)
   window.__mmDebug = { defeat: () => downed(state.player), dungeons: () => openDungeonMenu(),
     // tienda de prueba: alfombra 3×3 alrededor del jugador y una Semilla Revivir a su derecha
     testShop: () => { const p = state.player, carpet = []; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { state.dungeon.tiles[p.y + dy][p.x + dx] = T.FLOOR; carpet.push({ x: p.x + dx, y: p.y + dy }); }
@@ -519,13 +520,14 @@ function enterHub(opts = {}) {
   if (opts.noScenes) hubExtras(); else playPendingScenes().then(hubExtras);   // (al volver de una mazmorra, las escenas esperan al informe)
 }
 // Las escenas de historia que toquen, una detrás de otra (la noche → la sombra → el despertar)
-async function playPendingScenes() {
+async function playPendingScenes(fromRun = false) {
   if (!user || state.tour) return;
-  let next = pendingScene(meta); if (!next) return;
+  const nextOne = () => (fromRun && pendingScene(meta, 'return')) || pendingScene(meta);   // al volver de una mazmorra, también las de «a la vuelta»
+  let next = nextOne(); if (!next) return;
   await whenIdle();   // nunca encima de un aviso o un menú abierto
   if (!user || state.tour || state.scene !== 'hub') return;
   state.sceneChain = true;   // varias seguidas: entre una y otra, la pantalla se queda en negro
-  try { while (next && state.scene === 'hub' && !state.cut && !state.dcut) { await runScene(next); next = pendingScene(meta); } }   // (si entras en una mazmorra, se queda para la próxima vez)
+  try { while (next && state.scene === 'hub' && !state.cut && !state.dcut) { await runScene(next); next = nextOne(); } }   // (si entras en una mazmorra, se queda para la próxima vez)
   finally { state.sceneChain = false; await releaseBlack(); }
 }
 const whenIdle = () => new Promise(res => { const t = () => (!state.dialog && !state.menu && !state.busy ? res() : setTimeout(t, 150)); t(); });
@@ -592,7 +594,8 @@ function hubLoop() {
 }
 const inRect = (x, y, [x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
 const npcShown = n => !(n.intro && !(state.hub.introChatot && !state.tour)) && !(state.tour && n.id === 'chatot')
-  && !(n.untilRank !== undefined && rankOf(meta?.rankPts || 0) >= n.untilRank) && !(n.fromRank !== undefined && rankOf(meta?.rankPts || 0) < n.fromRank);   // personajes que solo están hasta (o desde) cierto rango
+  && !(n.untilRank !== undefined && rankOf(meta?.rankPts || 0) >= n.untilRank) && !(n.fromRank !== undefined && rankOf(meta?.rankPts || 0) < n.fromRank)
+  && !(n.afterScene && !(meta?.scenes || []).includes(n.afterScene));   // personajes que llegan con una escena (Sneasel)   // personajes que solo están hasta (o desde) cierto rango
 const npcAtHub = (x, y) => [...HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden), ...state.hub.wanderers].some(n => Math.abs(n.x - x) < 14 && Math.abs(n.y - y) < 10);
 function spawnWanderers() {
   const area = HUB[state.hub.area], h = state.hub; h.wanderers = [];
@@ -724,6 +727,7 @@ function talkToBase(kind) {
     case 'sell': return npcGreeting('Kecleon', KECLEON_PURPLE_LINES, 'kp', openSellMenu, 'kecleon_purple');   // el morado, con sus propios retratos
     case 'storage': return npcGreeting('Kangaskhan', KANGASKHAN_LINES, 'kk', openStorageMenu);
     case 'gulpin': return npcGreeting('Gulpin', GULPIN_LINES, 'gu', openGulpinMenu);
+    case 'sneasel': return npcGreeting('Sneasel', ['Algún día me dejarán entrar en el gremio. Ya verán.', 'La manzana era de casa. ¡DE CASA!', 'Mientras no me dejen entrar, entreno por mi cuenta. ¡Ja!', '¿Tú también crees que fui yo? … Ya. Nadie me cree.'], 'sn');
     case 'wobbuffet': {
       const c = hubCounters(); c.wob = (c.wob || 0) + 1; saveHubCounters(c);
       if (c.wob === 50 && !c.wobPrize) { c.wobPrize = true; saveHubCounters(c); return openDialog([{ who: 'Wobbuffet', sp: 'wobbuffet', mood: 'Joyous', text: 'Wobbuffet! (Le has hablado 50 veces. Conmovido, te da algo que guardaba.)' }], async () => { const r = await call('/hub/gift', { item: 'Semilla Revivir' }); if (r) meta = r.meta; }); }
@@ -1132,7 +1136,7 @@ async function endRun(outcome) {
   }
   r.messages.forEach(say);
   // (el rescate se ofrece al caer, antes de volver al gremio: ver deathChoice)
-  whenIdle().then(() => whenIdle()).then(() => playPendingScenes());   // las escenas, cuando ya se ha leído todo lo demás
+  whenIdle().then(() => whenIdle()).then(() => playPendingScenes(true));   // las escenas, cuando ya se ha leído todo lo demás (también las de «a la vuelta»)
   if (lost.length) openDialog([{ who: lost.map(s => SPECIES[s].name).join(', '), text: `${lost.length > 1 ? '(Al unísono) ' : ''}Me había equivocado, pensaba que eras más fuerte…`, portraits: lost }]);
 }
 
@@ -2705,7 +2709,8 @@ function renderHub() {
       ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = `bold ${HUB_SCALE * 7}px sans-serif`; ctx.fillText('z', sx + HUB_SCALE * 8, sy - HUB_SCALE * 20 - 3 * Math.sin(performance.now() / 400));
       continue;
     }
-    if (!Sprites.drawMon(ctx, { species: key, facing: e.facing, movedAt: e.movedAt, still: e.still || (e.kind === 'me' && !!state.dialog) }, sx - HUB_SCALE * 12, sy - HUB_SCALE * 24, HUB_SCALE * 24)) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(sx, sy - 2, 10 * HUB_SCALE / 2, 3 * HUB_SCALE / 2, 0, 0, Math.PI * 2); ctx.fill(); }   // aún descargando: solo su sombra
+    const jl = e.kind === 'me' && h.jumpArc ? Math.sin(Math.PI * Math.min(1, (performance.now() - h.jumpArc.t0) / h.jumpArc.ms)) * h.jumpArc.h : 0;   // saltando (en una escena)
+    if (!Sprites.drawMon(ctx, { species: key, facing: e.facing, movedAt: e.movedAt, still: e.still || (e.kind === 'me' && !!state.dialog) }, sx - HUB_SCALE * 12, sy - HUB_SCALE * 24 - jl, HUB_SCALE * 24)) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(sx, sy - 2, 10 * HUB_SCALE / 2, 3 * HUB_SCALE / 2, 0, 0, Math.PI * 2); ctx.fill(); }   // aún descargando: solo su sombra
   }
   fg.forEach(drawFg);
   drawSceneOverlay(ctx, W, H, cam);   // noche, narración y fundidos de las escenas

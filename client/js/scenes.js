@@ -46,7 +46,7 @@ export async function playScene(scene) {
     actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null,
   };
   if (dark) S.screenFade = null;   // el fundido de la propia escena (que empieza en negro) toma el relevo
-  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra' };
+  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra', ...Object.fromEntries(['scale', 'alpha', 'hover', 'flyAnim', 'item', 'itemScale', 'idle', 'noShadow', 'name'].filter(k => k in a).map(k => [k, a[k]])) };
   for (const [id, o] of Object.entries(scene.objects || {})) c.objects[id] = { id, ...o, alpha: 1 };
   c.actors.player = { id: 'player', isPlayer: true, emotes: [], get x() { return D.state.hub.x; }, get y() { return D.state.hub.y; }, get facing() { return D.state.hub.facing; }, set facing(v) { D.state.hub.facing = v; }, set x(v) { D.state.hub.x = v; }, set y(v) { D.state.hub.y = v; }, set movedAt(v) { D.state.hub.movedAt = v; } };
   if (scene.music) D.music?.(scene.music);
@@ -83,6 +83,17 @@ async function runStep(step, c) {
     case 'camera': c.cam = { x: step.x, y: step.y }; D.render(); return;
     case 'bird': c.bird = { t0: now(), ms: step.ms || 1100, from: step.from || [824, 190], to: step.to || [-96, 400] }; if (!step.nowait) await delay(step.ms || 1100); return;
     case 'poster': return poster(c, step.kind || 'wanted');
+    case 'prop': if (who) Object.assign(who, step.set || {}); D.render(); return;   // cambiar algo de un actor (volar, tamaño, objeto en las manos…)
+    case 'tween': { const p = tween(who, step.set || {}, step.ms || 600); if (!step.nowait) await p; return; }
+    case 'jump': { const p = jumpTo(who, step.to || [who.x, who.y], step.ms || 420, step.h ?? 14); if (!step.nowait) await p; return; }
+    case 'area': {   // cambiar de zona a mitad de escena (un recuerdo en otro sitio), con la cámara que se indique
+      if (step.area) D.state.hub.area = step.area; if (step.cam) c.cam = { ...step.cam };
+      if ('hidePlayer' in step) c.hidePlayer = !!step.hidePlayer; if ('night' in step) c.night = !!step.night;
+      if (step.hideActors) { c.hiddenByArea = Object.values(c.actors).filter(a => !a.hidden && !a.isPlayer); c.hiddenByArea.forEach(a => a.hidden = true); }
+      if (step.showActors && c.hiddenByArea) { c.hiddenByArea.forEach(a => a.hidden = false); c.hiddenByArea = null; }
+      c.memory = step.memory ? { path: step.memory, light: null } : null; D.render(); return;
+    }
+    case 'light': if (c.memory) c.memory.light = { phase: step.phase, t0: now(), ms: step.ms || 1 }; if (step.wait) await delay(step.ms || 0); return;
     case 'bed': {   // meter al jugador en una cama (tumbado, como al despertar tras caer) o levantarlo
       const h = D.state.hub;
       if (step.up) { h.inBed = null; h.movedAt = now(); if (step.to) { h.x = step.to[0]; h.y = step.to[1]; } h.facing = DIRS[step.dir || 'down']; }
@@ -151,7 +162,7 @@ async function emote(c, who, step) {
 }
 async function say(c, who, step) {
   if (fast()) return;
-  const page = { who: step.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: step.text, think: !!step.think };
+  const page = { who: step.name ?? who?.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: step.text, think: !!step.think };
   if (step.unknown || who?.form) { page.who = step.name ?? '???'; page.sp = null; }   // name: '' = una voz sin nombre (desde fuera de plano)
   // el retrato se voltea a la derecha para el segundo interlocutor (como en el original)
   page.side = c.lastSpeaker && c.lastSpeaker !== (who?.id || page.who) ? 'right' : 'left'; c.lastSpeaker = who?.id || page.who;
@@ -206,11 +217,44 @@ export function sceneEntities(area) {
 }
 export function drawSceneActor(ctx, e, sx, sy, scale, drawMon) {
   const a = e.actor;
+  const t0 = now(), sc = a.scale ?? 1, lift = (a.hover ? 10 + Math.sin(t0 / 220) * 3 : 0) + liftOf(a);
+  ctx.save(); ctx.globalAlpha = a.alpha ?? 1;
   if (a.form) drawForm(ctx, a, sx, sy, scale);
-  else drawMon(ctx, { species: a.sp, facing: a.facing, movedAt: a.movedAt, anim: a.anim, still: a.still }, sx - scale * 12, sy - scale * 24, scale * 24);
+  else {
+    // al volar, su animación de vuelo (más tranquila); si no, la pose que tenga; quieto salvo que esté haciendo algo (idle)
+    const anim = a.hover && a.flyAnim ? (a._fly ||= { name: a.flyAnim, t0: now(), dur: Infinity, loop: true, slow: 3 }) : a.anim;
+    const size = scale * 24 * sc;
+    drawMon(ctx, { species: a.sp, facing: a.facing, movedAt: a.movedAt, anim, still: a.still || (!a.idle && !anim) }, sx - size / 2, sy - size - lift, size);
+    if (a.item && D.drawItem) { const is = 26 * (a.itemScale ?? 1), right = (a.facing?.[0] ?? 0) >= 0; D.drawItem(ctx, a.item, Math.round(sx + (right ? 8 : -8 - is)), Math.round(sy - 34 - lift), Math.round(is)); }
+  }
+  ctx.restore();
   // efectos sobre la cabeza
   const t = now(); a.emotes = a.emotes.filter(em => em.hold || (t - em.t0) / 1000 <= (EMOTE_LEN[em.fx] || 1));
-  for (const em of a.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, sx, sy - scale * 26, tt, 2); }
+  for (const em of a.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, sx, sy - scale * 26 - lift, tt, 2); }
+}
+// saltos en arco (también el jugador: se le aplica la altura en el dibujo de la aldea)
+const liftOf = a => { const j = a.jumpArc; if (!j) return 0; const k = (now() - j.t0) / j.ms; if (k >= 1) { a.jumpArc = null; return 0; } return Math.sin(Math.PI * k) * j.h; };
+async function jumpTo(a, to, ms, h) {
+  if (!a) return; const from = [a.x, a.y], t0 = now(), isP = a.isPlayer, hub = D.state.hub;
+  if (isP) hub.jumpArc = { t0, ms, h }; else a.jumpArc = { t0, ms, h };
+  for (;;) { const k = fast() ? 1 : Math.min(1, (now() - t0) / ms); a.x = from[0] + (to[0] - from[0]) * k; a.y = from[1] + (to[1] - from[1]) * k; D.render(); if (k >= 1) break; await delay(16); }
+  if (isP) hub.jumpArc = null;
+}
+async function tween(a, props, ms) {   // tamaño, transparencia… poco a poco
+  if (!a) return; const from = Object.fromEntries(Object.keys(props).map(k => [k, a[k] ?? 1])), t0 = now();
+  for (;;) { const k = fast() ? 1 : Math.min(1, (now() - t0) / ms); for (const p in props) a[p] = from[p] + (props[p] - from[p]) * k; D.render(); if (k >= 1) break; await delay(16); }
+}
+// el recuerdo: un tinte de memoria y una lucecita que recorre el camino que se indique (sube, se para, baja)
+function drawMemory(ctx, W, H, cam, c) {
+  ctx.fillStyle = 'rgba(40, 30, 70, .22)'; ctx.fillRect(0, 0, W, H);
+  const g0 = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.75); g0.addColorStop(0, 'rgba(0,0,0,0)'); g0.addColorStop(1, 'rgba(0,0,0,.65)'); ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H);
+  const L = c.memory.light, P = c.memory.path; if (!L || !P?.length) return;
+  const along = k => { const segs = P.length - 1, f = Math.min(segs - 1e-6, Math.max(0, k) * segs), i = Math.floor(f), r = f - i; return [P[i][0] + (P[i + 1][0] - P[i][0]) * r, P[i][1] + (P[i + 1][1] - P[i][1]) * r]; };
+  const k = Math.min(1, (now() - L.t0) / L.ms); if (L.phase === 'down' && k >= 1) return;
+  const [x, y] = L.phase === 'up' ? along(k) : L.phase === 'stop' ? along(1) : along(1 - k);
+  const sx = x - cam.x, sy = y - cam.y - 26 + Math.sin(now() / 160) * 1.5, hue = (now() / 12) % 360;
+  const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 16); g.addColorStop(0, `hsla(${hue}, 90%, 80%, .95)`); g.addColorStop(0.35, `hsla(${hue}, 90%, 60%, .45)`); g.addColorStop(1, `hsla(${hue}, 90%, 50%, 0)`);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, 16, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2);
 }
 export const drawSceneObjectAt = (ctx, kind, sx, sy) => drawObject(ctx, { kind, alpha: 1 }, sx, sy);   // (la bandeja de la plaza, antes del robo)
 function drawObject(ctx, o, sx, sy) {
@@ -238,12 +282,13 @@ export function drawSceneOverlay(ctx, W, H, cam) {
   const p = c.actors.player;   // los efectos del jugador (él no es un actor de la escena: lo dibuja la aldea)
   if (p && !c.hidePlayer && p.emotes.length) {
     const t = now(); p.emotes = p.emotes.filter(em => em.hold || (t - em.t0) / 1000 <= (EMOTE_LEN[em.fx] || 1));
-    for (const em of p.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, p.x - cam.x, p.y - cam.y - 52, tt, 2); }
+    for (const em of p.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, p.x - cam.x, -(D.state.hub.jumpArc ? Math.sin(Math.PI * Math.min(1, (now() - D.state.hub.jumpArc.t0) / D.state.hub.jumpArc.ms)) * D.state.hub.jumpArc.h : 0) + p.y - cam.y - 52, tt, 2); }
   }
   if (c.night) {
     ctx.fillStyle = 'rgba(8, 12, 40, 0.62)'; ctx.fillRect(0, 0, W, H);
     for (const l of c.lights) { const g = ctx.createRadialGradient(l.x - cam.x, l.y - cam.y, 4, l.x - cam.x, l.y - cam.y, l.r || 70); g.addColorStop(0, `rgba(255, 205, 120, ${l.a ?? 0.22})`); g.addColorStop(1, 'rgba(255, 205, 120, 0)'); ctx.fillStyle = g; ctx.fillRect(l.x - cam.x - 120, l.y - cam.y - 120, 240, 240); }
   }
+  if (c.memory) drawMemory(ctx, W, H, cam, c);   // un recuerdo: tinte de memoria y la lucecita
   if (c.poster) drawWantedPoster(ctx, W, H, c.poster.t0);
   if (c.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${c.fade})`; ctx.fillRect(0, 0, W, H); }
   if (c.narration) {
