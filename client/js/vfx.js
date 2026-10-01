@@ -159,6 +159,48 @@ const SPR = {
     '....olwo...',
     '..olmo.....',
     'oddo.......']],
+  // chispa de descarga eléctrica (Impactrueno): un zigzag corto
+  spark: [[
+    '..oo.',
+    '.owo.',
+    '.ow..',
+    'owwo.',
+    '.owo.',
+    '..ow.',
+    '..o..'], [
+    '.oo..',
+    '.owo.',
+    '..wo.',
+    '.owwo',
+    '.owo.',
+    'ow...',
+    'o....']],
+  // la Bola Sombra: núcleo negro, borde morado y jirones (dos fotogramas, gira)
+  shadowball: [[
+    '....oooo....',
+    '..oomllmoo..',
+    '.omldddddmo.',
+    '.oldddddddlo',
+    'omdddoodddmo',
+    'oldddoowddlo',
+    'olddddoodd.o',
+    'omdddddddmo.',
+    '.oldddddddlo',
+    '.omldddddmo.',
+    '..oomllmoo..',
+    '....oooo....'], [
+    '....oooo....',
+    '..oomllmoo..',
+    '.omdddddlmo.',
+    'oldddddddlo.',
+    'omdddoodddmo',
+    'olddwoodddlo',
+    'olddoodddmlo',
+    '.omdddddddmo',
+    'oldddddddlo.',
+    '.omdddddlmo.',
+    '..oomllmoo..',
+    '....oooo....']],
   // el destello de golpe clásico: estrella que se abre y se apaga
   hit: [[
     '.....',
@@ -246,6 +288,23 @@ export function spawnMoveFx(move, user, targets) {
   const add = fx => { fxs.push({ type, t0, seed, ...fx }); busyUntil = Math.max(busyUntil, t0 + (fx.delay || 0) + fx.dur); };
   const dist = t => Math.max(Math.abs(t.x - user.x), Math.abs(t.y - user.y));
   const delays = new Map();
+  const SIGNATURE = { 'Impactrueno': 'crackle', 'Chispa': 'crackle', 'Rayo': 'crackle', 'Trueno': 'thunder', 'Bola Sombra': 'shadowball', 'Psíquico': 'psywave', 'Confusión': 'psywave', 'Psicorrayo': 'psywave' };
+  const sig = SIGNATURE[move.name];
+  if (sig && range !== 'self' && range !== 'team') {
+    const fx0 = user.facing?.[0] ?? 0, fy0 = user.facing?.[1] ?? 1, tg = targets.length ? targets : [{ x: user.x + fx0, y: user.y + fy0 }];
+    if (sig === 'crackle') {   // descarga sobre el objetivo: chispas que saltan a su alrededor, con destello
+      for (const t of tg) { add({ kind: 'crackle', at: { x: t.x, y: t.y }, dur: 700 }); delays.set(t, 140); }
+    } else if (sig === 'thunder') {   // ¡el rayo cae del cielo!
+      for (const t of tg) { add({ kind: 'strike', at: { x: t.x, y: t.y }, dur: 460 }); add({ kind: 'crackle', at: { x: t.x, y: t.y }, dur: 380, delay: 200 }); delays.set(t, 200); }
+    } else if (sig === 'shadowball') {   // se carga delante del usuario, viaja despacio y estalla en sombra
+      const t = tg[0], travel = Math.max(320, dist(t) * 120);
+      add({ kind: 'shadowball', from: { x: user.x, y: user.y }, to: { x: t.x, y: t.y }, dur: 300 + travel, charge: 300 });
+      for (const tt of targets) { delays.set(tt, 300 + travel); add({ kind: 'darkburst', at: { x: tt.x, y: tt.y }, dur: 460, delay: 300 + travel }); }
+    } else if (sig === 'psywave') {   // el objetivo queda envuelto en ondas psíquicas que laten
+      for (const t of tg) { add({ kind: 'psywave', at: { x: t.x, y: t.y }, dur: 760 }); delays.set(t, 260); }
+    }
+    return { impactDelay: t => delays.get(t) ?? 0 };
+  }
   if (range === 'self' || range === 'team') {   // sube algo: chispas que ascienden alrededor
     const who = range === 'team' && targets.length ? targets : [user];
     for (const w of who) { add({ kind: 'rise', at: { x: w.x, y: w.y }, dur: 800 }); delays.set(w, 300); }
@@ -301,12 +360,35 @@ export function drawMoveFx(ctx, toScreen, tile) {
           pixelRing(ctx, x0 + (x1 - x0) * q, y0 + (y1 - y0) * q - 4 * ps, (3 + j) * ps, ps, pal, q >= 1 ? Math.max(0, 1 - (el - travel) / 300) : 1); }
       }
     } else {
-      const [cx, cy] = toScreen(fx.at.x, fx.at.y);
+      const [cx, cy] = fx.at ? toScreen(fx.at.x, fx.at.y) : [0, 0];   // (la Bola Sombra no tiene sitio fijo: viaja)
       if (fx.kind === 'burst') {   // impacto: sprites del tipo que salen hacia fuera y, si es de contacto, el destello de golpe
         if (fx.phys || burst === 'hit') blit(ctx, 'hit', HIT, Math.min(3, Math.floor(el / 70)), cx, cy - 2 * ps, ps);
         if (burst !== 'hit') { const n = fx.big ? 4 : 3;
           for (let j = 0; j < n; j++) { const a = j / n * Math.PI * 2 + R() * 0.6, sp = (4 + 9 * k) * ps; if (k > 0.85 && fr % 2) continue;
             blit(ctx, burst, pal, fr + j, cx + Math.cos(a) * sp, cy + Math.sin(a) * sp * 0.75 - (burst === 'flame' || burst === 'dust' ? 3 * k * ps : 0), ps, burst === 'leaf' || burst === 'rock' || burst === 'shard' ? fr * 0.8 + j : 0); } }
+      } else if (fx.kind === 'crackle') {   // Impactrueno: chispas en zigzag que saltan alrededor del objetivo y un destello blanco
+        if (fr < 3) blit(ctx, 'hit', pal, fr, cx, cy - 3 * ps, ps + 1);   // destello amarillo
+        for (let j = 0; j < (k < 0.7 ? 8 : 4); j++) {   // crepita sin parar (cada fotograma, chispas nuevas) const a = j / 8 * Math.PI * 2 + fr * 0.9 + R(), d = (4 + R() * 8) * ps;
+          blit(ctx, 'spark', pal, fr + j, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.8 - 3 * ps, ps + 1, (R() - 0.5) * 1.4, R() < 0.5); }
+      } else if (fx.kind === 'shadowball') {   // la Bola Sombra: crece delante del usuario, viaja despacio con estela de jirones
+        const [x0, y0] = toScreen(fx.from.x, fx.from.y), [x1, y1] = toScreen(fx.to.x, fx.to.y), L = Math.hypot(x1 - x0, y1 - y0) || 1;
+        const ux = (x1 - x0) / L, uy = (y1 - y0) / L, startX = x0 + ux * 8 * ps, startY = y0 + uy * 8 * ps - 4 * ps;
+        if (el < fx.charge) {   // la carga: una bola pequeña que crece y unos jirones que se juntan
+          const g = el / fx.charge, sc = Math.max(1, Math.round(ps * (0.4 + 0.6 * g)));
+          for (let j = 0; j < 4; j++) { const a = j / 4 * Math.PI * 2 + el / 90, d = (1 - g) * 12 * ps; blit(ctx, 'orb', PAL['Fantasma'], fr, startX + Math.cos(a) * d, startY + Math.sin(a) * d, Math.max(1, ps - 1)); }
+          blit(ctx, 'shadowball', pal, fr, startX, startY, sc);
+        } else {
+          const q = Math.min(1, (el - fx.charge) / (fx.dur - fx.charge)), bx = startX + (x1 - startX) * q, by = startY + (y1 - 4 * ps - startY) * q;
+          for (let j = 1; j <= 3; j++) blit(ctx, 'orb', PAL['Fantasma'], fr + j, bx - ux * j * 6 * ps, by - uy * j * 6 * ps, Math.max(1, ps - 1));   // estela
+          blit(ctx, 'shadowball', pal, fr, bx, by, ps);
+        }
+      } else if (fx.kind === 'darkburst') {   // estalla en sombra: un anillo oscuro que se abre y jirones que salen
+        pixelRing(ctx, cx, cy - 3 * ps, (3 + 9 * k) * ps, ps, pal, 1 - k);
+        for (let j = 0; j < 5; j++) { const a = j / 5 * Math.PI * 2 + R(), d = (2 + 10 * k) * ps; if (k > 0.8 && fr % 2) continue; blit(ctx, 'orb', PAL['Fantasma'], fr + j, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.75 - 3 * ps, Math.max(1, ps - 1)); }
+      } else if (fx.kind === 'psywave') {   // Psíquico: anillos rosas que salen del objetivo y laten (el aire se deforma)
+        for (let j = 0; j < 3; j++) { const ph = ((el / 260) + j / 3) % 1; if (el < j * 120) continue;
+          lightRing(ctx, cx, cy - 4 * ps, (2 + ph * 12) * ps, ps, pal, (1 - ph * 0.7) * (1 - Math.max(0, (k - 0.75) / 0.25))); }
+        if (fr % 2 === 0 && k < 0.8) blit(ctx, 'sparkle', pal, fr, cx + Math.sin(el / 50) * 5 * ps, cy - 8 * ps, ps);
       } else if (fx.kind === 'strike') {   // el rayo cae del cielo: segmentos en zigzag apilados, que parpadean
         if (k < 0.7 && fr % 3 !== 2) { const seg = BOLT.length * ps;
           for (let j = 0; j < 3; j++) blit(ctx, 'bolt', pal, 0, cx + (j % 2 ? 2 : -2) * ps, cy - seg * (j + 0.5), ps, 0, j % 2 === 1); }
@@ -323,6 +405,13 @@ export function drawMoveFx(ctx, toScreen, tile) {
   return fxs.length > 0 || !!shake;
 }
 // un anillo de píxeles (sin difuminar), con contorno
+function lightRing(ctx, cx, cy, r, ps, pal, a) {
+  ctx.save(); const R = Math.max(2, Math.round(r / ps)), n = Math.max(16, R * 5);
+  for (let i = 0; i < n; i++) { const ang = i / n * Math.PI * 2, x = Math.round(Math.cos(ang) * R) * ps, y = Math.round(Math.sin(ang) * R * 0.7) * ps;
+    ctx.globalAlpha = a * 0.55; ctx.fillStyle = pal[2]; ctx.fillRect(Math.round(cx + x - ps), Math.round(cy + y - ps), ps * 2, ps * 2);
+    ctx.globalAlpha = a; ctx.fillStyle = i % 3 ? pal[3] : pal[4]; ctx.fillRect(Math.round(cx + x), Math.round(cy + y), ps, ps); }
+  ctx.restore();
+}
 function pixelRing(ctx, cx, cy, r, ps, pal, a) {
   ctx.save(); ctx.globalAlpha = a; const R = Math.round(r / ps);
   for (let i = 0; i < 24; i++) { const ang = i / 24 * Math.PI * 2, x = Math.round(Math.cos(ang) * R) * ps, y = Math.round(Math.sin(ang) * R * 0.75) * ps;
