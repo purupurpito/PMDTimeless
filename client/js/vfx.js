@@ -159,6 +159,73 @@ const SPR = {
     '....olwo...',
     '..olmo.....',
     'oddo.......']],
+  // tajo de garra (Arañazo, Cuchillada…): tres líneas blancas en diagonal
+  claw: [[
+    'w.........',
+    'ww..w.....',
+    '.ww.ww..w.',
+    '..ww.ww.ww',
+    '...ww.ww.w',
+    '....w..ww.',
+    '........w.']],
+  // dientes (Mordisco, Triturar): arriba y abajo
+  fangs: [[
+    'wwwwwwwww',
+    'ow.w.w.wo',
+    '.w.w.w.w.',
+    '.........',
+    '.........',
+    '.w.w.w.w.',
+    'ow.w.w.wo',
+    'wwwwwwwww'], [
+    '.........',
+    'wwwwwwwww',
+    'ow.w.w.wo',
+    '.w.w.w.w.',
+    '.w.w.w.w.',
+    'ow.w.w.wo',
+    'wwwwwwwww',
+    '.........']],
+  // puño (Puño Fuego, Megapuño…)
+  fist: [[
+    '..oooo..',
+    '.olllmo.',
+    'ollmlmmo',
+    'olmlmlmo',
+    'ollmlmmo',
+    'omllmmdo',
+    '.odmddo.',
+    '..oooo..']],
+  // polvo (Somnífero, Paralizador…): motitas que caen
+  powder: [[
+    'l.m..l..',
+    '..l...m.',
+    'm..l.l..',
+    '..m...l.',
+    'l...m...'], [
+    '.l..m.l.',
+    'm..l....',
+    '..m...m.',
+    'l...l...',
+    '..m..l.m']],
+  // onda de sonido (Gruñido, Chirrido, Canto…): un arco
+  wave: [[
+    '....o',
+    '..ol.',
+    '.olw.',
+    '.olw.',
+    '..ol.',
+    '....o']],
+  // cabeza del proyectil grande (Hiperrayo, Hidrobomba…): capsula alargada con núcleo blanco
+  bigshot: [[
+    '......oooooooo....',
+    '...ooommllllllmoo.',
+    '.oomlllwwwwwwwllmo',
+    'omllwwwwwwwwwwwwlo',
+    'omllwwwwwwwwwwwwlo',
+    '.oomlllwwwwwwwllmo',
+    '...ooommllllllmoo.',
+    '......oooooooo....']],
   // chispa de descarga eléctrica (Impactrueno): un zigzag corto
   spark: [[
     '..oo.',
@@ -279,6 +346,24 @@ const LOOK = {
   'Roca': ['rock', 'rock'], 'Fantasma': ['orb', 'orb'], 'Dragón': ['orb', 'sparkle'], 'Siniestro': ['slash', 'slash'],
   'Acero': ['sparkle', 'sparkle'], 'Hada': ['sparkle', 'sparkle'],
 };
+// ---------- arquetipos por movimiento (de la estructura de las animaciones originales) ----------
+const byList = (kind, names) => Object.fromEntries(names.map(n => [n, kind]));
+const ARCH = {
+  ...byList('crackle', ['Impactrueno', 'Chispa', 'Rayo', 'Onda Voltio', 'Chispazo', 'Electrocañón']),
+  ...byList('thunder', ['Trueno']),
+  ...byList('shadowball', ['Bola Sombra', 'Esfera Aural', 'Energibola', 'Bomba Lodo', 'Bola Hielo', 'Bomba Fango', 'Bomba Germen', 'Bola Neblina', 'Onda Vacío']),
+  ...byList('psywave', ['Psíquico', 'Confusión', 'Paz Mental', 'Premonición', 'Poder Oculto']),
+  ...byList('rings', ['Hipnosis', 'Psicorrayo', 'Psicoonda', 'Rayo Confuso', 'Pulso Umbrío', 'Pulso Dragón', 'Hidropulso', 'Supersónico']),
+  ...byList('bigshot', ['Hiperrayo', 'Hidrobomba', 'Hidrocañón', 'Rayo Solar', 'Rayo Aurora', 'Rayo Carga', 'Zumbido', 'Triataque', 'Anillo Ígneo', 'Giga Impacto', 'Aerochorro', 'Planta Feroz', 'Anillo Ígneo']),
+  ...byList('claw', ['Arañazo', 'Cuchillada', 'Golpes Furia', 'Garra Umbría', 'Garra Brutal', 'Tajo Umbrío', 'Garra Metal', 'Corte', 'Tijera X', 'Corte Furia', 'Garra Dragón', 'Psicocorte', 'Tajo Aéreo', 'Garra Umbría']),
+  ...byList('fangs', ['Mordisco', 'Triturar', 'Hipercolmillo', 'Superdiente', 'Colmillo Rayo', 'Colmillo Ígneo', 'Colmillo Hielo', 'Colmillo Veneno', 'Picotazo Veneno']),
+  ...byList('fist', ['Megapuño', 'Puño Fuego', 'Puño Hielo', 'Puño Trueno', 'Puño Cometa', 'Puño Dinámico', 'Puño Certero', 'Puño Mareo', 'Puño Drenaje', 'Machada', 'A Bocajarro', 'Golpe Roca', 'Golpe Bajo', 'Golpe Kárate', 'Tajo Cruzado', 'Fuerza', 'Puño Sombra', 'Puño Bala']),
+  ...byList('rockfall', ['Lanzarrocas', 'Avalancha', 'Tumba Rocas', 'Roca Afilada', 'Poder Pasado', 'Pedrada', 'Romperrocas']),
+  ...byList('powder', ['Somnífero', 'Paralizador', 'Polvo Veneno', 'Espora', 'Esporagodón']),
+  ...byList('soundwave', ['Gruñido', 'Rugido', 'Chirrido', 'Canto', 'Vozarrón', 'Alboroto', 'Aullido', 'Eco Metálico', 'Canto Mortal', 'Cháchara', 'Ronquido', 'Bostezo']),
+  ...byList('lash', ['Látigo Cepa', 'Látigo', 'Latigazo', 'Cola Férrea', 'Cola Veneno']),
+  ...byList('quake', ['Terremoto', 'Magnitud', 'Fisura', 'Tierra Viva']),
+};
 function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 
 // ---------- crear el efecto de un movimiento (user y targets en casillas) → { impactDelay(target) } ----------
@@ -288,8 +373,7 @@ export function spawnMoveFx(move, user, targets) {
   const add = fx => { fxs.push({ type, t0, seed, ...fx }); busyUntil = Math.max(busyUntil, t0 + (fx.delay || 0) + fx.dur); };
   const dist = t => Math.max(Math.abs(t.x - user.x), Math.abs(t.y - user.y));
   const delays = new Map();
-  const SIGNATURE = { 'Impactrueno': 'crackle', 'Chispa': 'crackle', 'Rayo': 'crackle', 'Trueno': 'thunder', 'Bola Sombra': 'shadowball', 'Psíquico': 'psywave', 'Confusión': 'psywave', 'Psicorrayo': 'psywave' };
-  const sig = SIGNATURE[move.name];
+  const sig = ARCH[move.name];
   if (sig && range !== 'self' && range !== 'team') {
     const fx0 = user.facing?.[0] ?? 0, fy0 = user.facing?.[1] ?? 1, tg = targets.length ? targets : [{ x: user.x + fx0, y: user.y + fy0 }];
     if (sig === 'crackle') {   // descarga sobre el objetivo: chispas que saltan a su alrededor, con destello
@@ -300,6 +384,27 @@ export function spawnMoveFx(move, user, targets) {
       const t = tg[0], travel = Math.max(320, dist(t) * 120);
       add({ kind: 'shadowball', from: { x: user.x, y: user.y }, to: { x: t.x, y: t.y }, dur: 300 + travel, charge: 300 });
       for (const tt of targets) { delays.set(tt, 300 + travel); add({ kind: 'darkburst', at: { x: tt.x, y: tt.y }, dur: 460, delay: 300 + travel }); }
+    } else if (sig === 'rings') {   // anillos que viajan hasta el objetivo (Hipnosis, Psicorrayo, Hidropulso…)
+      const t = tg[0], d = Math.max(260, dist(t) * 90);
+      add({ kind: 'rings', from: { x: user.x, y: user.y }, to: { x: t.x, y: t.y }, dur: d + 300 }); for (const tt of targets) delays.set(tt, d + 100);
+    } else if (sig === 'bigshot') {   // el proyectil grande: se carga un instante y cruza la sala como una bala
+      const t = tg[0], travel = Math.max(260, dist(t) * 55);
+      add({ kind: 'bigshot', from: { x: user.x, y: user.y }, to: { x: t.x, y: t.y }, dur: 220 + travel, charge: 220 });
+      shake = { t0: t0 + 220 + travel, ms: 300, amp: 3 };
+      for (const tt of targets) { delays.set(tt, 220 + travel); add({ kind: 'burst', at: { x: tt.x, y: tt.y }, dur: 460, delay: 220 + travel, big: true, phys: true }); }
+    } else if (sig === 'claw' || sig === 'fangs' || sig === 'fist') {   // de contacto, con su marca sobre el objetivo
+      for (const t of tg) { delays.set(t, 150); add({ kind: sig, at: { x: t.x, y: t.y }, dur: 420, delay: 120 }); add({ kind: 'burst', at: { x: t.x, y: t.y }, dur: 330, delay: 150, phys: true }); }
+    } else if (sig === 'rockfall') {   // rocas que caen del cielo sobre el objetivo
+      for (const t of tg) { delays.set(t, 320); add({ kind: 'rockfall', at: { x: t.x, y: t.y }, dur: 620 }); add({ kind: 'burst', at: { x: t.x, y: t.y }, dur: 380, delay: 320, phys: true }); }
+    } else if (sig === 'powder') {   // polvo que cae sobre el objetivo
+      for (const t of tg) { delays.set(t, 350); add({ kind: 'powder', at: { x: t.x, y: t.y }, dur: 800 }); }
+    } else if (sig === 'soundwave') {   // ondas de sonido que salen del usuario hacia los objetivos
+      add({ kind: 'soundwave', from: { x: user.x, y: user.y }, to: { x: tg[0].x, y: tg[0].y }, dur: 700 }); for (const t of targets) delays.set(t, 350);
+    } else if (sig === 'lash') {   // un latigazo que va del usuario al objetivo
+      for (const t of tg) { delays.set(t, 160); add({ kind: 'lash', from: { x: user.x, y: user.y }, to: { x: t.x, y: t.y }, dur: 360 }); add({ kind: 'burst', at: { x: t.x, y: t.y }, dur: 330, delay: 160, phys: true }); }
+    } else if (sig === 'quake') {   // sacudida y rocas por toda la sala, golpe en cada uno
+      shake = { t0, ms: 800, amp: 5 }; add({ kind: 'scatter', at: { x: user.x, y: user.y }, dur: 800 });
+      for (const t of targets) { const d = 200 + dist(t) * 40; delays.set(t, d); add({ kind: 'burst', at: { x: t.x, y: t.y }, dur: 420, delay: d, phys: true }); }
     } else if (sig === 'psywave') {   // el objetivo queda envuelto en ondas psíquicas que laten
       for (const t of tg) { add({ kind: 'psywave', at: { x: t.x, y: t.y }, dur: 760 }); delays.set(t, 260); }
     }
@@ -383,6 +488,32 @@ export function drawMoveFx(ctx, toScreen, tile) {
           for (let j = 1; j <= 3; j++) blit(ctx, 'orb', PAL['Fantasma'], fr + j, bx - ux * j * 6 * ps, by - uy * j * 6 * ps, Math.max(1, ps - 1));   // estela
           blit(ctx, 'shadowball', pal, fr, bx, by, ps);
         }
+      } else if (fx.kind === 'bigshot') {   // el proyectil grande (Hiperrayo…): carga en la boca y cruza la sala dejando chispas
+        const [x0, y0] = toScreen(fx.from.x, fx.from.y), [x1, y1] = toScreen(fx.to.x, fx.to.y), L = Math.hypot(x1 - x0, y1 - y0) || 1, ang = Math.atan2(y1 - y0, x1 - x0);
+        const ux = (x1 - x0) / L, uy = (y1 - y0) / L, sx0 = x0 + ux * 9 * ps, sy0 = y0 + uy * 9 * ps - 5 * ps;
+        if (el < fx.charge) { const g = el / fx.charge; for (let j = 0; j < 4; j++) { const a = j / 4 * Math.PI * 2 + el / 70; blit(ctx, 'sparkle', pal, fr + j, sx0 + Math.cos(a) * (1 - g) * 10 * ps, sy0 + Math.sin(a) * (1 - g) * 10 * ps, ps); }
+          if (g > 0.5) blit(ctx, 'bigshot', pal, 0, sx0, sy0, Math.max(1, Math.round(ps * (g - 0.5) * 2)), ang); }
+        else { const q = Math.min(1, (el - fx.charge) / (fx.dur - fx.charge)), hx = sx0 + (x1 - sx0) * q, hy = sy0 + (y1 - 5 * ps - sy0) * q;
+          for (let j = 1; j <= 4; j++) { const tx = hx - ux * j * 10 * ps, ty = hy - uy * j * 10 * ps; if ((tx - x0) * ux + (ty - y0) * uy > 0) blit(ctx, 'sparkle', pal, fr + j, tx + (R() - 0.5) * 6 * ps, ty + (R() - 0.5) * 6 * ps, ps); }
+          blit(ctx, 'bigshot', pal, 0, hx, hy, ps, ang); }
+      } else if (fx.kind === 'claw') {   // tajo de garra: aparece y se apaga
+        if (fr < 5) blit(ctx, 'claw', PAL.Normal, 0, cx + 2 * ps, cy - 6 * ps, ps, 0.2);
+      } else if (fx.kind === 'fangs') {   // los dientes se cierran sobre el objetivo
+        blit(ctx, 'fangs', pal, fr < 2 ? 0 : 1, cx, cy - 7 * ps, ps);
+      } else if (fx.kind === 'fist') {   // el puño entra y golpea
+        const g = Math.min(1, el / 150); blit(ctx, 'fist', pal, 0, cx - (1 - g) * 14 * ps, cy - 7 * ps + (1 - g) * 4 * ps, ps);
+      } else if (fx.kind === 'rockfall') {   // rocas que caen de arriba
+        for (let j = 0; j < 3; j++) { const st = j * 110, e2 = el - st; if (e2 < 0) continue; const fall = Math.min(1, e2 / 220), x = cx + (j - 1) * 6 * ps + (R() - 0.5) * 4 * ps;
+          if (fall < 1) blit(ctx, 'rock', pal, 0, x, cy - 6 * ps - (1 - fall) * 40 * ps, ps + (j === 1 ? 1 : 0), fall * 2);
+          else if (e2 < 420) blit(ctx, 'dust', PAL.Tierra, Math.floor((e2 - 220) / FRAME), x, cy - 2 * ps, ps); }
+      } else if (fx.kind === 'powder') {   // polvo que cae sobre el objetivo
+        for (let j = 0; j < 3; j++) { const ph = (el / fx.dur + j / 3) % 1; blit(ctx, 'powder', pal, fr + j, cx + (R() - 0.5) * 8 * ps, cy - 18 * ps + ph * 22 * ps, ps); }
+      } else if (fx.kind === 'soundwave') {   // tres arcos que salen del usuario hacia el objetivo
+        const [x0, y0] = toScreen(fx.from.x, fx.from.y), [x1, y1] = toScreen(fx.to.x, fx.to.y), ang = Math.atan2(y1 - y0, x1 - x0);
+        for (let j = 0; j < 3; j++) { const q = Math.min(1, Math.max(0, (el - j * 120) / 450)); if (el < j * 120 || q >= 1) continue; blit(ctx, 'wave', pal, 0, x0 + (x1 - x0) * q, y0 + (y1 - y0) * q - 5 * ps, ps + 1, ang); }
+      } else if (fx.kind === 'lash') {   // el látigo: una línea del usuario al objetivo que se curva y se retira
+        const [x0, y0] = toScreen(fx.from.x, fx.from.y), [x1, y1] = toScreen(fx.to.x, fx.to.y), g = k < 0.45 ? k / 0.45 : 1 - (k - 0.45) / 0.55;
+        ctx.save(); ctx.lineCap = 'round'; for (const [w, c] of [[4, pal[0]], [2, pal[2]]]) { ctx.strokeStyle = c; ctx.lineWidth = w * ps; ctx.beginPath(); ctx.moveTo(x0, y0 - 6 * ps); ctx.quadraticCurveTo((x0 + x1) / 2, (y0 + y1) / 2 - 14 * ps * g, x0 + (x1 - x0) * g, y0 - 6 * ps + (y1 - y0) * g); ctx.stroke(); } ctx.restore();
       } else if (fx.kind === 'darkburst') {   // estalla en sombra: un anillo oscuro que se abre y jirones que salen
         pixelRing(ctx, cx, cy - 3 * ps, (3 + 9 * k) * ps, ps, pal, 1 - k);
         for (let j = 0; j < 5; j++) { const a = j / 5 * Math.PI * 2 + R(), d = (2 + 10 * k) * ps; if (k > 0.8 && fr % 2) continue; blit(ctx, 'orb', PAL['Fantasma'], fr + j, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.75 - 3 * ps, Math.max(1, ps - 1)); }
