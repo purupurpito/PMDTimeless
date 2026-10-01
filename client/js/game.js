@@ -11,7 +11,7 @@ import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, se
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
 import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt, drawScreenFade, releaseBlack } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
-import { spawnMoveFx, drawMoveFx, fxEndTime } from './vfx.js';
+import { spawnMoveFx, drawMoveFx, fxEndTime, fxShake } from './vfx.js';
 import { SCENES } from '../../shared/story.js';
 const SCENES_ALL = () => SCENES;
 import { HUB, VIEW } from './hub.js';
@@ -2805,7 +2805,7 @@ function renderDungeon() {
   // cámara: sigue la posición deslizada del jugador (entre dos casillas mientras camina)
   sliding = false; const pv = vpos(p), camX = (pv.x - p.x) * tile, camY = (pv.y - p.y) * tile;
   ctx.save(); ctx.translate(LOG.w / 2, LOG.h / 2); ctx.scale(zoom, zoom); ctx.translate(-pcx - camX, -pcy - camY);
-  { const m = ctx.getTransform(); ctx.setTransform(m.a, m.b, m.c, m.d, Math.round(m.e), Math.round(m.f)); }   // origen en píxeles enteros: sin costuras entre casillas
+  { const [shx, shy] = fxShake(); const m = ctx.getTransform(); ctx.setTransform(m.a, m.b, m.c, m.d, Math.round(m.e + shx * m.a), Math.round(m.f + shy * m.d)); }   // origen en píxeles enteros (sin costuras entre casillas), y el temblor de los golpes fuertes
   lastCam = { ox, oy, zoom, pcx, pcy, camX, camY };   // para convertir un toque en pantalla en una casilla
   for (let vy = -1; vy <= CFG.view.h; vy++) for (let vx = -1; vx <= CFG.view.w; vx++) {
     const x = ox + vx, y = oy + vy;
