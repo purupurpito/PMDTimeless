@@ -11,7 +11,7 @@ import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, se
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
 import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt, drawScreenFade, releaseBlack } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
-import { spawnMoveFx, drawMoveFx, fxEndTime, fxShake } from './vfx.js';
+import { spawnMoveFx, drawMoveFx, fxEndTime, fxShake, spawnSuperEffective } from './vfx.js';
 import { SCENES } from '../../shared/story.js';
 const SCENES_ALL = () => SCENES;
 import { HUB, VIEW } from './hub.js';
@@ -1394,7 +1394,7 @@ function useMove(userMon, move) {
       if (move.statFx) applyStages(target, move.statFx.changes).forEach(say);
       continue;
     }
-    if (!hitCheck(state.rng, move, userMon, target, state.weather)) { say(`${who} usa ${move.name}, pero falla contra ${target.name}.`); if (isVisibleNow(target.x, target.y)) later(at(target), () => playSfx('miss')); continue; } // acierto real: dos tiradas con estadios
+    if (!hitCheck(state.rng, move, userMon, target, state.weather)) { say(`${who} usa ${move.name}, pero falla contra ${target.name}.`); if (isVisibleNow(target.x, target.y)) { later(at(target), () => playSfx('miss')); state.effects.push({ x: target.x, y: target.y, text: 'MISS', t: performance.now() + at(target), color: '#ffffff', miss: true }); } continue; } // acierto real: dos tiradas con estadios
     if (move.name !== BASIC.name) target.hitByMove = true;           // para la experiencia completa
     if (target.asleep) { target.asleep = false; say(`${target.name} se despierta.`); } // dormía de forma natural: se despierta al primer golpe
     // golpes múltiples (Doble Patada, Pin Misil…): cada golpe se calcula aparte
@@ -1410,6 +1410,7 @@ function useMove(userMon, move) {
     if (move.power) {
       const sfx = !ally ? 'hurt' : crit ? 'crit' : eff > 1 ? 'hitSuper' : eff < 1 ? 'hitWeak' : 'hit', vis = isVisibleNow(target.x, target.y);
       later(at(target), () => { if (dmg > 0) playAnim(target, 'Hurt'); if (vis) playSfx(sfx); });   // dolor y sonido, en el impacto
+      if (fx && eff > 1 && dmg > 0) spawnSuperEffective(target, at(target));   // ¡súper eficaz!: destello grande y temblor
       target.hp = Math.max(0, target.hp - dmg);
       if (onOurSide(target) && !onOurSide(userMon)) { target.lastHitBy = { sp: userMon.species, move: move.name || 'Ataque', lv: userMon.level, boss: !!userMon.isBoss }; runStats().taken += dmg; }
       else if (onOurSide(userMon) && !onOurSide(target)) runStats().dealt += dmg;
@@ -2860,9 +2861,11 @@ function renderDungeon() {
   state.effects = state.effects.filter(f => now - f.t < 700);
   for (const f of state.effects) {
     if (now < f.t) { scheduleRender(); continue; }   // (un número que aún no ha llegado: espera al impacto)
-    const k = (now - f.t) / 700, vx = f.x - ox, vy = f.y - oy;
-    ctx.globalAlpha = 1 - k; ctx.fillStyle = f.color; ctx.font = 'bold 12px sans-serif';
-    ctx.fillText(f.text, vx * tile + 6, vy * tile + 10 - k * 14); ctx.globalAlpha = 1;
+    const k = (now - f.t) / 700, vx = f.x - ox, vy = f.y - oy, big = f.miss || f.eff > 1;
+    ctx.globalAlpha = 1 - k * k; ctx.font = big ? 'bold 15px ui-monospace, Menlo, monospace' : 'bold 12px sans-serif';
+    const tx = vx * tile + (f.miss ? 2 : 6), ty = vy * tile + 10 - k * 14;
+    if (big) { ctx.lineWidth = 3; ctx.strokeStyle = '#1a1a2a'; ctx.strokeText(f.text, tx, ty); }   // contorno oscuro (como el MISS del original)
+    ctx.fillStyle = f.eff > 1 ? '#ffd040' : f.color; ctx.fillText(f.text, tx, ty); ctx.globalAlpha = 1;
   }
   ctx.restore();
   drawWeather();

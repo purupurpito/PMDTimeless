@@ -363,6 +363,7 @@ const ARCH = {
   ...byList('soundwave', ['Gruñido', 'Rugido', 'Chirrido', 'Canto', 'Vozarrón', 'Alboroto', 'Aullido', 'Eco Metálico', 'Canto Mortal', 'Cháchara', 'Ronquido', 'Bostezo']),
   ...byList('lash', ['Látigo Cepa', 'Látigo', 'Latigazo', 'Cola Férrea', 'Cola Veneno']),
   ...byList('quake', ['Terremoto', 'Magnitud', 'Fisura', 'Tierra Viva']),
+  ...byList('blizzard', ['Ventisca', 'Viento Hielo', 'Nieve Polvo', 'Frío Polar', 'Granizo']),
 };
 function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 
@@ -402,6 +403,10 @@ export function spawnMoveFx(move, user, targets) {
       add({ kind: 'soundwave', from: { x: user.x, y: user.y }, to: { x: tg[0].x, y: tg[0].y }, dur: 700 }); for (const t of targets) delays.set(t, 350);
     } else if (sig === 'lash') {   // un latigazo que va del usuario al objetivo
       for (const t of tg) { delays.set(t, 160); add({ kind: 'lash', from: { x: user.x, y: user.y }, to: { x: t.x, y: t.y }, dur: 360 }); add({ kind: 'burst', at: { x: t.x, y: t.y }, dur: 330, delay: 160, phys: true }); }
+    } else if (sig === 'blizzard') {   // la tormenta de nieve cubre toda la pantalla (Ventisca); los más flojos, menos copos
+      const heavy = move.name === 'Ventisca' || move.name === 'Frío Polar';
+      add({ kind: 'blizzard', at: { x: user.x, y: user.y }, dur: heavy ? 1600 : 1150, n: heavy ? 300 : 150 });
+      for (const t of targets) delays.set(t, heavy ? 700 : 500);
     } else if (sig === 'quake') {   // sacudida y rocas por toda la sala, golpe en cada uno
       shake = { t0, ms: 800, amp: 5 }; add({ kind: 'scatter', at: { x: user.x, y: user.y }, dur: 800 });
       for (const t of targets) { const d = 200 + dist(t) * 40; delays.set(t, d); add({ kind: 'burst', at: { x: t.x, y: t.y }, dur: 420, delay: d, phys: true }); }
@@ -441,6 +446,11 @@ export function spawnMoveFx(move, user, targets) {
   return { impactDelay: t => delays.get(t) ?? 0 };
 }
 
+// el golpe súper eficaz (como en los originales: destello grande y un pequeño temblor), en el momento del impacto
+export function spawnSuperEffective(target, delay = 0) {
+  const t0 = now(); fxs.push({ type: 'Normal', t0, seed: 1, kind: 'supereff', at: { x: target.x, y: target.y }, dur: 420, delay });
+  shake = { t0: t0 + delay, ms: 260, amp: 3 }; busyUntil = Math.max(busyUntil, t0 + delay + 420);
+}
 // ---------- dibujar (lienzo de la mazmorra; toScreen(x, y) = centro de esa casilla en pantalla) ----------
 export function drawMoveFx(ctx, toScreen, tile) {
   const t = now();
@@ -514,6 +524,25 @@ export function drawMoveFx(ctx, toScreen, tile) {
       } else if (fx.kind === 'lash') {   // el látigo: una línea del usuario al objetivo que se curva y se retira
         const [x0, y0] = toScreen(fx.from.x, fx.from.y), [x1, y1] = toScreen(fx.to.x, fx.to.y), g = k < 0.45 ? k / 0.45 : 1 - (k - 0.45) / 0.55;
         ctx.save(); ctx.lineCap = 'round'; for (const [w, c] of [[4, pal[0]], [2, pal[2]]]) { ctx.strokeStyle = c; ctx.lineWidth = w * ps; ctx.beginPath(); ctx.moveTo(x0, y0 - 6 * ps); ctx.quadraticCurveTo((x0 + x1) / 2, (y0 + y1) / 2 - 14 * ps * g, x0 + (x1 - x0) * g, y0 - 6 * ps + (y1 - y0) * g); ctx.stroke(); } ctx.restore();
+      } else if (fx.kind === 'blizzard') {   // copos pequeños y redondeados (blancos, lila, azul claro) que barren la pantalla en diagonal
+        const span = 18 * tile, fade = Math.min(1, k / 0.15, (1 - k) / 0.2);   // (en casillas: cubre toda la vista alrededor del usuario)
+        const FLAKE = ['#ffffff', '#f4e8ff', '#e8dcf8', '#dceeff', '#fff4fc'];
+        ctx.save();
+        for (let j = 0; j < fx.n; j++) {
+          const sp = 0.6 + R() * 0.8, x0 = R() * span - span / 2, y0 = R() * span - span / 2, r = R(), sz = r < 0.45 ? 2 : r < 0.85 ? 3 : 4;   // copos de 2 a 4 píxeles
+          const travel = el * 0.22 * sp, x = cx + ((x0 + travel * 0.9 + Math.sin(el / 300 + j) * 6 + span) % span) - span / 2, y = cy + ((y0 + travel + span) % span) - span / 2;
+          ctx.globalAlpha = fade * (0.7 + R() * 0.3); ctx.fillStyle = FLAKE[j % FLAKE.length]; const q = sz * ps;
+          { ctx.fillRect(Math.round(x - q / 2 + ps / 2), Math.round(y - q / 2), q - ps, q); ctx.fillRect(Math.round(x - q / 2), Math.round(y - q / 2 + ps / 2), q, q - ps); }   // redondeado
+        }
+        ctx.restore();
+      } else if (fx.kind === 'supereff') {   // ¡súper eficaz!: un destello grande que se abre, rayos naranjas y un brillo blanco
+        const g = Math.min(1, el / 120);
+        if (fr < 4) blit(ctx, 'hit', HIT, Math.min(3, fr + 1), cx, cy - 4 * ps, ps * 2);
+        ctx.save(); ctx.globalAlpha = 1 - k;
+        for (let j = 0; j < 8; j++) { const a = j / 8 * Math.PI * 2 + 0.2, r0 = (6 + 10 * k) * ps, r1 = (12 + 18 * k) * ps;
+          ctx.fillStyle = j % 2 ? '#ffd040' : '#ff8a20'; for (let q = r0; q < r1; q += ps * 1.5) ctx.fillRect(Math.round(cx + Math.cos(a) * q - ps), Math.round(cy - 4 * ps + Math.sin(a) * q * 0.8 - ps), ps * 2, ps * 2); }
+        if (g < 1) { ctx.globalAlpha = (1 - g) * 0.8; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(cx, cy - 4 * ps, 9 * ps * g + 4 * ps, 0, 7); ctx.fill(); }
+        ctx.restore();
       } else if (fx.kind === 'darkburst') {   // estalla en sombra: un anillo oscuro que se abre y jirones que salen
         pixelRing(ctx, cx, cy - 3 * ps, (3 + 9 * k) * ps, ps, pal, 1 - k);
         for (let j = 0; j < 5; j++) { const a = j / 5 * Math.PI * 2 + R(), d = (2 + 10 * k) * ps; if (k > 0.8 && fr % 2) continue; blit(ctx, 'orb', PAL['Fantasma'], fr + j, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.75 - 3 * ps, Math.max(1, ps - 1)); }
