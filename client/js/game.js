@@ -431,7 +431,8 @@ async function tutorial(skipAsk = false) {
   // 7) entrada a las mazmorras
   await tourWalk(384, 450); tourFace(0, 1);
   await tourSay(['Y aquí termina el recorrido. Por este sendero se sale a explorar las mazmorras.',
-                 'Empieza por el Bosque Frondoso. Cada 10 pisos podrás decidir si sigues adelante o vuelves.',
+                 'Empieza por el Campo de Entrenamiento: es la mazmorra para los nuevos. Cinco pisos… y al final, una sorpresa. ¡Ejem!',
+                 'Después vendrá el Bosque Frondoso. En las mazmorras largas, cada 10 pisos podrás decidir si sigues adelante o vuelves.',
                  `Si tienes dudas, búscame en el gremio, junto al tablón. ¡Espero mucho de ti, ${user.name}! ¡Por el honor del gremio!`]);
   // Chatot vuelve al gremio caminando
   if (state.tour && !state.tour.skip) { state.tour.trail = []; state.tour.follow = false; const g = state.tour.guide; state.tour.noFollow = true; await tourWalkAlone(384, 20); }
@@ -852,7 +853,7 @@ function restoreFloor(w) {
   state.dungeon = { ...w.dungeon, tiles: w.dungeon.tiles.map(r => [...r].map(c => c.charCodeAt(0) - 48)) };
   Object.assign(state, { enemies: w.enemies || [], groundItems: w.groundItems || [], npcs: w.npcs || [], monsterHouse: w.monsterHouse, shop: w.shop, weather: w.weather || 'none', era: w.era || def.id });
   state.seen = (w.seen || []).map(r => [...r].map(c => c === '1'));
-  showCard(def.name, `B${state.floor}F`); setTimeout(updateDungeonMusic, 0);
+  showCard(def.name, `B${state.floor}F`); setTimeout(updateDungeonMusic, 0); setTimeout(() => dungeonTips(), 1200);   // (tras el cartel del piso)
   updateVisibility(); render(); say('Continúas la exploración donde la dejaste.');
 }
 const runSnapshot = () => ({ where: floorSnapshot(), playMs: state.run?.playMs || 0, floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, turn: state.turn });
@@ -1099,6 +1100,40 @@ async function endRun(outcome) {
 
 // =====================================================================
 // MAZMORRA
+// ---------- tutorial en la mazmorra: la voz de Chatot, desde algún lugar del Campo de Entrenamiento ----------
+// Un consejo cada vez, en el momento justo y una sola vez por cuenta (se guardan con las escenas vistas).
+function dungeonTips(retry = 0) {
+  if (state.scene !== 'dungeon' || state.dungeonDef?.id !== 'entrenamiento' || !state.player || state.dead || window.__mmFast) return;
+  if (state.dialog || state.menu || state.busy || state.resolving || state.dcut) { if (retry < 12) setTimeout(() => dungeonTips(retry + 1), 400); return; }   // ocupado (el cartel del piso…): en un momento
+  const seen = new Set(meta.scenes || []), p = state.player, touch = document.body.classList.contains('touch-on');
+  const K = touch ? { move: 'la cruceta', a: 'A', l: 'L', menu: 'X' } : { move: 'las flechas', a: 'Z', l: 'Q', menu: 'S' };
+  const stairsSeen = () => { const s = state.dungeon.stairs; return s && state.seen?.[s.y]?.[s.x]; };
+  const TIPS = [
+    { id: 'tip-mover', when: () => state.floor === 1, pages: [
+      { who: '', text: '(Se oye la voz de Chatot, desde algún lugar de la mazmorra…)' },
+      { mood: 'Happy', text: `¡Recluta! ¿Me oyes? Muévete con ${K.move} y explora el piso hasta dar con la escalera.` },
+      { mood: 'Normal', text: 'Cada piso es distinto. El mapa de la esquina se va dibujando a medida que exploras.' }] },
+    { id: 'tip-enemigo', when: () => state.enemies.some(e => e.hp > 0 && isVisibleNow(e.x, e.y)), pages: [
+      { mood: 'Surprised', text: '¡Un Pokémon salvaje! Ponte delante y pulsa ' + K.a + ' para darle un golpe normal.' },
+      { mood: 'Inspired', text: `Tus movimientos son más fuertes: mantén ${K.l} y pulsa ${K.a}, B, X o Y (los tienes en el panel). Eso sí, gastan PP.` },
+      { mood: 'Normal', text: 'Y cuidado: ¡ellos también atacan! Cada vez que haces algo, ellos hacen algo.' }] },
+    { id: 'tip-escalera', when: () => stairsSeen(), pages: [
+      { mood: 'Happy', text: '¡Esa es la escalera! Ponte encima y elige «Bajar» para pasar al siguiente piso.' }] },
+    { id: 'tip-objeto', when: () => (state.inventory?.length || 0) > (state.tipsInv0 ?? Infinity), pages: [
+      { mood: 'Happy', text: `¡Has recogido algo! Para usarlo, abre el menú con ${K.menu} y entra en «Bolsa».` }] },
+    { id: 'tip-ps', when: () => p.hp <= p.maxHp / 2, pages: [
+      { mood: 'Worried', text: '¡Cuidado, Recluta! Si te quedas sin PS, vuelves al gremio sin terminar la exploración.' },
+      { mood: 'Normal', text: `Cómete una Baya Aranja: menú (${K.menu}) → Bolsa → Baya Aranja → Comer. ¿Ves? Para algo te las di.` }] },
+    { id: 'tip-barriga', when: () => state.floor >= 2, pages: [
+      { mood: 'Normal', text: 'Una cosa más: la barriga baja a medida que andas. Si se vacía, empezarás a perder PS.' },
+      { mood: 'Happy', text: 'Las Manzanas la llenan. ¡No las desperdicies, que no crecen en los árboles! … Bueno, sí que crecen en los árboles.' }] },
+  ];
+  if (state.tipsInv0 == null || state.tipsFloor !== state.floor) { state.tipsInv0 = state.inventory?.length || 0; state.tipsFloor = state.floor; }
+  const tip = TIPS.find(t => !seen.has(t.id) && t.when()); if (!tip) return;
+  (meta.scenes ||= []).push(tip.id); api('/scene/seen', { id: tip.id }).catch(() => {});
+  openDialog(tip.pages.map(pg => pg.who === '' ? pg : { who: 'Chatot', sp: 'chatot', mood: pg.mood || 'Normal', text: pg.text }), () => setTimeout(() => dungeonTips(10), 300));
+}
+
 // ---------- escenas en la mazmorra (el jefe del Campo de Entrenamiento) ----------
 const dwait = ms => window.__mmFast ? Promise.resolve() : new Promise(r => setTimeout(r, ms));
 const talk = pages => window.__mmFast ? Promise.resolve() : new Promise(res => openDialog(pages, res));   // (en modo rápido, sin diálogos)
@@ -1230,7 +1265,7 @@ function newFloor() {
   setTimeout(updateDungeonMusic, 0);   // tema del piso (tras montar la planta)
   for (const m of [state.player, ...state.team]) if (m) { m.stages = {}; m.speed = 0; m.speedTurns = 0; } // los cambios de estadísticas (y de velocidad) duran lo que dura el piso
   state.freeActs = 0;
-  showCard(def0.name, `B${state.floor}F`);
+  showCard(def0.name, `B${state.floor}F`); setTimeout(() => dungeonTips(), 1200);   // consejos del Campo de Entrenamiento (tras el cartel)
   state.rng = makeRng(floorSeed(state.run.seed, state.floor));
   const built = buildFloor(state.rng, state.dungeonDef, state.floor, state.missions, state.flags, state.run.seed);
   state.era = built.dungeon.eraId || state.dungeonDef.id; state.weather = built.weather || 'none';
@@ -2082,6 +2117,7 @@ async function resolveTurn(playerActed) {
     state.turnsSinceSave = (state.turnsSinceSave || 0) + 1;
     if (state.turnsSinceSave >= 10) { state.turnsSinceSave = 0; autosave('turns'); }   // guardado automático cada 10 turnos
   } finally { state.resolving = false; }
+  setTimeout(() => dungeonTips(10), 0);   // ¿toca algún consejo del Campo de Entrenamiento?
 }
 // Contadores de velocidad (los cambios duran unos turnos) e Impulso (+1 de velocidad cada 10 turnos)
 function speedTick() {
@@ -2501,7 +2537,16 @@ function applyScale() {
   render();
 }
 canvas.width = LOG.w; canvas.height = LOG.h;
-window.addEventListener('resize', () => { document.body.classList.toggle('log-inside', logInside()); if (state.player && document.body.classList.contains('in-game')) applyScale(); }); // no dibujar el juego antes de entrar
+window.addEventListener('resize', () => { document.body.classList.toggle('log-inside', logInside()); if (state.player && document.body.classList.contains('in-game')) applyScale(); });
+// la cabecera y el registro cambian de alto (en la mazmorra hay más datos): el juego se reajusta para que todo quepa
+try {
+  let lastH = '';
+  const ro = new ResizeObserver(() => {
+    const h = ['#screen-game header', '#screen-game footer'].map(s => document.querySelector(s)?.offsetHeight || 0).join('/');
+    if (h !== lastH && document.body.classList.contains('in-game')) { lastH = h; applyScale(); }
+  });
+  for (const s of ['#screen-game header', '#screen-game footer']) { const el = document.querySelector(s); if (el) ro.observe(el); }
+} catch {} // no dibujar el juego antes de entrar
 const isVisibleNow = (x, y) => {
   const p = state.player, rm = state.inRoom;
   if (state.dungeon?.arena) return true;
