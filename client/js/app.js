@@ -15,7 +15,6 @@ import { VERSION_LABEL } from '../../shared/version.js';
 const $ = s => document.querySelector(s);
 const show = id => { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); $(id).classList.remove('hidden'); document.body.classList.toggle('in-game', id === '#screen-game'); if (id === '#screen-auth') playTrack('menu'); }; // música del menú (suena tras la primera pulsación, como exige el navegador)
 const msg = (el, text, ok = false) => { el.textContent = text; el.classList.toggle('ok', ok); };
-const offerOffline = () => {};   // (el antiguo modo sin conexión ya no existe: el juego siempre usa el servidor)
 async function puruNotice() {
   const card = document.querySelector('#screen-auth .card'), choice = document.getElementById('auth-choice');
   const wrap = document.createElement('div'); wrap.className = 'puru-notice';
@@ -59,7 +58,7 @@ $('#auth-login').addEventListener('submit', async ev => {
   try {
     const r = await api('/auth/login', { name: f.get('name'), password: f.get('password') }, { onWaking: waking });
     setToken(r.token); await enterGame();
-  } catch (e) { (offerOffline(e), msg($('#auth-msg'), e.message)); }
+  } catch (e) { msg($('#auth-msg'), e.message); }
   finally { btn.disabled = false; }
 });
 
@@ -128,9 +127,9 @@ async function startQuiz() {
   const quizT0 = quiz.t0 || Date.now();
   try { result = scoreQuiz(quiz.answers);   // el resultado, al instante (el servidor lo vuelve a calcular al registrarte)
  track('quiz_done', { nature: result.nature, starter: result.starter, answers: quiz.answers.length }); }
-  catch (e) {   // sin conexión: las respuestas están guardadas; al volver a «Nueva partida» se retoma aquí
+  catch (e) {   // sin conexión: las respuestas están guardadas; al volver a «Nueva aventura» se retoma aquí
     writeText(box, e.message); await new Promise(r => setTimeout(r, 2500)); stopQuizBg();
-    show('#screen-auth'); offerOffline(e); msg($('#auth-msg'), e.status === 0 ? 'Tus respuestas están guardadas: pulsa «Nueva partida» para seguir.' : e.message); return;
+    show('#screen-auth'); msg($('#auth-msg'), e.status === 0 ? 'No hay conexión con el servidor. Tus respuestas están guardadas: pulsa «Nueva aventura» para seguir.' : e.message); return;
   }
   await dialog(box, [
     { text: 'Ya veo…' },
