@@ -298,7 +298,7 @@ export const SCENES = [
   {
     // La mañana del robo, al salir a la plaza: Sneasel, con su manzana (¡de casa!), quiere inscribirse… y Chatot ata cabos (mal)
     id: 'recien-llegado', trigger: 'area:plaza', when: m => (m.scenes || []).includes('mawile-aviso'),
-    area: 'plaza', startDark: false, keepPlayer: true, hideNpcIds: ['chatot'], cam: { x: 84, y: 40 },
+    area: 'plaza', startDark: false, keepPlayer: true, hideNpcIds: ['chatot'], cam: { x: 84, y: 40 }, music: 'comedy',
     actors: { sneasel: { sp: 'sneasel', x: 474, y: 238, dir: 'left', item: 'Manzana' },
               chatot: { sp: 'chatot', x: 384, y: 176, dir: 'down', hidden: true } },
     steps: [
@@ -493,7 +493,7 @@ export const SCENES = [
   {
     // Al caer la tarde: Smeargle (del equipo de exploración que salió) vuelve solo y herido. Chatot moviliza a otros equipos… y Murkrow no sabe adónde
     id: 'smeargle-vuelve', trigger: 'return', when: m => (m.scenes || []).includes('coartada'),
-    area: 'plaza', player: { x: 452, y: 292, dir: 'left' }, cam: { x: 84, y: 40 }, tint: 'rgba(255, 120, 40, .22)', hideNpcIds: ['murkrow'],
+    area: 'plaza', player: { x: 452, y: 292, dir: 'left' }, cam: { x: 84, y: 40 }, tint: 'rgba(255, 120, 40, .22)', music: 'dusk', hideNpcIds: ['murkrow'],
     actors: { smeargle: { sp: 'smeargle', x: 384, y: 505, dir: 'up', hidden: true }, chatot: { sp: 'chatot', x: 384, y: 176, dir: 'down', hidden: true },
               mawile: { sp: 'mawile', x: 384, y: 176, dir: 'down', hidden: true }, murkrow: { sp: 'murkrow', x: 315, y: 152, dir: 'down', still: true, flyAnim: 'Charge' } },
     steps: [

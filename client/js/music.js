@@ -28,7 +28,9 @@ const TRACKS = {
   mega:    { url: 'client/assets/music/mega.mp3', loop: 16 * 4 * 60 / 140, set: 'B', approved: false },        // guardián Mega
   monster_house: { url: 'client/assets/music/monster_house.mp3', loop: 8 * 4 * 60 / 160, set: 'B', approved: false },
   shop:    { url: 'client/assets/music/shop.mp3', loop: 8 * 4 * 60 / 112, set: 'B', approved: false },         // tienda de Kecleon (en la mazmorra)
-  tension: { url: 'client/assets/music/ruinas.mp3', loop: 16 * 4 * 60 / 82, set: 'B', approved: false },     // escenas de misterio (provisional: la de las Ruinas)
+  tension: { url: 'client/assets/music/scene_tension.mp3', loop: 16 * 4 * 60 / 76, set: 'B', approved: false },     // escenas de misterio (compuesta: tools/compose-scenes.py)
+  dusk:    { url: 'client/assets/music/scene_dusk.mp3',    loop: 16 * 4 * 60 / 62, set: 'B', approved: false },     // el atardecer: melancólica y algo preocupada
+  comedy:  { url: 'client/assets/music/scene_comedy.mp3',  loop: 16 * 4 * 60 / 128, set: 'B', approved: false },    // «de puntillas»: las escenas de enredos
   // fanfarrias (una sola vez, sin bucle)
   clear:   { url: 'client/assets/music/clear.mp3', once: true, set: 'B', approved: false },
   defeat:  { url: 'client/assets/music/defeat.mp3', once: true, set: 'B', approved: false },
