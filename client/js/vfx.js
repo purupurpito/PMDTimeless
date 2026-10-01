@@ -368,7 +368,8 @@ export function drawMoveFx(ctx, toScreen, tile) {
             blit(ctx, burst, pal, fr + j, cx + Math.cos(a) * sp, cy + Math.sin(a) * sp * 0.75 - (burst === 'flame' || burst === 'dust' ? 3 * k * ps : 0), ps, burst === 'leaf' || burst === 'rock' || burst === 'shard' ? fr * 0.8 + j : 0); } }
       } else if (fx.kind === 'crackle') {   // Impactrueno: chispas en zigzag que saltan alrededor del objetivo y un destello blanco
         if (fr < 3) blit(ctx, 'hit', pal, fr, cx, cy - 3 * ps, ps + 1);   // destello amarillo
-        for (let j = 0; j < (k < 0.7 ? 8 : 4); j++) {   // crepita sin parar (cada fotograma, chispas nuevas) const a = j / 8 * Math.PI * 2 + fr * 0.9 + R(), d = (4 + R() * 8) * ps;
+        // crepita sin parar (cada fotograma, chispas nuevas)
+        for (let j = 0; j < (k < 0.7 ? 8 : 4); j++) { const a = j / 8 * Math.PI * 2 + fr * 0.9 + R(), d = (4 + R() * 8) * ps;
           blit(ctx, 'spark', pal, fr + j, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.8 - 3 * ps, ps + 1, (R() - 0.5) * 1.4, R() < 0.5); }
       } else if (fx.kind === 'shadowball') {   // la Bola Sombra: crece delante del usuario, viaja despacio con estela de jirones
         const [x0, y0] = toScreen(fx.from.x, fx.from.y), [x1, y1] = toScreen(fx.to.x, fx.to.y), L = Math.hypot(x1 - x0, y1 - y0) || 1;
