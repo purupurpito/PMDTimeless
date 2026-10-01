@@ -348,7 +348,17 @@ function hubPath(area, from, to) {
   }
   if (prev[kt] === -2) return [{ x: to.x, y: to.y }];
   const path = []; for (let k = kt; k !== -1; k = prev[k]) path.push({ x: (k % W) * S, y: Math.floor(k / W) * S });
-  return path.reverse();
+  path.reverse();
+  // estirar en tramos rectos (los mínimos giros): un tramo recto solo vale si no pisa nada y no cuesta más (en terreno)
+  // que el trozo de ruta que sustituye; así se ahorran giros sin salirse del camino
+  const cAt = (x, y) => cost ? cost[Math.min(H - 1, Math.max(0, Math.round(y / S))) * W + Math.min(W - 1, Math.max(0, Math.round(x / S)))] : 1;
+  const acc = [0]; for (let k = 1; k < path.length; k++) acc.push(acc[k - 1] + Math.hypot(path[k].x - path[k - 1].x, path[k].y - path[k - 1].y) * cAt(path[k].x, path[k].y));
+  const straight = (i, j) => { const p = path[i], q = path[j], L = Math.hypot(q.x - p.x, q.y - p.y), n = Math.max(2, Math.ceil(L / 3)); let c = 0;
+    for (let k = 1; k <= n; k++) { const x = p.x + (q.x - p.x) * k / n, y = p.y + (q.y - p.y) * k / n; if (!hubFree(area, Math.round(x), Math.round(y))) return false; c += L / n * cAt(x, y); }
+    return c <= (acc[j] - acc[i]) * 1.03 + 1; };
+  const out = [path[0]]; let i = 0;
+  while (i < path.length - 1) { let j = path.length - 1; while (j > i + 1 && !straight(i, j)) j--; out.push(path[j]); i = j; }
+  return out;
 }
 const tourSkipped = () => !state.tour || state.tour.skip;
 function tourSay(pages) { return new Promise(res => { if (tourSkipped()) return res(); openDialog(pages.map(p => typeof p === 'string' ? { who: 'Chatot', text: p } : p), res); }); }
