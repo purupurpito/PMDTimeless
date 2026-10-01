@@ -11,6 +11,7 @@ import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, se
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
 import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt, drawScreenFade, releaseBlack } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
+import { spawnMoveFx, drawMoveFx, fxEndTime } from './vfx.js';
 import { SCENES } from '../../shared/story.js';
 const SCENES_ALL = () => SCENES;
 import { HUB, VIEW } from './hub.js';
@@ -153,7 +154,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Las pruebas automáticas activan window.__mmFast para ir sin pausas.
 const FAST = () => !!window.__mmFast;
 const STEP_MS = () => FAST() ? 0 : 110;                 // deslizarse de una casilla a la siguiente
-const ATTACK_PAUSE = () => FAST() ? 0 : 300;            // tras un ataque, antes de que actúe el siguiente
+const ATTACK_PAUSE = () => FAST() ? 0 : Math.max(300, fxEndTime() - performance.now() + 80);   // (lo que dure la animación del movimiento)            // tras un ataque, antes de que actúe el siguiente
 const pace = ms => FAST() || ms <= 0 ? Promise.resolve() : sleep(ms);
 // posición visual (con decimales) de un Pokémon: se desliza de la casilla anterior a la actual
 function vpos(e) {
@@ -1379,6 +1380,10 @@ function useMove(userMon, move) {
   if (userMon === state.player && move?.name) { const st = runStats(); st.moves[move.name] = (st.moves[move.name] || 0) + 1; }   // el turno hará una pausa para que se vea
   playAnim(userMon, move.cat === 'spec' && Sprites.mons[userMon.species]?.anims?.Shoot ? 'Shoot' : 'Attack');   // animación de ataque
   const ally = isAlly(userMon), targets = findTargets(userMon, move), who = ally ? userMon.name : `${userMon.name} salvaje`;
+  // la animación del movimiento (si se ve): lo que pasa en el impacto (dolor, sonido, número) llega cuando llega el golpe
+  const seen = !FAST() && (isVisibleNow(userMon.x, userMon.y) || targets.some(t => isVisibleNow(t.x, t.y)));
+  const fx = seen ? spawnMoveFx(move, userMon, targets) : null, at = t => (fx ? fx.impactDelay(t) : 0);
+  const later = (ms, f) => (ms > 0 ? setTimeout(() => { f(); render(); }, ms) : f());
   if (!targets.length) { say(`${who} usa ${move.name}, pero no acierta a nadie.`); return; }
   if (targets.length > 1) say(`${who} usa ${move.name} contra ${targets.length} objetivos.`);
   const ownSide = move.range === 'self' || move.range === 'team';
@@ -1389,7 +1394,7 @@ function useMove(userMon, move) {
       if (move.statFx) applyStages(target, move.statFx.changes).forEach(say);
       continue;
     }
-    if (!hitCheck(state.rng, move, userMon, target, state.weather)) { say(`${who} usa ${move.name}, pero falla contra ${target.name}.`); if (isVisibleNow(target.x, target.y)) playSfx('miss'); continue; } // acierto real: dos tiradas con estadios
+    if (!hitCheck(state.rng, move, userMon, target, state.weather)) { say(`${who} usa ${move.name}, pero falla contra ${target.name}.`); if (isVisibleNow(target.x, target.y)) later(at(target), () => playSfx('miss')); continue; } // acierto real: dos tiradas con estadios
     if (move.name !== BASIC.name) target.hitByMove = true;           // para la experiencia completa
     if (target.asleep) { target.asleep = false; say(`${target.name} se despierta.`); } // dormía de forma natural: se despierta al primer golpe
     // golpes múltiples (Doble Patada, Pin Misil…): cada golpe se calcula aparte
@@ -1403,14 +1408,14 @@ function useMove(userMon, move) {
       state.effects.push({ x: target.x, y: target.y, text: `+${dmg}`, t: performance.now(), color: '#7fd67f' }); continue;
     }
     if (move.power) {
-      if (dmg > 0) playAnim(target, 'Hurt');
-      if (isVisibleNow(target.x, target.y)) playSfx(!ally ? 'hurt' : crit ? 'crit' : eff > 1 ? 'hitSuper' : eff < 1 ? 'hitWeak' : 'hit');   // sonido según el golpe
+      const sfx = !ally ? 'hurt' : crit ? 'crit' : eff > 1 ? 'hitSuper' : eff < 1 ? 'hitWeak' : 'hit', vis = isVisibleNow(target.x, target.y);
+      later(at(target), () => { if (dmg > 0) playAnim(target, 'Hurt'); if (vis) playSfx(sfx); });   // dolor y sonido, en el impacto
       target.hp = Math.max(0, target.hp - dmg);
       if (onOurSide(target) && !onOurSide(userMon)) { target.lastHitBy = { sp: userMon.species, move: move.name || 'Ataque', lv: userMon.level, boss: !!userMon.isBoss }; runStats().taken += dmg; }
       else if (onOurSide(userMon) && !onOurSide(target)) runStats().dealt += dmg;
       const note = (crit ? ' ¡Golpe crítico!' : '') + (eff === 0 ? ' Apenas afecta.' : eff > 1 ? ' ¡Es muy eficaz!' : eff < 1 ? ' No es muy eficaz…' : '');
       if (targets.length === 1) say(`${who} usa ${move.name}: ${dmg} de daño a ${target.name}.${note}`);
-      state.effects.push({ x: target.x, y: target.y, text: `-${dmg}`, t: performance.now(), color: ally ? '#e9e3d3' : '#c95c5c' });
+      state.effects.push({ x: target.x, y: target.y, text: `-${dmg}`, t: performance.now() + at(target), color: ally ? '#e9e3d3' : '#c95c5c', crit, eff });   // el número, en el impacto
       if (wakeOnHit(target)) say(`${target.name} se despierta.`);
       if (move.drain) userMon.hp = Math.min(userMon.maxHp, userMon.hp + Math.floor(dmg * move.drain));
       if (dmg > 0 && cheb(userMon, target) <= 1) {
@@ -2850,9 +2855,11 @@ function renderDungeon() {
   }
   drawEntity(p, '#f2b544');
   if (held.has('Y') && !state.menu && !state.dialog && !state.dead) { const pvx = p.x - ox, pvy = p.y - oy; drawTurnArrows(pvx * tile + tile / 2, pvy * tile + tile / 2, p.facing, tile); }
+  if (drawMoveFx(ctx, (x, y) => [(x - ox) * tile + tile / 2, (y - oy) * tile + tile / 2], tile)) scheduleRender();   // animaciones de los movimientos
   const now = performance.now();
   state.effects = state.effects.filter(f => now - f.t < 700);
   for (const f of state.effects) {
+    if (now < f.t) { scheduleRender(); continue; }   // (un número que aún no ha llegado: espera al impacto)
     const k = (now - f.t) / 700, vx = f.x - ox, vy = f.y - oy;
     ctx.globalAlpha = 1 - k; ctx.fillStyle = f.color; ctx.font = 'bold 12px sans-serif';
     ctx.fillText(f.text, vx * tile + 6, vy * tile + 10 - k * 14); ctx.globalAlpha = 1;
