@@ -43,7 +43,7 @@ export async function playScene(scene) {
   const c = S.cut = {
     id: scene.id, skip: false, night: !!scene.night, lights: scene.lights || [], hidePlayer: !!scene.hidePlayer, hideNpcs: !!scene.hideNpcs, hideNpcIds: scene.hideNpcIds || [], bird: null, poster: null,
     fade: scene.startDark === false ? 0 : 1,   // (si venimos de un fundido a negro, sigue en negro) narration: null, cam: scene.cam ? { ...scene.cam } : null,
-    actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null,
+    actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null, tint: scene.tint || null,
   };
   if (dark) S.screenFade = null;   // el fundido de la propia escena (que empieza en negro) toma el relevo
   for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra', ...Object.fromEntries(['scale', 'alpha', 'hover', 'flyAnim', 'item', 'itemScale', 'idle', 'noShadow', 'name'].filter(k => k in a).map(k => [k, a[k]])) };
@@ -288,6 +288,7 @@ export function drawSceneOverlay(ctx, W, H, cam) {
     ctx.fillStyle = 'rgba(8, 12, 40, 0.62)'; ctx.fillRect(0, 0, W, H);
     for (const l of c.lights) { const g = ctx.createRadialGradient(l.x - cam.x, l.y - cam.y, 4, l.x - cam.x, l.y - cam.y, l.r || 70); g.addColorStop(0, `rgba(255, 205, 120, ${l.a ?? 0.22})`); g.addColorStop(1, 'rgba(255, 205, 120, 0)'); ctx.fillStyle = g; ctx.fillRect(l.x - cam.x - 120, l.y - cam.y - 120, 240, 240); }
   }
+  if (c.tint) { ctx.fillStyle = c.tint; ctx.fillRect(0, 0, W, H); }   // la luz de la tarde, etc.
   if (c.memory) drawMemory(ctx, W, H, cam, c);   // un recuerdo: tinte de memoria y la lucecita
   if (c.poster) drawWantedPoster(ctx, W, H, c.poster.t0);
   if (c.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${c.fade})`; ctx.fillRect(0, 0, W, H); }

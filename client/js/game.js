@@ -728,6 +728,11 @@ function talkToBase(kind) {
     case 'sell': return npcGreeting('Kecleon', KECLEON_PURPLE_LINES, 'kp', openSellMenu, 'kecleon_purple');   // el morado, con sus propios retratos
     case 'storage': return npcGreeting('Kangaskhan', KANGASKHAN_LINES, 'kk', openStorageMenu);
     case 'gulpin': return npcGreeting('Gulpin', GULPIN_LINES, 'gu', openGulpinMenu);
+    case 'smeargle': return npcGreeting('Smeargle', (meta?.scenes || []).includes('veteranos')
+      ? ['Me han dicho que vais a la cueva. Cuando volváis, os dibujaré a todos. ¡Con orejas!', 'El camino lo tengo en la cabeza. Si Machamp me deja, os lo pinto antes de salir.', 'Los mapas se los llevó el agua… pero los colores no se me olvidan. Azul para el agua, rojo para el peligro.']
+      : ['…zzz… los mapas… el camino… zzz…', '(Smeargle duerme profundamente. Murmura algo sobre una cueva.)', '…zzz… ¿orejas?… ¿le dibujo orejas?… zzz…'], 'sm');
+    case 'machamp': return npcGreeting('Machamp', ['Hmm.', 'Los puentes se arreglan. Los exploradores perdidos, se buscan.', 'No hables con el estómago vacío. Come primero.', 'Heracross es ruidoso. Pero en la cueva nadie vigila mejor que él.'], 'ma');
+    case 'heracross': return npcGreeting('Heracross', ['¿Hay savia? … No. Bueno.', '¡Estoy entrenando! ¿Ves estos cuernos? ¡Aaah! … ¿Te asustan? ¡Pues a la cueva!', 'Te lancé por los aires y no te quejaste. ¡Respeto!', 'Machamp me da un poco de miedo. Pero no se lo digas.'], 'he');
     case 'sneasel': return npcGreeting('Sneasel', ['Algún día me dejarán entrar en el gremio. Ya verán.', 'La manzana era de casa. ¡DE CASA!', 'Mientras no me dejen entrar, entreno por mi cuenta. ¡Ja!', '¿Tú también crees que fui yo? … Ya. Nadie me cree.'], 'sn');
     case 'wobbuffet': {
       const c = hubCounters(); c.wob = (c.wob || 0) + 1; saveHubCounters(c);
@@ -2716,7 +2721,8 @@ function renderHub() {
       continue;
     }
     const jl = e.kind === 'me' && h.jumpArc ? Math.sin(Math.PI * Math.min(1, (performance.now() - h.jumpArc.t0) / h.jumpArc.ms)) * h.jumpArc.h : 0;   // saltando (en una escena)
-    if (!Sprites.drawMon(ctx, { species: key, facing: e.facing, movedAt: e.movedAt, still: e.still || (e.kind === 'me' && !!state.dialog) }, sx - HUB_SCALE * 12, sy - HUB_SCALE * 24 - jl, HUB_SCALE * 24)) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(sx, sy - 2, 10 * HUB_SCALE / 2, 3 * HUB_SCALE / 2, 0, 0, Math.PI * 2); ctx.fill(); }   // aún descargando: solo su sombra
+    const pose = e.pose && !(e.poseUntil && (meta?.scenes || []).includes(e.poseUntil)) ? { name: e.pose, t0: 0, dur: Infinity, loop: true } : undefined;   // (Smeargle durmiendo…)
+    if (!Sprites.drawMon(ctx, { species: key, facing: e.facing, movedAt: e.movedAt, anim: pose, still: e.still || (e.kind === 'me' && !!state.dialog) }, sx - HUB_SCALE * 12, sy - HUB_SCALE * 24 - jl, HUB_SCALE * 24)) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(sx, sy - 2, 10 * HUB_SCALE / 2, 3 * HUB_SCALE / 2, 0, 0, Math.PI * 2); ctx.fill(); }   // aún descargando: solo su sombra
   }
   fg.forEach(drawFg);
   drawSceneOverlay(ctx, W, H, cam);   // noche, narración y fundidos de las escenas

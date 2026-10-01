@@ -31,6 +31,8 @@ export const HUB = {
     ],
     npcs: [
       { id: 'chatot', x: 440, y: 206, facing: [0, 1], talk: 'chatot' },                                          // junto al tablón
+      { id: 'machamp', x: 278, y: 370, facing: [1, 0], talk: 'machamp', afterScene: 'veteranos', fixedFacing: true, reach: 56 },      // de otro equipo: tranquilo y fuerte
+      { id: 'heracross', x: 542, y: 382, facing: [-1, 0], talk: 'heracross', afterScene: 'veteranos', fixedFacing: true, reach: 56 },  // y ruidoso
       { id: 'mawile', x: 546, y: 256, facing: [-1, 1], talk: 'mawile', fixedFacing: true, reach: 44 },          // sobre el felpudo, guardando el despacho
     ],
     hotspots: [ { rect: [300, 190, 480, 236], action: 'board', label: 'Tablón de misiones' } ],
@@ -44,7 +46,9 @@ export const HUB = {
     // camas de paja (dónde se despierta al caer) y el punto del suelo al que se sale al levantarse
     beds: [ { x: 116, y: 326, box: [32, 284, 198, 400] }, { x: 146, y: 434, box: [62, 394, 232, 494] },
             { x: 650, y: 326, box: [568, 284, 734, 400] }, { x: 614, y: 434, box: [532, 394, 694, 494] } ],
-    npcs: [ { id: 'chansey', x: 522, y: 238, facing: [0, 1], talk: 'chansey', fixedFacing: true, reach: 84, approach: [462, 300, 600, 360] } ],   // tras el mostrador
+    npcs: [ { id: 'chansey', x: 522, y: 238, facing: [0, 1], talk: 'chansey', fixedFacing: true, reach: 84, approach: [462, 300, 600, 360] },   // tras el mostrador
+            // Smeargle, recuperándose en una cama (dormido hasta que llegan los veteranos)
+            { id: 'smeargle', x: 146, y: 436, facing: [1, 1], talk: 'smeargle', afterScene: 'smeargle-vuelve', pose: 'Sleep', poseUntil: 'veteranos', fixedFacing: true, reach: 56 } ],
   },
   // Fuente de la Evolución (a la derecha de la plaza). Hecha con el tileset original de Apple Woods: tools/build-fuente.py.
   // El camino sigue hacia la derecha, pero el bosque aún no deja pasar.
