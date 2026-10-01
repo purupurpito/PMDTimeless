@@ -308,23 +308,46 @@ function megaEncounter(e) {
 const FOOT = [[-6, 0], [6, 0], [0, 2]];
 const hubFree = (area, x, y) => FOOT.every(([ox, oy]) => Hub.walkable(area, x + ox, y + oy));
 // camino por el suelo transitable (búsqueda en anchura sobre una rejilla de 6 px)
+// Coste del terreno en las zonas de exterior: los caminos de tierra cuestan poco y la hierba bastante más, para que
+// quien anda por la aldea vaya por los caminos (como lo haría cualquiera) y solo ataje si ahorra mucho.
+const PATH_AREAS = new Set(['plaza', 'mercado', 'aldea', 'fuente']), costGrids = new Map();
+function costGrid(area) {
+  if (!PATH_AREAS.has(area)) return null;
+  if (costGrids.has(area)) return costGrids.get(area);
+  const img = Hub.view(area)?.img; if (!img?.complete || !img.naturalWidth) return null;
+  const S = 6, W = Math.floor(768 / S), H = Math.floor(515 / S), cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+  const g = cv.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0); const d = g.getImageData(0, 0, cv.width, cv.height).data;
+  const isPath = (x, y) => { const i = (y * cv.width + x) * 4, r = d[i], gg = d[i + 1], b = d[i + 2]; return r >= gg && r - b > 45 && r > 120; };   // tierra y arena
+  const grid = new Uint8Array(W * H);
+  for (let cy = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++) {
+    let n = 0; for (const dx of [1, 3, 5]) for (const dy of [1, 3, 5]) { const x = cx * S + dx, y = cy * S + dy; if (x < cv.width && y < cv.height && isPath(x, y)) n++; }
+    grid[cy * W + cx] = n >= 6 ? 1 : 2.5 * 2 | 0;   // hierba: algo más del doble que el camino (se ataja solo si compensa)
+  }
+  costGrids.set(area, grid); return grid;
+}
+// camino por el suelo transitable, sobre una rejilla de 6 px (con el coste del terreno: prefiere los caminos)
 function hubPath(area, from, to) {
   const S = 6, W = Math.floor(768 / S), H = Math.floor(515 / S), key = (x, y) => y * W + x;
   const cell = p => [Math.round(p.x / S), Math.round(p.y / S)];
   const ok = (cx, cy) => cx >= 0 && cy >= 0 && cx < W && cy < H && hubFree(area, cx * S, cy * S);
   let [tx, ty] = cell(to);
   if (!ok(tx, ty)) { let best = null; for (let r = 1; r < 20 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r; dx++) if (ok(tx + dx, ty + dy)) { best = [tx + dx, ty + dy]; break; } if (best) [tx, ty] = best; }
-  const [sx, sy] = cell(from), prev = new Map([[key(sx, sy), -1]]), q = [[sx, sy]];
-  for (let i = 0; i < q.length; i++) {
-    const [x, y] = q[i]; if (x === tx && y === ty) break;
+  const cost = costGrid(area), [sx, sy] = cell(from);
+  const dist = new Float64Array(W * H).fill(Infinity), prev = new Int32Array(W * H).fill(-2), heap = [];   // Dijkstra con un montículo binario
+  const push = (k, d) => { heap.push([d, k]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  const k0 = key(sx, sy), kt = key(tx, ty); dist[k0] = 0; prev[k0] = -1; push(k0, 0);
+  while (heap.length) {
+    const [d0, k] = pop(); if (d0 > dist[k]) continue; if (k === kt) break;
+    const x = k % W, y = Math.floor(k / W);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-      const nx = x + dx, ny = y + dy, k = key(nx, ny);
-      if (prev.has(k) || !ok(nx, ny) || (dx && dy && (!ok(x + dx, y) || !ok(x, y + dy)))) continue;
-      prev.set(k, key(x, y)); q.push([nx, ny]);
+      const nx = x + dx, ny = y + dy; if (!ok(nx, ny) || (dx && dy && (!ok(x + dx, y) || !ok(x, y + dy)))) continue;
+      const nk = key(nx, ny), step = (dx && dy ? 1.414 : 1) * (cost ? cost[nk] : 1), nd = d0 + step;
+      if (nd < dist[nk]) { dist[nk] = nd; prev[nk] = k; push(nk, nd); }
     }
   }
-  if (!prev.has(key(tx, ty))) return [{ x: to.x, y: to.y }];
-  const path = []; for (let k = key(tx, ty); k !== -1; k = prev.get(k)) path.push({ x: (k % W) * S, y: Math.floor(k / W) * S });
+  if (prev[kt] === -2) return [{ x: to.x, y: to.y }];
+  const path = []; for (let k = kt; k !== -1; k = prev[k]) path.push({ x: (k % W) * S, y: Math.floor(k / W) * S });
   return path.reverse();
 }
 const tourSkipped = () => !state.tour || state.tour.skip;
