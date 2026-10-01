@@ -596,7 +596,10 @@ function moveWanderers() {
     if (w.wait > 0) { w.wait--; continue; }
     if (!w.dir[0] && !w.dir[1] || Math.random() < 0.02) { w.dir = Math.random() < 0.35 ? [0, 0] : DIRS8[(Math.random() * 8) | 0]; w.wait = w.dir[0] || w.dir[1] ? 0 : 30 + Math.random() * 60; if (w.dir[0] || w.dir[1]) w.facing = w.dir; }
     const nx = w.x + w.dir[0], ny = w.y + w.dir[1];
-    if (Hub.walkable(h.area, nx, ny) && Math.hypot(nx - h.x, ny - h.y) > 20) { w.x = nx; w.y = ny; w.movedAt = performance.now(); } else w.dir = [0, 0];
+    // por los caminos: si va por la tierra y el paso le saca a la hierba, casi siempre cambia de rumbo
+    const cg = costGrid(h.area), cell = (x, y) => cg ? cg[Math.floor(y / 6) * Math.floor(768 / 6) + Math.floor(x / 6)] : 1;
+    const leavesPath = cg && cell(w.x, w.y) === 1 && cell(nx, ny) > 1 && Math.random() < 0.9;
+    if (!leavesPath && Hub.walkable(h.area, nx, ny) && Math.hypot(nx - h.x, ny - h.y) > 20) { w.x = nx; w.y = ny; w.movedAt = performance.now(); } else w.dir = [0, 0];
   }
 }
 // Interacción (A = Z): PNJ delante, carteles o zonas activas
