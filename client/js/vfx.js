@@ -281,7 +281,7 @@ export function spawnMoveFx(move, user, targets) {
 export function drawMoveFx(ctx, toScreen, tile) {
   const t = now();
   for (let i = fxs.length - 1; i >= 0; i--) if (t - fxs[i].t0 - (fxs[i].delay || 0) > fxs[i].dur) fxs.splice(i, 1);
-  const ps = Math.max(2, Math.round(tile / 16));   // tamaño del píxel del efecto (nítido)
+  const ps = Math.max(1, Math.round(tile / 24));   // cada píxel del efecto, del tamaño de un píxel del sprite del Pokémon (como en el original)
   for (const fx of fxs) {
     const el = t - fx.t0 - (fx.delay || 0); if (el < 0) continue;
     const k = Math.min(1, el / fx.dur), pal = PAL[fx.type], [move, burst] = LOOK[fx.type], R = rng(fx.seed), fr = Math.floor(el / FRAME);
@@ -289,11 +289,11 @@ export function drawMoveFx(ctx, toScreen, tile) {
       const [x0, y0] = toScreen(fx.from.x, fx.from.y), [x1, y1] = toScreen(fx.to.x, fx.to.y), ang = Math.atan2(y1 - y0, x1 - x0);
       const spin = move === 'leaf' || move === 'rock' || move === 'shard' ? fr * (Math.PI / 4) : (move === 'wind' || move === 'needle' || move === 'slash' ? ang : 0);
       if (fx.kind === 'shot') {   // tres sprites que viajan juntos, con un leve vaivén
-        const n = move === 'orb' ? 1 : 3;
+        const n = move === 'orb' ? 1 : 2;
         for (let j = 0; j < n; j++) { const q = Math.max(0, k - j * 0.08), wob = Math.sin(el / 60 + j * 2) * 2 * ps;
           blit(ctx, move, pal, fr + j, x0 + (x1 - x0) * q - Math.sin(ang) * wob, y0 + (y1 - y0) * q + Math.cos(ang) * wob, ps, spin); }
       } else if (fx.kind === 'stream') {   // chorro (Lanzallamas, Rayo Hielo, Hidrobomba…): sprites en fila que avanzan
-        const grow = Math.min(1, el / Math.max(1, fx.dur - 260)), L = Math.hypot(x1 - x0, y1 - y0) || 1, step = 5 * ps, off = (el / 12) % step;
+        const grow = Math.min(1, el / Math.max(1, fx.dur - 260)), L = Math.hypot(x1 - x0, y1 - y0) || 1, step = 9 * ps, off = (el / 12) % step;
         for (let s = off; s < L * grow; s += step) { const q = s / L, wob = Math.sin(s / 9 + el / 70) * 1.5 * ps; blit(ctx, move, pal, fr + Math.floor(s / step), x0 + (x1 - x0) * q - Math.sin(ang) * wob, y0 + (y1 - y0) * q + Math.cos(ang) * wob, ps, spin); }
       } else {   // anillos (Hipnosis, Látigo…): círculos de píxeles que viajan hasta el objetivo
         const travel = fx.dur - 300;
@@ -304,17 +304,17 @@ export function drawMoveFx(ctx, toScreen, tile) {
       const [cx, cy] = toScreen(fx.at.x, fx.at.y);
       if (fx.kind === 'burst') {   // impacto: sprites del tipo que salen hacia fuera y, si es de contacto, el destello de golpe
         if (fx.phys || burst === 'hit') blit(ctx, 'hit', HIT, Math.min(3, Math.floor(el / 70)), cx, cy - 2 * ps, ps);
-        if (burst !== 'hit') { const n = fx.big ? 6 : 4;
+        if (burst !== 'hit') { const n = fx.big ? 4 : 3;
           for (let j = 0; j < n; j++) { const a = j / n * Math.PI * 2 + R() * 0.6, sp = (4 + 9 * k) * ps; if (k > 0.85 && fr % 2) continue;
             blit(ctx, burst, pal, fr + j, cx + Math.cos(a) * sp, cy + Math.sin(a) * sp * 0.75 - (burst === 'flame' || burst === 'dust' ? 3 * k * ps : 0), ps, burst === 'leaf' || burst === 'rock' || burst === 'shard' ? fr * 0.8 + j : 0); } }
       } else if (fx.kind === 'strike') {   // el rayo cae del cielo: segmentos en zigzag apilados, que parpadean
         if (k < 0.7 && fr % 3 !== 2) { const seg = BOLT.length * ps;
           for (let j = 0; j < 3; j++) blit(ctx, 'bolt', pal, 0, cx + (j % 2 ? 2 : -2) * ps, cy - seg * (j + 0.5), ps, 0, j % 2 === 1); }
       } else if (fx.kind === 'rise') {   // sube una estadística: chispas que ascienden alrededor
-        for (let j = 0; j < 8; j++) { const ph = (el / fx.dur * 1.3 + R()) % 1, px = cx + (R() - 0.5) * 12 * ps, py = cy + 6 * ps - ph * 18 * ps;
+        for (let j = 0; j < 5; j++) { const ph = (el / fx.dur * 1.3 + R()) % 1, px = cx + (R() - 0.5) * 14 * ps, py = cy + 6 * ps - ph * 20 * ps;
           if ((fr + j) % 4 === 3) continue; blit(ctx, move === 'flame' || move === 'bubble' || move === 'leaf' ? move : 'sparkle', pal, fr + j, px, py, ps); }
       } else if (fx.kind === 'scatter') {   // por toda la zona (Terremoto: polvo; otros: sprites del tipo)
-        const n = fx.near ? 8 : 14, reach = (fx.near ? 1.3 : 4.5) * tile;
+        const n = fx.near ? 5 : 9, reach = (fx.near ? 1.3 : 4.5) * tile;
         for (let j = 0; j < n; j++) { const a = R() * Math.PI * 2, d = R() * reach, ph = el / fx.dur + R() * 0.5;
           if (ph > 1 || (fr + j) % 3 === 2) continue; blit(ctx, burst, pal, fr + j, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.7 - ph * 6 * ps, ps); }
       }
