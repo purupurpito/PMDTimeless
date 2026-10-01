@@ -9,7 +9,7 @@ import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
-import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt } from './scenes.js';
+import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt, drawScreenFade, releaseBlack } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
 import { SCENES } from '../../shared/story.js';
 const SCENES_ALL = () => SCENES;
@@ -514,7 +514,9 @@ async function playPendingScenes() {
   let next = pendingScene(meta); if (!next) return;
   await whenIdle();   // nunca encima de un aviso o un menú abierto
   if (!user || state.tour || state.scene !== 'hub') return;
-  while (next && state.scene === 'hub' && !state.cut && !state.dcut) { await runScene(next); next = pendingScene(meta); }   // (si entras en una mazmorra, se queda para la próxima vez)
+  state.sceneChain = true;   // varias seguidas: entre una y otra, la pantalla se queda en negro
+  try { while (next && state.scene === 'hub' && !state.cut && !state.dcut) { await runScene(next); next = pendingScene(meta); } }   // (si entras en una mazmorra, se queda para la próxima vez)
+  finally { state.sceneChain = false; await releaseBlack(); }
 }
 const whenIdle = () => new Promise(res => { const t = () => (!state.dialog && !state.menu && !state.busy ? res() : setTimeout(t, 150)); t(); });
 // escena de historia: se reproduce, se marca como vista en el servidor y se enseña una sola vez
@@ -2694,6 +2696,7 @@ function renderHub() {
   }
   fg.forEach(drawFg);
   drawSceneOverlay(ctx, W, H, cam);   // noche, narración y fundidos de las escenas
+  drawScreenFade(ctx, W, H);           // fundido a negro de entrada y salida de las escenas
   if (state.cut) return;
   // indicación de interacción cerca de un PNJ o cartel
   const fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;

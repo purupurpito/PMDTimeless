@@ -17,18 +17,35 @@ const delay = ms => new Promise(r => { const t0 = now(); const t = () => (fast()
 const now = () => performance.now();
 
 // ---------- reproducir un guion ----------
+// ---------- fundidos de pantalla entre la aldea y las escenas (nada aparece ni desaparece de golpe) ----------
+const isBlack = () => !!D.state.screenFade && D.state.screenFade.to === 1;
+function screenFade(from, to, ms) {
+  const S = D.state; if (fast()) { S.screenFade = to ? { from: 1, to: 1, t0: 0, ms: 1 } : null; return Promise.resolve(); }
+  S.screenFade = { from, to, t0: now(), ms };
+  return new Promise(res => { const t = () => { if (now() - S.screenFade.t0 >= ms) { if (to === 0) S.screenFade = null; res(); } else setTimeout(t, 30); }; t(); });
+}
+export const releaseBlack = () => isBlack() ? screenFade(1, 0, 700) : Promise.resolve();   // tras las escenas, la aldea vuelve con un fundido
+export function drawScreenFade(ctx, W, H) {
+  const f = D?.state?.screenFade; if (!f) return;
+  const k = Math.min(1, (now() - f.t0) / f.ms), a = f.from + (f.to - f.from) * k;
+  if (a > 0) { ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fillRect(0, 0, W, H); }
+}
 export async function playScene(scene) {
   const S = D.state, h = S.hub;
   if (S.cut || S.scene !== 'hub') return { skipped: false, aborted: true };   // solo en la aldea
+  const dark = scene.startDark !== false;
+  if (dark && !isBlack()) { S.busy = true; try { await screenFade(0, 1, 650); } finally { S.busy = false; } }   // lo que se veía se funde a negro antes de empezar
+  if (S.cut || S.scene !== 'hub') { await releaseBlack(); return { skipped: false, aborted: true }; }
   const saved = { area: h.area, x: h.x, y: h.y, facing: h.facing, menu: S.menu, dialog: S.dialog };
   S.menu = null; S.dialog = null;
   if (scene.area && scene.area !== h.area) h.area = scene.area;
   if (scene.player) { h.x = scene.player.x; h.y = scene.player.y; h.facing = DIRS[scene.player.dir || 'down']; }
   const c = S.cut = {
     id: scene.id, skip: false, night: !!scene.night, lights: scene.lights || [], hidePlayer: !!scene.hidePlayer, hideNpcs: !!scene.hideNpcs, hideNpcIds: scene.hideNpcIds || [], bird: null, poster: null,
-    fade: scene.startDark === false ? 0 : 1, narration: null, cam: scene.cam ? { ...scene.cam } : null,
+    fade: scene.startDark === false ? 0 : 1,   // (si venimos de un fundido a negro, sigue en negro) narration: null, cam: scene.cam ? { ...scene.cam } : null,
     actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null,
   };
+  if (dark) S.screenFade = null;   // el fundido de la propia escena (que empieza en negro) toma el relevo
   for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra' };
   for (const [id, o] of Object.entries(scene.objects || {})) c.objects[id] = { id, ...o, alpha: 1 };
   c.actors.player = { id: 'player', isPlayer: true, emotes: [], get x() { return D.state.hub.x; }, get y() { return D.state.hub.y; }, get facing() { return D.state.hub.facing; }, set facing(v) { D.state.hub.facing = v; }, set x(v) { D.state.hub.x = v; }, set y(v) { D.state.hub.y = v; }, set movedAt(v) { D.state.hub.movedAt = v; } };
@@ -36,11 +53,14 @@ export async function playScene(scene) {
   D.render();
   try { for (const step of scene.steps) { if (c.skip) break; await runStep(step, c); } }
   catch (e) { console.error('escena', scene.id, e); }
-  const skipped = c.skip;
+  const skipped = c.skip, endedDark = c.fade >= 0.99;
   // al acabar: se apaga todo lo que se mantenía y se vuelve a la aldea
+  if (endedDark || dark) S.screenFade = endedDark ? { from: 1, to: 1, t0: 0, ms: 1 } : S.screenFade;   // acaba en negro: se queda en negro hasta…
   S.cut = null; if (!scene.keepPlayer) { h.area = saved.area; h.x = saved.x; h.y = saved.y; h.facing = saved.facing; }
   if (scene.music) D.music?.(null);
-  D.render(); return { skipped };
+  D.render();
+  if (!S.sceneChain) await releaseBlack();   // …que no haya más escenas seguidas: entonces vuelve la aldea con un fundido
+  return { skipped };
 }
 export const skipScene = () => { const c = cut(); if (c) { c.skip = true; if (D.state.dialog) { D.state.dialog = null; c.dialogResolve?.(); } c.poster?.close(); } };
 
