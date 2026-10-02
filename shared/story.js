@@ -756,15 +756,15 @@ export const SCENES = [
     ],
   },
   {
-    // El equipo rival (Equipo Cometa: Houndour, Togepi y Sandshrew), de un gremio vecino: se llevan la misión del tablón delante de tus narices
-    id: 'equipo-cometa', trigger: 'area:gremio', when: m => (m.scenes || []).includes('coartada'),
+    // El equipo rival (Equipo Cometa: Houndour, Togepi y Sandshrew), de un gremio vecino, la mañana siguiente a El testigo: se llevan la misión del tablón
+    id: 'equipo-cometa', trigger: 'return', chain: true, when: m => (m.scenes || []).includes('el-testigo'),   // la segunda mañana: justo después de El testigo (pases la mazmorra o no)
     area: 'gremio', player: { x: 410, y: 238, dir: 'up' }, keepPlayer: true, cam: { x: 84, y: 60 }, music: 'comedy',
     hideNpcIds: ['chatot', 'mawile', 'machamp', 'heracross', 'ampharos'],
     actors: { chatot: { sp: 'chatot', x: 352, y: 228, dir: 'right' }, mawile: { sp: 'mawile', x: 546, y: 256, dir: 'left', noLook: true },
               houndour: { sp: 'houndour', x: 405, y: 480, dir: 'up', hidden: true }, togepi: { sp: 'togepi', x: 405, y: 480, dir: 'up', hidden: true },
               sandshrew: { sp: 'sandshrew', x: 405, y: 480, dir: 'up', hidden: true } },
     steps: [
-      { do: 'narration', text: 'Una mañana, en el gremio…', ms: 2200 },
+      { do: 'narration', text: 'A la mañana siguiente…', ms: 2200 },
       { do: 'fade', to: 'in', ms: 900 },
       { do: 'wait', ms: 700 },
       { do: 'say', who: 'chatot', mood: 'Normal', text: 'Esa de ahí es buena para ti, Novato: encontrar una Baya Aranja perdida en el Bosque Frondoso.' },
@@ -866,4 +866,5 @@ export const SCENES = [
   },
 ];
 // trigger: 'hub' (al entrar en la aldea) o 'dungeon-exit' (al ir hacia las mazmorras)
-export const pendingScene = (m, trigger = 'hub') => SCENES.find(sc => (sc.trigger || 'hub') === trigger && !(m.scenes || []).includes(sc.id) && sc.when(m)) || null;
+// onlyChain: solo las que se encadenan (chain: true), p. ej. después de otra escena «a la vuelta» en el mismo regreso
+export const pendingScene = (m, trigger = 'hub', onlyChain = false) => SCENES.find(sc => (sc.trigger || 'hub') === trigger && (!onlyChain || sc.chain) && !(m.scenes || []).includes(sc.id) && sc.when(m)) || null;

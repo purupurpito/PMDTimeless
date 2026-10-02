@@ -526,12 +526,13 @@ function enterHub(opts = {}) {
 // Las escenas de historia que toquen, una detrás de otra (la noche → la sombra → el despertar)
 async function playPendingScenes(fromRun = false) {
   if (!user || state.tour) return;
-  const nextOne = () => (fromRun && pendingScene(meta, 'return')) || pendingScene(meta);   // al volver de una mazmorra, también las de «a la vuelta»
+  let usedReturn = false;   // una escena «a la vuelta» por regreso, salvo las que se encadenan (chain: true)
+  const nextOne = () => (fromRun && pendingScene(meta, 'return', usedReturn)) || pendingScene(meta);
   let next = nextOne(); if (!next) return;
   await whenIdle();   // nunca encima de un aviso o un menú abierto
   if (!user || state.tour || state.scene !== 'hub') return;
   state.sceneChain = true;   // varias seguidas: entre una y otra, la pantalla se queda en negro
-  try { while (next && state.scene === 'hub' && !state.cut && !state.dcut) { await runScene(next); next = nextOne(); } }   // (si entras en una mazmorra, se queda para la próxima vez)
+  try { while (next && state.scene === 'hub' && !state.cut && !state.dcut) { await runScene(next); if (next.trigger === 'return') usedReturn = true; next = nextOne(); } }   // (si entras en una mazmorra, se queda para la próxima vez)
   finally { state.sceneChain = false; await releaseBlack(); }
 }
 const whenIdle = () => new Promise(res => { const t = () => (!state.dialog && !state.menu && !state.busy ? res() : setTimeout(t, 150)); t(); });
@@ -963,8 +964,10 @@ async function flushPendingEnd(quiet = false) {
 
 // ---------- rescates: al caer, esperar a que otro explorador venga a buscarte (como en el original) ----------
 // Solo con servidor (sin conexión nadie podría rescatarte). Mientras esperas no puedes jugar: pantalla de espera.
+const RESCUE_RANK = 3;   // Oro: antes de ese rango no hay rescates (no hay suficientes jugadores para rescatar a todos)
 async function deathChoice() {
   if (state.dungeonDef?.id === 'entrenamiento') return endRun('death');   // el tutorial no tiene rescates
+  if (rankOf(meta?.rankPts || 0) < RESCUE_RANK) return endRun('death');   // los rescates se desbloquean en el rango Oro
   const where = `${state.dungeonDef.name}, piso B${state.floor}F`;
   openMenu({ title: `Tu equipo ha caído en ${where}`, items: ['Esperar un rescate', 'Rendirse y volver al gremio'], sticky: true, onSelect: async i => {
     if (i === 1) return endRun('death');
