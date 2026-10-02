@@ -46,7 +46,7 @@ export async function playScene(scene) {
     actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null, tint: scene.tint || null,
   };
   if (dark) S.screenFade = null;   // el fundido de la propia escena (que empieza en negro) toma el relevo
-  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra', ...Object.fromEntries(['scale', 'alpha', 'hover', 'flyAnim', 'item', 'itemScale', 'idle', 'noShadow', 'name', 'pensive', 'noLook'].filter(k => k in a).map(k => [k, a[k]])) };
+  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra', ...Object.fromEntries(['scale', 'alpha', 'hover', 'flyAnim', 'item', 'itemScale', 'idle', 'noShadow', 'name', 'pensive', 'noLook', 'track'].filter(k => k in a).map(k => [k, a[k]])) };
   for (const [id, o] of Object.entries(scene.objects || {})) c.objects[id] = { id, ...o, alpha: 1 };
   c.actors.player = { id: 'player', isPlayer: true, emotes: [], get x() { return D.state.hub.x; }, get y() { return D.state.hub.y; }, get facing() { return D.state.hub.facing; }, set facing(v) { D.state.hub.facing = v; }, set x(v) { D.state.hub.x = v; }, set y(v) { D.state.hub.y = v; }, set movedAt(v) { D.state.hub.movedAt = v; } };
   if (scene.music) D.music?.(scene.music);
@@ -134,6 +134,7 @@ async function move(c, who, step) {
 // avanza los actores que andan (lo llama el bucle de la aldea)
 export function tickScenes() {
   const c = cut(); if (!c) return;
+  for (const a of Object.values(c.actors)) { const t = a.track && c.actors[a.track]; if (t && !t.hidden && !a.path) { const f = dirToward(a, t); if (f) a.facing = f; } }   // seguir con la mirada (track: id)
   for (const a of Object.values(c.actors)) {
     const p = a.path; if (!p) continue;
     const step = p.speed * (D.dtFrames?.() || 1);

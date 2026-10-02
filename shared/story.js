@@ -504,6 +504,7 @@ export const SCENES = [
       { do: 'say', who: 'murkrow', mood: 'Happy', text: 'Para ti no hay nada hoy. Crrr. ¡Vuelve mañana!' },
       { do: 'wait', ms: 700 },
       { do: 'show', who: 'smeargle' },
+      { do: 'prop', who: 'player', set: { track: 'smeargle' } },   // le sigues con la mirada
       { do: 'move', who: 'smeargle', to: [[384, 430]], speed: 0.5 },
       { do: 'turn', who: 'player', toward: 'smeargle' },
       { do: 'turn', who: 'murkrow', toward: 'smeargle' },
@@ -553,6 +554,7 @@ export const SCENES = [
       { do: 'hide', who: 'mawile' },
       { do: 'move', who: 'smeargle', to: [[384, 180]], speed: 0.9, keepAnim: true, keepFacing: true },
       { do: 'hide', who: 'smeargle' },
+      { do: 'prop', who: 'player', set: { track: null } },
       { do: 'wait', ms: 800 },
       { do: 'turn', who: 'chatot', toward: 'player' },
       { do: 'wait', ms: 400 },
@@ -596,7 +598,7 @@ export const SCENES = [
       { do: 'wait', ms: 300 },
       { do: 'emote', who: 'murkrow', fx: 'dots' },   // se lo piensa…
       { do: 'wait', ms: 1500 },
-      { do: 'move', who: 'murkrow', to: [[318, 226]], speed: 1.3 },   // …y se te acerca
+      { do: 'move', who: 'murkrow', to: [[336, 228]], speed: 1.3 },   // …y se te acerca
       { do: 'turn', who: 'murkrow', toward: 'player' },
       { do: 'turn', who: 'player', toward: 'murkrow' },
       { do: 'say', who: 'murkrow', mood: 'Normal', text: '… Oye, tú. ¿Tú sabes dónde viven los equipos?' },
@@ -609,8 +611,8 @@ export const SCENES = [
     // Tras superar el Bosque Frondoso: llegan Machamp y Heracross, de otros equipos, respondiendo a las cartas de Chatot
     id: 'veteranos', trigger: 'return', when: m => (m.scenes || []).includes('smeargle-vuelve') && (m.cleared || []).includes('bosque'),
     area: 'plaza', player: { x: 40, y: 262, dir: 'right' }, cam: { x: 84, y: 40 }, hideNpcIds: [],   // vuelves del mercado
-    actors: { chatot: { sp: 'chatot', x: 384, y: 176, dir: 'down', hidden: true }, mawile: { sp: 'mawile', x: 384, y: 176, dir: 'down', hidden: true },
-              machamp: { sp: 'machamp', x: 384, y: 505, dir: 'up', hidden: true },
+    actors: { chatot: { sp: 'chatot', x: 384, y: 176, dir: 'down', hidden: true }, mawile: { sp: 'mawile', x: 384, y: 176, dir: 'down', hidden: true, noLook: true },   // mira en diagonal hacia el grupo
+              machamp: { sp: 'machamp', x: 384, y: 505, dir: 'up', hidden: true }, ampharos: { sp: 'ampharos', x: 384, y: 505, dir: 'up', hidden: true },
               heracross: { sp: 'heracross', x: 720, y: 300, dir: 'left', hidden: true } },
     steps: [
       { do: 'narration', text: 'Unos días después…', ms: 2200 },
@@ -631,6 +633,7 @@ export const SCENES = [
       { do: 'wait', ms: 300 },
       { do: 'say', who: 'mawile', mood: 'Happy', text: '¡Seguro que Kecleon le ha cobrado por adelantado! Ji, ji.' },
       { do: 'say', who: 'chatot', mood: 'Sigh', text: 'Eso fue idea mía. Con tanto robo, mejor prevenir…' },
+      { do: 'turn', who: 'mawile', dir: 'down-right' },
       { do: 'wait', ms: 500 },
       { do: 'show', who: 'heracross' },
       { do: 'anim', who: 'heracross', anim: 'Hop', hold: true },
@@ -644,6 +647,7 @@ export const SCENES = [
       { do: 'turn', who: 'chatot', toward: 'heracross' },
       { do: 'turn', who: 'mawile', toward: 'heracross' },
       { do: 'turn', who: 'player', toward: 'heracross' },
+      { do: 'turn', who: 'mawile', dir: 'down-right' },
       { do: 'wait', ms: 900 },
       { do: 'say', who: 'heracross', mood: 'Shouting', text: '¡¡CHATOT!! ¿¡Dónde está el desayuno!? ¡Vengo volando desde anoche!' },
       { do: 'say', who: 'chatot', mood: 'Happy', text: '¡Heracross! ¡Has llegado!' },
@@ -659,7 +663,21 @@ export const SCENES = [
       { do: 'say', who: 'machamp', mood: 'Normal', text: 'Ya lo he visto. Me has salpicado de barro.' },
       { do: 'emote', who: 'heracross', fx: 'sweat' },
       { do: 'wait', ms: 800 },
-      { do: 'say', who: 'chatot', mood: 'Happy', text: '¡Os lo agradezco a los dos! Smeargle volvió herido. Su equipo sigue en la Cueva Húmeda.' },
+      { do: 'turn', who: 'chatot', toward: 'machamp' },
+      { do: 'say', who: 'chatot', mood: 'Normal', text: '¿Y Ampharos?' },
+      { do: 'say', who: 'machamp', mood: 'Normal', text: 'Viene detrás. Se ha parado a mirar unas flores.' },
+      { do: 'say', who: 'heracross', mood: 'Sigh', text: '¡Siempre igual!' },
+      { do: 'wait', ms: 500 },
+      { do: 'show', who: 'ampharos' },
+      { at: [{ do: 'move', who: 'ampharos', to: [[414, 384], [426, 372], [462, 354], [468, 354], [470, 360]], speed: 0.75 },   // la novedad: todos la miran
+             { do: 'turn', who: 'chatot', toward: 'ampharos' }, { do: 'turn', who: 'mawile', toward: 'ampharos' }, { do: 'turn', who: 'player', toward: 'ampharos' }, { do: 'turn', who: 'heracross', toward: 'ampharos' }, { do: 'turn', who: 'machamp', toward: 'ampharos' }] },
+      { do: 'turn', who: 'ampharos', toward: 'chatot' },
+      { do: 'say', who: 'ampharos', mood: 'Happy', text: 'Perdón, perdón… Había unas flores preciosas junto al camino.' },
+      { do: 'say', who: 'ampharos', mood: 'Normal', text: 'En la cueva no habrá flores. Pero mi cola os alumbrará el camino.' },
+      { do: 'turn', who: 'mawile', dir: 'down-right' },
+      { do: 'turn', who: 'machamp', toward: 'chatot' },
+      { do: 'turn', who: 'heracross', toward: 'chatot' },
+      { do: 'say', who: 'chatot', mood: 'Happy', text: '¡Os lo agradezco a los tres! Smeargle volvió herido. Su equipo sigue en la Cueva Húmeda.' },
       { do: 'say', who: 'machamp', mood: 'Normal', text: 'Cuéntamelo todo, desde el principio.' },
       { do: 'say', who: 'chatot', mood: 'Worried', text: 'Una crecida. Se separaron en lo más hondo. No sabemos quién está en peligro.' },
       { do: 'say', who: 'heracross', mood: 'Determined', text: '¡Entonces vamos ya! ¡A tumbar paredes a cornadas!' },
@@ -693,7 +711,11 @@ export const SCENES = [
       { do: 'turn', who: 'heracross', toward: 'chatot' },
       { do: 'emote', who: 'player', fx: 'dots' },
       { do: 'wait', ms: 700 },
+      { do: 'turn', who: 'heracross', toward: 'player' },   // vuelve a mirarte
       { do: 'say', who: 'heracross', mood: 'Joyous', text: '¡Jajá! Ni un quejido. ¡Me gusta este!' },
+      { do: 'move', who: 'heracross', to: [[456, 304]], speed: 1.4 },   // y se une al corro
+      { do: 'turn', who: 'heracross', toward: 'chatot' },
+      { do: 'turn', who: 'mawile', dir: 'down-right' },
       { do: 'say', who: 'machamp', mood: 'Normal', text: 'A un explorador se le mide por lo que tarda en rendirse.' },
       { do: 'wait', ms: 400 },
       { do: 'say', who: 'machamp', mood: 'Normal', text: 'Saldremos a la cueva al amanecer. Y el Novato vendrá con nosotros.' },
@@ -710,9 +732,13 @@ export const SCENES = [
       { do: 'prop', who: 'chatot', set: { item: 'Manzana' } },
       { do: 'wait', ms: 500 },
       { do: 'say', who: 'chatot', mood: 'Sigh', text: '… Hay manzanas.' },
-      { do: 'prop', who: 'chatot', set: { item: null } },
+      { do: 'move', who: 'heracross', to: [[428, 286]], speed: 3.2 },   // ¡corre a por ella!
+      { do: 'turn', who: 'heracross', toward: 'chatot' },
+      { do: 'prop', who: 'chatot', set: { item: null } },   // se la coge de las manos
       { do: 'prop', who: 'heracross', set: { item: 'Manzana' } },
-      { do: 'jump', who: 'heracross', to: [352, 318], ms: 240, h: 5 },
+      { do: 'jump', who: 'heracross', to: [428, 286], ms: 240, h: 5 },
+      { do: 'move', who: 'heracross', to: [[456, 304]], speed: 2 },
+      { do: 'turn', who: 'heracross', toward: 'chatot' },
       { do: 'wait', ms: 700 },
       { do: 'say', who: 'heracross', mood: 'Joyous', text: '¡Sirve!' },
       { do: 'say', who: 'machamp', mood: 'Normal', text: 'Gracias por la hospitalidad.' },

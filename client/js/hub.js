@@ -33,6 +33,7 @@ export const HUB = {
       { id: 'chatot', x: 440, y: 206, facing: [0, 1], talk: 'chatot' },                                          // junto al tablón
       { id: 'machamp', x: 278, y: 370, facing: [1, 0], talk: 'machamp', afterScene: 'veteranos', fixedFacing: true, reach: 56 },      // de otro equipo: tranquilo y fuerte
       { id: 'heracross', x: 542, y: 382, facing: [-1, 0], talk: 'heracross', afterScene: 'veteranos', fixedFacing: true, reach: 56 },  // y ruidoso
+      { id: 'ampharos', x: 302, y: 298, facing: [1, 0], talk: 'ampharos', afterScene: 'veteranos', fixedFacing: true, reach: 56 },     // y despistada
       { id: 'mawile', x: 546, y: 256, facing: [-1, 1], talk: 'mawile', fixedFacing: true, reach: 44 },          // sobre el felpudo, guardando el despacho
     ],
     hotspots: [ { rect: [300, 190, 480, 236], action: 'board', label: 'Tablón de misiones' } ],

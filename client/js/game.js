@@ -733,6 +733,7 @@ function talkToBase(kind) {
       : ['…zzz… los mapas… el camino… zzz…', '(Smeargle duerme profundamente. Murmura algo sobre una cueva.)', '…zzz… ¿orejas?… ¿le dibujo orejas?… zzz…'], 'sm');
     case 'machamp': return npcGreeting('Machamp', ['Hmm.', 'Los puentes se arreglan. Los exploradores perdidos, se buscan.', 'No hables con el estómago vacío. Come primero.', 'Heracross es ruidoso. Pero en la cueva nadie vigila mejor que él.'], 'ma');
     case 'heracross': return npcGreeting('Heracross', ['¿Hay savia? … No. Bueno.', '¡Estoy entrenando! ¿Ves estos cuernos? ¡Aaah! … ¿Te asustan? ¡Pues a la cueva!', 'Te lancé por los aires y no te quejaste. ¡Respeto!', 'Machamp me da un poco de miedo. Pero no se lo digas.'], 'he');
+    case 'ampharos': return npcGreeting('Ampharos', ['¿Has visto qué flores tan bonitas hay junto al mercado?', 'Mi cola brilla más cuando estoy contenta. Ahora brilla bastante.', 'Machamp dice que me distraigo. Yo digo que me fijo en las cosas.', 'En la cueva os alumbraré. Vosotros solo tenéis que no perderos.'], 'am');
     case 'sneasel': return npcGreeting('Sneasel', ['Algún día me dejarán entrar en el gremio. Ya verán.', 'La manzana era de casa. ¡DE CASA!', 'Mientras no me dejen entrar, entreno por mi cuenta. ¡Ja!', '¿Tú también crees que fui yo? … Ya. Nadie me cree.'], 'sn');
     case 'wobbuffet': {
       const c = hubCounters(); c.wob = (c.wob || 0) + 1; saveHubCounters(c);
