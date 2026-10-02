@@ -1548,7 +1548,7 @@ function defeatEnemy(e, by) {
 function tryRecruit(e, by) {
   if (by !== state.player || cheb(e, state.player) > 1 || e.minion || e.mega || e.noRecruit) return; // golpe final del líder y adyacente (Kecleon incluido: tasa -49 %); los Mega guardianes no se reclutan
   if (state.team.length >= CFG.teamMax) return;
-  if (!canRecruit(meta)) { if (!state.recruitHintShown) { state.recruitHintShown = true; say('(Aún no sabes llevar un equipo: podrás reclutar Pokémon después de la Cueva Húmeda.)'); } return; }
+  if (!canRecruit(meta)) { return; }
   const chance = recruitChance(state.player, e, meta.starters.includes(e.species) || state.team.some(a => a.species === e.species)) + (state.player.iqSkills?.includes('Fast Friend') ? 1 : 0);
   if (chance <= 0 || state.rng.random() * 100 >= chance) return;
   const recruit = createMon(e.species, e.level, { x: e.x, y: e.y, tactic: 'seguir', floors: 1, held: null });   // el piso en que se une ya cuenta
