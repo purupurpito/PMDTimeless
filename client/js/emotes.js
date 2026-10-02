@@ -12,7 +12,7 @@ export function drawEmote(c, type, x, y, t, s = 2) {
   if (type === 'shock') {   // tres rayas amarillas que salen disparadas alrededor de la cabeza (dos pulsos)
     const pulse = t < 0.42 ? t : t - 0.45; if (pulse < 0) { c.restore(); return true; }
     const r = (6 + Math.min(1, pulse / 0.12) * 6) * s, len = 10 * s;
-    for (const ang of [-2.3, -1.45, -0.6]) {
+    for (const ang of [-Math.PI / 2 - 0.72, -Math.PI / 2, -Math.PI / 2 + 0.72]) {   // simétricas, centradas sobre la cabeza
       const cx = x + Math.cos(ang) * r, cy = y + Math.sin(ang) * r;
       c.save(); c.translate(cx, cy); c.rotate(ang + Math.PI / 2);
       c.fillStyle = '#b89000'; c.beginPath(); c.moveTo(0, -len / 2 - s); c.lineTo(2.2 * s, 0); c.lineTo(0, len / 2 + s); c.lineTo(-2.2 * s, 0); c.fill();

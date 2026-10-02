@@ -68,6 +68,7 @@ export const skipScene = () => { const c = cut(); if (c) { c.skip = true; if (D.
 
 async function runStep(step, c) {
   if (step.at) { await Promise.all(step.at.map(s => runStep(s, c))); return; }
+  if (step.seq) { for (const s2 of step.seq) await runStep(s2, c); return; }   // una secuencia (dentro de un «at»)
   if (step.delay && !fast()) await delay(step.delay);   // (dentro de un «at»: empezar un poco más tarde que los demás)
   const who = step.who ? c.actors[step.who] : null;
   switch (step.do) {
@@ -246,7 +247,7 @@ export function drawSceneActor(ctx, e, sx, sy, scale, drawMon) {
   ctx.restore();
   // efectos sobre la cabeza
   const t = now(); a.emotes = a.emotes.filter(em => em.hold || (t - em.t0) / 1000 <= (EMOTE_LEN[em.fx] || 1));
-  for (const em of a.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, sx, sy - scale * 26 - lift, tt, 2); }
+  for (const em of a.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, sx + (a.facing?.[0] || 0) * 3 * scale, sy - scale * 26 - lift, tt, 2); }
 }
 // saltos en arco (también el jugador: se le aplica la altura en el dibujo de la aldea)
 const liftOf = a => { const j = a.jumpArc; if (!j) return 0; const k = (now() - j.t0) / j.ms; if (k >= 1) { a.jumpArc = null; return 0; } return Math.sin(Math.PI * k) * j.h; };
@@ -298,7 +299,7 @@ export function drawSceneOverlay(ctx, W, H, cam) {
   const p = c.actors.player;   // los efectos del jugador (él no es un actor de la escena: lo dibuja la aldea)
   if (p && !c.hidePlayer && p.emotes.length) {
     const t = now(); p.emotes = p.emotes.filter(em => em.hold || (t - em.t0) / 1000 <= (EMOTE_LEN[em.fx] || 1));
-    for (const em of p.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, p.x - cam.x, -(D.state.hub.jumpArc ? Math.sin(Math.PI * Math.min(1, (now() - D.state.hub.jumpArc.t0) / D.state.hub.jumpArc.ms)) * D.state.hub.jumpArc.h : 0) + p.y - cam.y - 52, tt, 2); }
+    for (const em of p.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, p.x - cam.x + (D.state.hub.facing?.[0] || 0) * 6, -(D.state.hub.jumpArc ? Math.sin(Math.PI * Math.min(1, (now() - D.state.hub.jumpArc.t0) / D.state.hub.jumpArc.ms)) * D.state.hub.jumpArc.h : 0) + p.y - cam.y - 52, tt, 2); }
   }
   if (c.night) {
     ctx.fillStyle = 'rgba(8, 12, 40, 0.62)'; ctx.fillRect(0, 0, W, H);
