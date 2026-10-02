@@ -559,16 +559,50 @@ const closeHub = () => { state.menu = null; render(); };
 function openHubMenu() {
   const save = state.pausedRun;
   // elegir líder se hará hablando con el Pokémon en la aldea (como en Rojo/Azul), no desde este menú
-  const items = save ? ['Continuar la exploración', 'Abandonar la exploración guardada', 'Rango y progreso', 'Registro de mensajes', 'Cerrar'] : ['Rango y progreso', 'Registro de mensajes', 'Cerrar'];
+  const base = ['Bolsa', 'Pokémon', 'Rango y progreso', 'Estadísticas', 'Registro de mensajes', 'Cerrar'];
+  const items = save ? ['Continuar la exploración', 'Abandonar la exploración guardada', ...base] : base;
   openMenu({ title: 'Menú', items, onCancel: closeHub, onSelect: async i => {
     const key = items[i];
     if (key === 'Continuar la exploración') return resumeRun();
     if (key === 'Registro de mensajes') return openHistory();
     if (key.startsWith('Abandonar')) return openMenu({ title: '¿Abandonar la exploración? Perderás lo acumulado.', items: ['No', 'Sí, abandonar'], onCancel: closeHub, onSelect: async j => { if (j === 1) { const r = await call('/run/abandon', {}); if (r) { meta = r.meta; state.pausedRun = null; say('Run abandonada.'); } } closeHub(); } });
     if (key === 'Rango y progreso') return openRankMenu();
+    if (key === 'Bolsa') return openHubBag();
+    if (key === 'Pokémon') return openHubPokemon();
+    if (key === 'Estadísticas') return openHubStats();
     if (key === 'Elegir líder') return openStarterMenu();
     closeHub();
   } });
+}
+// ---- el menú de la aldea: bolsa, Pokémon y estadísticas (solo para mirar: se usa todo dentro de las mazmorras)
+function openHubBag() {
+  const bag = meta.bag || [];
+  if (!bag.length) return openDialog([{ who: '', text: 'Tu bolsa está vacía. Lo que lleves en ella te acompaña a la próxima exploración.' }], openHubMenu);
+  openMenu({ title: `Bolsa ${bag.length}/${bagSizeFor(meta?.rankPts)}`, items: bag.map(n => isMachine(n) ? `${n.slice(0, 2)}: ${n.slice(4)}` : n), onCancel: openHubMenu,
+    onSelect: i => openDialog([{ who: '', text: itemInfo(bag[i]) }], openHubBag) });
+}
+function openHubPokemon() {
+  const bonds = Object.keys(meta.bonds || {}).filter(s => SPECIES[s]), items = ['Iniciales', 'Movimientos aprendidos', ...(bonds.length ? ['Compañeros'] : []), 'Volver'];
+  openMenu({ title: 'Pokémon', items, onCancel: openHubMenu, onSelect: i => {
+    const k = items[i];
+    if (k === 'Iniciales') {
+      const st = meta.starters || [];
+      return openMenu({ title: `Iniciales (${st.length})`, items: st.map((s, j) => `${SPECIES[s]?.name || s}${j === 0 ? '  ★ líder' : ''}`), icons: st.map(s => SPECIES[s]?.types?.[0]), onCancel: openHubPokemon,
+        onSelect: j => { const sp = SPECIES[st[j]] || {}; openDialog([{ who: sp.name || st[j], sp: st[j], text: `${(sp.types || []).join(' / ')}. ${j === 0 ? 'Es tu líder: con él empiezas cada exploración.' : 'Para que sea tu líder, háblale en la aldea.'}` }], openHubPokemon); } });
+    }
+    if (k === 'Movimientos aprendidos') {
+      const lead = meta.starters?.[0], mv = permanentMoves(lead);
+      return openDialog([{ who: SPECIES[lead]?.name || '', sp: lead, text: mv.length ? `Movimientos que ya sabe para siempre: ${mv.join(', ')}.` : 'Aún no ha aprendido ningún movimiento para siempre. Las Máquinas Definitivas (MD) se lo enseñan.' }], openHubPokemon);
+    }
+    if (k === 'Compañeros') return openMenu({ title: `Compañeros (${bonds.length})`, items: bonds.map(s => meta.bonds[s]?.nick || SPECIES[s].name), icons: bonds.map(s => SPECIES[s]?.types?.[0]), onCancel: openHubPokemon,
+      onSelect: j => openDialog([{ who: SPECIES[bonds[j]].name, sp: bonds[j], text: 'Os une un vínculo: puede volver a acompañarte en las exploraciones.' }], openHubPokemon) });
+    openHubMenu();
+  } });
+}
+function openHubStats() {
+  const s = meta.stats || {}, L = [['runs', 'Exploraciones'], ['floors', 'Pisos recorridos'], ['deepest', 'Piso más profundo'], ['deaths', 'Veces que has caído'], ['monsterHouses', 'Casas Monstruo'], ['recruited', 'Pokémon reclutados'], ['itemsSold', 'Objetos vendidos'], ['kecleonRobs', 'Robos a Kecleon']];
+  const lines = L.filter(([k]) => s[k] != null).map(([k, t]) => `${t}: ${s[k]}`).concat([`Mazmorras superadas: ${(meta.cleared || []).length}`, `Pokés: ${meta.pokes || 0} P`]);
+  openDialog([{ who: 'Estadísticas', text: lines.slice(0, 5).join(' · ') }, { who: 'Estadísticas', text: lines.slice(5).join(' · ') }], openHubMenu);
 }
 // ---- movimiento libre por la aldea
 let hubRaf = null;
