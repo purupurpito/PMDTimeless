@@ -533,6 +533,8 @@ export const SCENES = [
       { do: 'move', who: 'mawile', to: [[352, 318]], speed: 2.6 },
       { do: 'turn', who: 'mawile', toward: 'smeargle' },
       { do: 'say', who: 'mawile', mood: 'Worried', text: '¡Chatot! ¿Qué ha pasado? ¡Está lleno de barro!' },
+      { do: 'turn', who: 'mawile', dir: 'down-right' },   // y se queda mirando a Smeargle, en diagonal
+      { do: 'prop', who: 'mawile', set: { noLook: true } },
       { do: 'anim', who: 'smeargle', anim: 'Laying', hold: true },
       { do: 'wait', ms: 500 },
       { do: 'say', who: 'smeargle', mood: 'Pain', text: 'Chatot… la Cueva Húmeda… el agua subió de golpe.' },
