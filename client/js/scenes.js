@@ -46,7 +46,7 @@ export async function playScene(scene) {
     actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null, tint: scene.tint || null,
   };
   if (dark) S.screenFade = null;   // el fundido de la propia escena (que empieza en negro) toma el relevo
-  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra', ...Object.fromEntries(['scale', 'alpha', 'hover', 'flyAnim', 'item', 'itemScale', 'idle', 'noShadow', 'name'].filter(k => k in a).map(k => [k, a[k]])) };
+  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra', ...Object.fromEntries(['scale', 'alpha', 'hover', 'flyAnim', 'item', 'itemScale', 'idle', 'noShadow', 'name', 'pensive', 'noLook'].filter(k => k in a).map(k => [k, a[k]])) };
   for (const [id, o] of Object.entries(scene.objects || {})) c.objects[id] = { id, ...o, alpha: 1 };
   c.actors.player = { id: 'player', isPlayer: true, emotes: [], get x() { return D.state.hub.x; }, get y() { return D.state.hub.y; }, get facing() { return D.state.hub.facing; }, set facing(v) { D.state.hub.facing = v; }, set x(v) { D.state.hub.x = v; }, set y(v) { D.state.hub.y = v; }, set movedAt(v) { D.state.hub.movedAt = v; } };
   if (scene.music) D.music?.(scene.music);
@@ -119,12 +119,15 @@ async function fade(c, to, ms) {
   if (fast()) { c.fade = target; D.render(); return; }
   await new Promise(res => { const tick = () => { const k = Math.min(1, (now() - t0) / ms); c.fade = from + (target - from) * k; D.render(); if (k < 1 && !c.skip) requestAnimationFrame(tick); else { c.fade = target; res(); } }; tick(); });
 }
-function dirToward(a, b) { if (!b) return a.facing; const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y); return dx || dy ? [dx, dy] : a.facing; }
+function dirToward(a, b) {   // hacia dónde mirar para ver a b (diagonal solo si de verdad está en diagonal)
+  if (!b) return a.facing; const dx = b.x - a.x, dy = b.y - a.y, m = Math.max(Math.abs(dx), Math.abs(dy)); if (!m) return a.facing;
+  const hx = Math.abs(dx) > m * 0.4 ? Math.sign(dx) : 0, hy = Math.abs(dy) > m * 0.4 ? Math.sign(dy) : 0; return [hx, hy];
+}
 async function move(c, who, step) {
   if (!who) return;
   const pts = (step.to || []).map(p => ({ x: p[0], y: p[1] })), speed = (step.speed || 1) * 1.6;   // px por fotograma a 60 fps
   if (fast()) { const last = pts[pts.length - 1]; if (last) { who.x = last.x; who.y = last.y; } return; }
-  who.hidden = false; who.anim = null;
+  who.hidden = false; if (!step.keepAnim) who.anim = null;   // (keepAnim: se mueve sin cambiar de pose, p. ej. alguien arrastrado)
   await new Promise(res => { who.path = { pts, speed, slide: !!step.slide, res }; });
 }
 // avanza los actores que andan (lo llama el bucle de la aldea)
@@ -162,6 +165,8 @@ async function emote(c, who, step) {
 }
 async function say(c, who, step) {
   if (fast()) return;
+  // todos los que escuchan miran a quien habla (salvo dormidos, en pose, volando o «pensativos»)
+  if (who) for (const a of Object.values(c.actors)) if (a !== who && !a.hidden && !a.anim && !a.hover && !a.pensive && !a.noLook && !(a.isPlayer && D.state.hub.inBed)) { const f = dirToward(a, who); if (f) a.facing = f; }
   const page = { who: step.name ?? who?.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: step.text, think: !!step.think };
   if (step.unknown || who?.form) { page.who = step.name ?? '???'; page.sp = null; }   // name: '' = una voz sin nombre (desde fuera de plano)
   // el retrato se voltea a la derecha para el segundo interlocutor (como en el original)
