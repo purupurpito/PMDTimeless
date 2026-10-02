@@ -789,7 +789,7 @@ function hotspotAction(hs) {
 function openDungeonMenu() {
   const rank = rankOf(meta.rankPts);
   // solo las mazmorras desbloqueadas por rango; las demás aparecen al subir de rango
-  const list = DUNGEONS.filter(d => d.rank <= rank); if (meta.dreamUnlocked) list.push(DREAM_DUNGEON);
+  const list = DUNGEONS.filter(d => d.rank <= rank && (!d.requires || (meta.cleared || []).includes(d.requires))); if (meta.dreamUnlocked) list.push(DREAM_DUNGEON);   // (requires: la historia pide superar otra antes)
   const items = list.map(d => d.id === 'suenos' ? `${d.name} — ∞ (solo legendarios)` : `${d.name} — ${d.floors === Infinity ? '∞' : d.floors} pisos${meta.cleared.includes(d.id) ? ' ✓' : ''}`);
   openMenu({ title: 'Mazmorras', items, onCancel: closeHub, onSelect: i => {
     const d = list[i]; if (!d) return closeHub();
