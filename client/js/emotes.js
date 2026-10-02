@@ -28,7 +28,7 @@ export function drawEmote(c, type, x, y, t, s = 2) {
   } else if (type === 'notice') {   // destello en media luna junto a la cabeza (darse cuenta)
     const sweep = Math.min(1, t / 0.14), fade = t < 0.3 ? 1 : 1 - (t - 0.3) / 0.25;
     c.globalAlpha = Math.max(0, fade); c.lineCap = 'round';
-    const cx = x - 9 * s, cy = y + 4 * s, R = 9 * s, a0 = -2.6, a1 = a0 + 1.9 * sweep;
+    const cx = x, cy = y + 6 * s, R = 9 * s, a0 = -Math.PI / 2 - 0.95, a1 = a0 + 1.9 * sweep;   // centrado sobre la cabeza
     c.strokeStyle = '#f8e030'; c.lineWidth = 4 * s; c.beginPath(); c.arc(cx, cy, R, a0, a1); c.stroke();
     c.strokeStyle = '#ffffff'; c.lineWidth = 2 * s; c.beginPath(); c.arc(cx, cy, R, a0, a1); c.stroke();
   } else if (type === 'sweat') {   // gota de sudor que resbala por un lado de la cabeza
