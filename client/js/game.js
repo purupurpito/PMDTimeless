@@ -33,6 +33,7 @@ const DIR_ROW = { '0,1': 0, '1,1': 1, '1,0': 2, '1,-1': 3, '0,-1': 4, '-1,-1': 5
 // Texturas de mazmorra del proyecto (suelo por tipo de mazmorra, pared, escalera, agua y lava)
 const DUNGEON_TILES = Object.fromEntries([['floor', 'floor_bosque'], ['floor_bosque', 'floor_bosque'], ['floor_cueva', 'floor_cueva'], ['floor_monte', 'floor_monte'], ['floor_ruinas', 'floor_ruinas'],
   ['wall', 'wall_bosque'], ['stairs', 'stairs'], ['water', 'water'], ['lava', 'lava']].map(([k, f]) => [k, `client/assets/dungeon/${f}.png`]));
+const STILL_FROM_WALK = new Set(["ampharos", "azelf", "centiskorch", "chimecho", "grubbin", "kingler", "krabby", "mesprit", "passimian", "roaring_moon", "salandit", "stakataka", "uxie", "wimpod"]);   // (calculado comparando alturas: tools, oct. 2026)
 const Sprites = {
   images: {}, mons: {},
   // Carga bajo demanda: al empezar solo se lee el índice; la hoja de cada Pokémon se descarga la primera vez que aparece
@@ -96,12 +97,14 @@ const Sprites = {
       }
       this.ensureAnim(m, animName);
     }
-    const moving = mon.movedAt && performance.now() - mon.movedAt < 250;
+    // especies cuyo primer fotograma de reposo es una postura agachada: quietas, de pie (primer fotograma de andar)
+    const standWalk = mon.still && STILL_FROM_WALK.has(mon.species) && m.sheetImg;
+    const moving = (mon.movedAt && performance.now() - mon.movedAt < 250) || standWalk;
     const img = moving && m.sheetImg ? m.sheetImg : m.idleImg || m.sheetImg; if (!img) return false;
     const [fw, fh] = moving && m.sheetImg ? m.frame : m.idleFrame || m.frame;
     const frames = moving && m.sheetImg ? m.frames : m.idleImg ? (m.idleFrames || 1) : 1;   // sin animación de inactivo: primer fotograma de andar
     const row = DIR_ROW[`${mon.facing[0]},${mon.facing[1]}`] ?? 0;
-    const col = mon.still && !moving ? 0 : Math.floor(performance.now() / (moving ? 90 : 220)) % frames;   // quien está hablando se queda quieto (como en el original)
+    const col = (mon.still && !moving) || standWalk ? 0 : Math.floor(performance.now() / (moving ? 90 : 220)) % frames;   // quien está hablando se queda quieto (como en el original)
     // Los frames de SpriteCollab llevan margen: los pies quedan hacia el 62 % de la altura del frame. Se anclan a la casilla.
     // Con hoja recortada (trim = [x0, y0, ancho y alto del fotograma original]) se coloca igual que el original.
     const scale = tile / 24, feet = py + tile - 2 * scale;

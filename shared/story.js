@@ -493,7 +493,7 @@ export const SCENES = [
   {
     // Al caer la tarde: Smeargle (del equipo de exploración que salió) vuelve solo y herido. Chatot moviliza a otros equipos… y Murkrow no sabe adónde
     id: 'smeargle-vuelve', trigger: 'return', when: m => (m.scenes || []).includes('coartada'),
-    area: 'plaza', player: { x: 296, y: 224, dir: 'up' }, cam: { x: 84, y: 40 }, tint: 'rgba(255, 120, 40, .22)', music: 'dusk', hideNpcIds: ['murkrow'],   // en el buzón, preguntando por el correo
+    area: 'plaza', player: { x: 262, y: 240, dir: 'up-right' }, cam: { x: 84, y: 40 }, tint: 'rgba(255, 120, 40, .22)', music: 'dusk', hideNpcIds: ['murkrow'],   // en el buzón, preguntando por el correo
     actors: { smeargle: { sp: 'smeargle', x: 384, y: 505, dir: 'up', hidden: true }, chatot: { sp: 'chatot', x: 384, y: 176, dir: 'down', hidden: true },
               mawile: { sp: 'mawile', x: 384, y: 176, dir: 'down', hidden: true }, murkrow: { sp: 'murkrow', x: 315, y: 152, dir: 'down' } },
     steps: [
@@ -518,6 +518,7 @@ export const SCENES = [
       { do: 'anim', who: 'smeargle', anim: 'Faint', ms: 700 },
       { do: 'anim', who: 'smeargle', anim: 'Sleep', hold: true },
       { do: 'shake', ms: 300, amp: 3 },
+      { do: 'prop', who: 'player', set: { track: null } },
       { do: 'emote', who: 'player', fx: 'shock' },
       { do: 'wait', ms: 800 },
       { do: 'emote', who: 'murkrow', fx: 'exclaim' },
@@ -550,6 +551,7 @@ export const SCENES = [
       { do: 'turn', who: 'mawile', dir: 'down' },   // se pone delante de él, mirándolo
       { do: 'wait', ms: 300 },
       { do: 'say', who: 'mawile', mood: 'Determined', text: '¡Ya lo llevo! Pobrecito… ¡Uf, cómo pesa!' },
+      { do: 'prop', who: 'player', set: { track: 'smeargle' } },
       { at: [{ do: 'move', who: 'mawile', to: [[384, 176]], speed: 0.9, keepFacing: true }, { do: 'move', who: 'smeargle', to: [[384, 198]], speed: 0.9, keepAnim: true, keepFacing: true }] },   // de espaldas, tirando de él
       { do: 'hide', who: 'mawile' },
       { do: 'move', who: 'smeargle', to: [[384, 180]], speed: 0.9, keepAnim: true, keepFacing: true },
@@ -583,8 +585,10 @@ export const SCENES = [
       { do: 'wait', ms: 400 },
       { do: 'turn', who: 'chatot', toward: 'player' },
       { do: 'say', who: 'chatot', mood: 'Sigh', text: '… Y que no sea tarde.' },
+      { do: 'prop', who: 'player', set: { track: 'chatot' } },   // le sigues con la vista
       { do: 'move', who: 'chatot', to: [[384, 176]], speed: 1.7 },
       { do: 'hide', who: 'chatot' },
+      { do: 'prop', who: 'player', set: { track: null } },
       { do: 'wait', ms: 1400 },
       { do: 'prop', who: 'murkrow', set: { x: 384, y: 176 } },
       { do: 'show', who: 'murkrow' },
@@ -598,7 +602,6 @@ export const SCENES = [
       { do: 'wait', ms: 300 },
       { do: 'emote', who: 'murkrow', fx: 'dots' },   // se lo piensa…
       { do: 'wait', ms: 1500 },
-      { do: 'move', who: 'murkrow', to: [[336, 228]], speed: 1.3 },   // …y se te acerca
       { do: 'turn', who: 'murkrow', toward: 'player' },
       { do: 'turn', who: 'player', toward: 'murkrow' },
       { do: 'say', who: 'murkrow', mood: 'Normal', text: '… Oye, tú. ¿Tú sabes dónde viven los equipos?' },
@@ -673,7 +676,6 @@ export const SCENES = [
              { do: 'turn', who: 'chatot', toward: 'ampharos' }, { do: 'turn', who: 'mawile', toward: 'ampharos' }, { do: 'turn', who: 'player', toward: 'ampharos' }, { do: 'turn', who: 'heracross', toward: 'ampharos' }, { do: 'turn', who: 'machamp', toward: 'ampharos' }] },
       { do: 'turn', who: 'ampharos', toward: 'chatot' },
       { do: 'say', who: 'ampharos', mood: 'Happy', text: 'Perdón, perdón… Había unas flores preciosas junto al camino.' },
-      { do: 'say', who: 'ampharos', mood: 'Normal', text: 'En la cueva no habrá flores. Pero mi cola os alumbrará el camino.' },
       { do: 'turn', who: 'mawile', dir: 'down-right' },
       { do: 'turn', who: 'machamp', toward: 'chatot' },
       { do: 'turn', who: 'heracross', toward: 'chatot' },
@@ -691,10 +693,11 @@ export const SCENES = [
       { do: 'say', who: 'machamp', mood: 'Normal', text: 'Con calma. Una cueva que se inunda se traga a quien entra sin plan.' },
       { do: 'say', who: 'heracross', mood: 'Sad', text: '… Vale.' },
       { do: 'wait', ms: 400 },
-      { do: 'move', who: 'heracross', to: [[352, 318]], speed: 1.2 },
-      { do: 'turn', who: 'heracross', dir: 'left' },
+      { do: 'turn', who: 'heracross', toward: 'player' },   // se fija en ti… y entonces se acerca
       { do: 'emote', who: 'heracross', fx: 'notice' },
       { do: 'wait', ms: 800 },
+      { do: 'move', who: 'heracross', to: [[352, 318]], speed: 1.2 },
+      { do: 'turn', who: 'heracross', dir: 'left' },
       { do: 'say', who: 'heracross', mood: 'Surprised', text: '¿Y este renacuajo?' },
       { do: 'say', who: 'chatot', mood: 'Normal', text: 'Es {jugador}. Superó el Bosque Frondoso.' },
       { do: 'say', who: 'heracross', mood: 'Surprised', text: '¿Él solo?' },

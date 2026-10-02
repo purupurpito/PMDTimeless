@@ -51,6 +51,8 @@ export async function playScene(scene) {
   c.actors.player = { id: 'player', isPlayer: true, emotes: [], get x() { return D.state.hub.x; }, get y() { return D.state.hub.y; }, get facing() { return D.state.hub.facing; }, set facing(v) { D.state.hub.facing = v; }, set x(v) { D.state.hub.x = v; }, set y(v) { D.state.hub.y = v; }, set movedAt(v) { D.state.hub.movedAt = v; } };
   if (scene.music) D.music?.(scene.music);
   D.render();
+  // las frases que van seguidas del mismo Pokémon: se le mira desde la primera
+  { const S = scene.steps; for (let i = 0; i < S.length; i++) { const s = S[i]; if (s.do !== 'say' || !s.who) continue; for (let j = i + 1; j < S.length; j++) if (S[j].do === 'say') { if (S[j].who === s.who) s.multi = true; break; } } }
   try { for (const step of scene.steps) { if (c.skip) break; await runStep(step, c); } }
   catch (e) { console.error('escena', scene.id, e); }
   const skipped = c.skip, endedDark = c.fade >= 0.99;
@@ -172,8 +174,9 @@ async function say(c, who, step) {
   if (who && !who.hidden) for (const a of Object.values(c.actors)) {
     if (a === who || a.hidden || a.anim || a.hover || a.pensive || a.noLook || (a.isPlayer && D.state.hub.inBed)) continue;
     const [fx, fy] = a.facing || [0, 1], d = Math.abs(octant(fx, fy) - octant(who.x - a.x, who.y - a.y)), diff = Math.min(d, 8 - d);
-    if (diff >= 2) { const f = dirToward(a, who); if (f) a.facing = f; }   // misma dirección o la de al lado: no se mueve
+    if (diff >= 2 || step.multi || c.prevSayWho === who) { const f = dirToward(a, who); if (f) a.facing = f; }   // (si va a decir varias frases seguidas, se le mira)
   }
+  c.prevSayWho = who;
   const page = { who: step.name ?? who?.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: (step.text || '').replace(/\{jugador\}/g, D.playerName?.() || 'Novato'), think: !!step.think };
   if (step.unknown || who?.form) { page.who = step.name ?? '???'; page.sp = null; }   // name: '' = una voz sin nombre (desde fuera de plano)
   // el retrato se voltea a la derecha para el segundo interlocutor (como en el original)
