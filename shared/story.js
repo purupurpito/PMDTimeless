@@ -493,15 +493,20 @@ export const SCENES = [
   {
     // Al caer la tarde: Smeargle (del equipo de exploración que salió) vuelve solo y herido. Chatot moviliza a otros equipos… y Murkrow no sabe adónde
     id: 'smeargle-vuelve', trigger: 'return', when: m => (m.scenes || []).includes('coartada'),
-    area: 'plaza', player: { x: 452, y: 292, dir: 'left' }, cam: { x: 84, y: 40 }, tint: 'rgba(255, 120, 40, .22)', music: 'dusk', hideNpcIds: ['murkrow'],
+    area: 'plaza', player: { x: 296, y: 224, dir: 'up' }, cam: { x: 84, y: 40 }, tint: 'rgba(255, 120, 40, .22)', music: 'dusk', hideNpcIds: ['murkrow'],   // en el buzón, preguntando por el correo
     actors: { smeargle: { sp: 'smeargle', x: 384, y: 505, dir: 'up', hidden: true }, chatot: { sp: 'chatot', x: 384, y: 176, dir: 'down', hidden: true },
               mawile: { sp: 'mawile', x: 384, y: 176, dir: 'down', hidden: true }, murkrow: { sp: 'murkrow', x: 315, y: 152, dir: 'down' } },
     steps: [
       { do: 'narration', text: 'Al caer la tarde…', ms: 2200 },
       { do: 'fade', to: 'in', ms: 900 },
-      { do: 'wait', ms: 1200 },
+      { do: 'wait', ms: 600 },
+      { do: 'say', who: 'murkrow', mood: 'Normal', text: '¡Crrraa! A ver, a ver… Una carta para… ¡Gulpin! No, esa no es tuya.' },
+      { do: 'say', who: 'murkrow', mood: 'Happy', text: 'Para ti no hay nada hoy. Crrr. ¡Vuelve mañana!' },
+      { do: 'wait', ms: 700 },
       { do: 'show', who: 'smeargle' },
       { do: 'move', who: 'smeargle', to: [[384, 430]], speed: 0.5 },
+      { do: 'turn', who: 'player', toward: 'smeargle' },
+      { do: 'turn', who: 'murkrow', toward: 'smeargle' },
       { do: 'emote', who: 'player', fx: 'question' },
       { do: 'wait', ms: 700 },
       { do: 'anim', who: 'smeargle', anim: 'LostBalance', ms: 1100 },
@@ -538,6 +543,8 @@ export const SCENES = [
       { do: 'anim', who: 'smeargle', anim: 'Sleep', hold: true },
       { do: 'turn', who: 'chatot', toward: 'mawile' },
       { do: 'say', who: 'chatot', mood: 'Determined', text: '¡Mawile! ¡A Chansey! ¡Ya!' },
+      { do: 'move', who: 'chatot', to: [[428, 330]], speed: 1.3 },   // se aparta para dejarle sitio
+      { do: 'turn', who: 'chatot', toward: 'smeargle' },
       { do: 'move', who: 'mawile', to: [[384, 320]], speed: 1.3 },
       { do: 'turn', who: 'mawile', dir: 'down' },   // se pone delante de él, mirándolo
       { do: 'wait', ms: 300 },
@@ -579,14 +586,19 @@ export const SCENES = [
       { do: 'wait', ms: 1400 },
       { do: 'prop', who: 'murkrow', set: { x: 384, y: 176 } },
       { do: 'show', who: 'murkrow' },
-      { do: 'move', who: 'murkrow', to: [[372, 204], [330, 216], [320, 208]], speed: 1.7 },
-      { do: 'turn', who: 'murkrow', toward: 'player' },   // desde el suelo
+      { do: 'move', who: 'murkrow', to: [[372, 204], [350, 214]], speed: 1.7 },
+      { do: 'turn', who: 'murkrow', dir: 'down' },
       { do: 'wait', ms: 700 },
       { do: 'say', who: 'murkrow', mood: 'Worried', text: 'Crrr… Un momento. ¿A QUIÉN le llevo las cartas?' },
       { do: 'emote', who: 'murkrow', fx: 'sweat' },
       { do: 'wait', ms: 700 },
       { do: 'say', who: 'murkrow', mood: 'Worried', text: 'No me lo ha dicho. ¡No me ha dicho a quién!' },
       { do: 'wait', ms: 300 },
+      { do: 'emote', who: 'murkrow', fx: 'dots' },   // se lo piensa…
+      { do: 'wait', ms: 1500 },
+      { do: 'move', who: 'murkrow', to: [[318, 226]], speed: 1.3 },   // …y se te acerca
+      { do: 'turn', who: 'murkrow', toward: 'player' },
+      { do: 'turn', who: 'player', toward: 'murkrow' },
       { do: 'say', who: 'murkrow', mood: 'Normal', text: '… Oye, tú. ¿Tú sabes dónde viven los equipos?' },
       { do: 'emote', who: 'player', fx: 'sweat' },
       { do: 'wait', ms: 1500 },
@@ -596,7 +608,7 @@ export const SCENES = [
   {
     // Tras superar el Bosque Frondoso: llegan Machamp y Heracross, de otros equipos, respondiendo a las cartas de Chatot
     id: 'veteranos', trigger: 'return', when: m => (m.scenes || []).includes('smeargle-vuelve') && (m.cleared || []).includes('bosque'),
-    area: 'plaza', player: { x: 312, y: 312, dir: 'right' }, cam: { x: 84, y: 40 }, hideNpcIds: [],
+    area: 'plaza', player: { x: 40, y: 262, dir: 'right' }, cam: { x: 84, y: 40 }, hideNpcIds: [],   // vuelves del mercado
     actors: { chatot: { sp: 'chatot', x: 384, y: 176, dir: 'down', hidden: true }, mawile: { sp: 'mawile', x: 384, y: 176, dir: 'down', hidden: true },
               machamp: { sp: 'machamp', x: 384, y: 505, dir: 'up', hidden: true },
               heracross: { sp: 'heracross', x: 720, y: 300, dir: 'left', hidden: true } },
@@ -616,6 +628,11 @@ export const SCENES = [
       { do: 'wait', ms: 600 },
       { do: 'turn', who: 'chatot', dir: 'left' },
       { do: 'wait', ms: 500 },
+      { do: 'move', who: 'player', to: [[312, 312]], speed: 1.6 },   // llegas del mercado
+      { do: 'turn', who: 'player', toward: 'chatot' },
+      { do: 'turn', who: 'chatot', toward: 'player' },
+      { do: 'say', who: 'chatot', mood: 'Normal', text: 'Ah, {jugador}. Quédate por aquí: hoy esperamos visita.' },
+      { do: 'turn', who: 'chatot', dir: 'right' },
       { do: 'say', who: 'mawile', mood: 'Worried', text: 'Chatot… ¿y si no vienen?' },
       { do: 'say', who: 'chatot', mood: 'Determined', text: 'Vendrán. Si ellos no vienen, nadie vendrá.' },
       { do: 'wait', ms: 600 },
