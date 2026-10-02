@@ -68,6 +68,7 @@ export const skipScene = () => { const c = cut(); if (c) { c.skip = true; if (D.
 
 async function runStep(step, c) {
   if (step.at) { await Promise.all(step.at.map(s => runStep(s, c))); return; }
+  if (step.delay && !fast()) await delay(step.delay);   // (dentro de un «at»: empezar un poco más tarde que los demás)
   const who = step.who ? c.actors[step.who] : null;
   switch (step.do) {
     case 'wait': if (step.for) await waitActor(c.actors[step.for]); else await delay(step.ms || 0); return;
