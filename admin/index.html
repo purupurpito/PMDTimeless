@@ -42,6 +42,7 @@
   .danger { margin-top: 28px; padding: 14px; border: 1px solid #a05050; border-radius: 10px; background: rgba(90, 30, 30, .25); }
   .danger h3 { color: #f08080; }
   #reset-all { background: #7a2020; border: 1px solid #c05050; color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  .resetu { margin-left: 6px; padding: 2px 8px; font-size: 12px; background: #3a2a5a; border: 1px solid #8060c0; color: #fff; border-radius: 5px; cursor: pointer; }
   .unstick { margin-left: 6px; padding: 2px 8px; font-size: 12px; background: #5a2a2a; border: 1px solid #a05050; color: #fff; border-radius: 5px; cursor: pointer; }
   select { background: #0a0c18; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px; }
   .twocol { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
@@ -114,6 +115,7 @@ function draw() {
   $('#rows').innerHTML = list.map(u => `<tr>${COLS.map(([k, , n]) => {
     let v = u[k]; if (k === 'createdAt' || k === 'lastLogin') v = fmt(v); if (k === 'runStatus') v = STATUS[v] || '—'; if (k === 'playMin') v = hm(v);
     if (k === 'runStatus' && ['active', 'paused', 'rescue_pending'].includes(u.runStatus)) return `<td>${v} <button class="unstick" data-id="${u.id}" data-name="${String(u.name).replace(/"/g, '')}" title="Cierra la exploración y le devuelve los objetos con los que entró">Desatascar</button></td>`;
+    if (k === 'name') return `<td>${String(v ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))} <button class="resetu" data-id="${u.id}" data-name="${String(u.name).replace(/"/g, '')}" title="Reiniciar la partida de esta cuenta">Reiniciar</button></td>`;
     if (k === 'ip') return `<td class="${ipCount[v] > 1 ? 'ipdup' : 'dim'}">${v ? v + (ipCount[v] > 1 ? ` (×${ipCount[v]})` : '') : '—'}</td>`;
     return `<td class="${n ? 'num' : ''}">${String(v ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>`; }).join('')}</tr>`).join('');
   $('#s-dup').textContent = Object.values(ipCount).filter(n => n > 1).length;
@@ -145,6 +147,14 @@ $('#reset-all').onclick = async () => {
   try { const r = await api('/admin/reset-all', { confirm: txt }); $('#reset-msg').textContent = `Hecho: ${r.users} cuentas reiniciadas.`; load(); }
   catch (e) { $('#reset-msg').textContent = e.message; }
 };
+// Reiniciar una cuenta: hay que escribir su nombre para confirmar
+$('#rows').addEventListener('click', async ev => {
+  const b = ev.target.closest('.resetu'); if (!b) return;
+  const txt = prompt(`Esto reinicia la partida de ${b.dataset.name} (vuelve a como estaba recién registrada, con el inicial de su test) y no se puede deshacer.\nEscribe su nombre para confirmar:`);
+  if (txt === null) return; if (txt !== b.dataset.name) { alert('El nombre no coincide: cancelado.'); return; }
+  try { const r = await api('/admin/reset-user', { userId: +b.dataset.id, confirm: txt }); alert(`Hecho: la partida de ${r.name} se ha reiniciado.`); load(); }
+  catch (e) { alert(e.message); }
+});
 // Desatascar: cierra la exploración a medias de una cuenta (le devuelve los objetos con los que entró)
 $('#rows').addEventListener('click', async ev => {
   const b = ev.target.closest('.unstick'); if (!b) return;
