@@ -128,7 +128,7 @@ async function move(c, who, step) {
   const pts = (step.to || []).map(p => ({ x: p[0], y: p[1] })), speed = (step.speed || 1) * 1.6;   // px por fotograma a 60 fps
   if (fast()) { const last = pts[pts.length - 1]; if (last) { who.x = last.x; who.y = last.y; } return; }
   who.hidden = false; if (!step.keepAnim) who.anim = null;   // (keepAnim: se mueve sin cambiar de pose, p. ej. alguien arrastrado)
-  await new Promise(res => { who.path = { pts, speed, slide: !!step.slide, res }; });
+  await new Promise(res => { who.path = { pts, speed, slide: !!step.slide, keepFacing: !!step.keepFacing, res }; });   // keepFacing: anda de espaldas
 }
 // avanza los actores que andan (lo llama el bucle de la aldea)
 export function tickScenes() {
@@ -139,7 +139,7 @@ export function tickScenes() {
     let left = step;
     while (left > 0 && p.pts.length) {
       const t = p.pts[0], dx = t.x - a.x, dy = t.y - a.y, d = Math.hypot(dx, dy);
-      if (!p.slide && (dx || dy)) a.facing = [Math.abs(dx) > d * 0.38 ? Math.sign(dx) : 0, Math.abs(dy) > d * 0.38 ? Math.sign(dy) : 0];
+      if (!p.slide && !p.keepFacing && (dx || dy)) a.facing = [Math.abs(dx) > d * 0.38 ? Math.sign(dx) : 0, Math.abs(dy) > d * 0.38 ? Math.sign(dy) : 0];
       if (d <= left) { a.x = t.x; a.y = t.y; left -= d; p.pts.shift(); }
       else { a.x += dx / d * left; a.y += dy / d * left; left = 0; }
     }
@@ -166,8 +166,13 @@ async function emote(c, who, step) {
 async function say(c, who, step) {
   if (fast()) return;
   // todos los que escuchan miran a quien habla (salvo dormidos, en pose, volando o «pensativos»)
-  if (who) for (const a of Object.values(c.actors)) if (a !== who && !a.hidden && !a.anim && !a.hover && !a.pensive && !a.noLook && !(a.isPlayer && D.state.hub.inBed)) { const f = dirToward(a, who); if (f) a.facing = f; }
-  const page = { who: step.name ?? who?.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: step.text, think: !!step.think };
+  // solo se gira quien tiene a quien habla claramente de espaldas o muy de lado (si ya mira más o menos hacia ahí, no se mueve)
+  if (who && !who.hidden) for (const a of Object.values(c.actors)) {
+    if (a === who || a.hidden || a.anim || a.hover || a.pensive || a.noLook || (a.isPlayer && D.state.hub.inBed)) continue;
+    const [fx, fy] = a.facing || [0, 1], dx = who.x - a.x, dy = who.y - a.y, L = Math.hypot(dx, dy) || 1, fl = Math.hypot(fx, fy) || 1;
+    if ((fx * dx + fy * dy) / (L * fl) < 0.3) { const f = dirToward(a, who); if (f) a.facing = f; }
+  }
+  const page = { who: step.name ?? who?.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: (step.text || '').replace(/\{jugador\}/g, D.playerName?.() || 'Novato'), think: !!step.think };
   if (step.unknown || who?.form) { page.who = step.name ?? '???'; page.sp = null; }   // name: '' = una voz sin nombre (desde fuera de plano)
   // el retrato se voltea a la derecha para el segundo interlocutor (como en el original)
   page.side = c.lastSpeaker && c.lastSpeaker !== (who?.id || page.who) ? 'right' : 'left'; c.lastSpeaker = who?.id || page.who;

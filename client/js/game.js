@@ -239,7 +239,7 @@ const canLeaderChoice = () => rankOf(meta.rankPts) >= CFG.leaderChoiceRank;
 // =====================================================================
 export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
-  initScenes({ state, render, openDialog, beds: () => HUB.descanso.beds, drawItem: (c, name, x, y, size) => drawItemIcon(c, name, x, y, size), music: key => key ? playTrack(key) : playZone(state.hub.area), sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} } });
+  initScenes({ state, render, openDialog, playerName: () => user?.name || 'Novato', beds: () => HUB.descanso.beds, drawItem: (c, name, x, y, size) => drawItemIcon(c, name, x, y, size), music: key => key ? playTrack(key) : playZone(state.hub.area), sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} } });
   window.__mmPlayScene = id => { const sc = SCENES_ALL().find(s => s.id === id); return sc ? playScene(sc) : Promise.resolve(); };
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
