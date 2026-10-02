@@ -270,6 +270,8 @@ export function floorKind(def, floor, flags = {}) {
 
 // Reclutamiento: tasa base + 2 % por nivel del líder por encima del salvaje + objeto equipado. Se recluta si rng < chance/100.
 export const RECRUIT_MIN_RANK = 2; // hasta rango Plata no se puede reclutar
+// reclutar se desbloquea al superar la Cueva Húmeda (con Machamp, Heracross y Ampharos de invitados: el «tutorial» de llevar equipo)
+export const canRecruit = m => (m?.cleared || []).includes('cueva');
 export function recruitChance(leader, target, alreadyOnTeam = false) {
   // tasa real de la especie (Exploradores del Cielo); las que no están en ese juego usan la aproximación anterior
   let rate = EOS_RECRUIT[target.species] ?? EOS_RECRUIT[String(target.species).replace('mega_', '')];

@@ -9,6 +9,7 @@ import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
+import { canRecruit } from '../../shared/data.js';
 import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt, drawScreenFade, releaseBlack } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
 import { spawnMoveFx, drawMoveFx, fxEndTime, fxShake, spawnSuperEffective } from './vfx.js';
@@ -527,7 +528,8 @@ function enterHub(opts = {}) {
 async function playPendingScenes(fromRun = false) {
   if (!user || state.tour) return;
   let usedReturn = false;   // una escena «a la vuelta» por regreso, salvo las que se encadenan (chain: true)
-  const nextOne = () => (fromRun && pendingScene(meta, 'return', usedReturn)) || pendingScene(meta);
+  const ctx = () => ({ ...meta, lastRun: state.lastRun });   // (la última exploración: para «si fallas en la cueva…»)
+  const nextOne = () => (fromRun && pendingScene(ctx(), 'return', usedReturn)) || pendingScene(meta);
   let next = nextOne(); if (!next) return;
   await whenIdle();   // nunca encima de un aviso o un menú abierto
   if (!user || state.tour || state.scene !== 'hub') return;
@@ -540,6 +542,7 @@ const whenIdle = () => new Promise(res => { const t = () => (!state.dialog && !s
 async function runScene(sc) {
   let res = null; try { res = await playScene(sc); } catch (e) { console.error(e); }
   if (res?.aborted) return;   // no se ha llegado a ver: no se marca
+  if (sc.repeat) { track('scene', { id: sc.id, skipped: !!res?.skipped }); return; }   // las que se repiten no se marcan como vistas
   (meta.scenes ||= []).includes(sc.id) || meta.scenes.push(sc.id);
   try { const r = await api('/scene/seen', { id: sc.id }); if (r?.meta) meta = r.meta; } catch {}
   track('scene', { id: sc.id, skipped: !!res?.skipped });
@@ -842,7 +845,19 @@ function openRankMenu() {
 // =====================================================================
 // RUN
 // =====================================================================
+// Hasta superar la Cueva Húmeda, Machamp, Heracross y Ampharos van contigo como invitados (no se guardan ni se expulsan)
+const caveGuests = def => def?.id === 'cueva' && !canRecruit(meta) && (meta?.scenes || []).includes('veteranos');
+function addCaveGuests(def) {
+  for (const sp of ['machamp', 'heracross', 'ampharos']) {
+    const gst = createMon(sp, Math.max(state.player.level + 2, def.lvl + 4), { x: state.player.x, y: state.player.y, tactic: 'seguir', floors: 0, held: null });
+    gst.guest = true; gst.noRecruit = true; gst.runStartLevel = gst.level; state.team.push(gst);
+  }
+  say('Machamp, Heracross y Ampharos te acompañan en la Cueva Húmeda.');
+}
 async function startRun(def) {
+  // la primera vez que vas a la cueva con los veteranos: te recogen antes de salir
+  const intro = caveGuests(def) && !(meta.scenes || []).includes('cueva-salida') && SCENES.find(x => x.id === 'cueva-salida');
+  if (intro && state.scene === 'hub') { state.menu = null; await runScene(intro); }
   if (pendingEnd() && !(await flushPendingEnd(true))) return openDialog([{ who: '', text: 'Antes hay que enviar el resultado de tu última exploración, y ahora no hay conexión. Inténtalo de nuevo en un momento.' }]);
   if (!state.player) state.player = createPlayer(meta.starters[0]);   // por si la aldea aún no había terminado de cargar
   let r;
@@ -854,6 +869,7 @@ async function startRun(def) {
   const moves = state.player.moves;
   state.player = createPlayer(r.run.starter); state.player.moves = moves;
   Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: def, inventory: [...r.bag], runPokes: 0, missions: r.missions.map(m => ({ ...m, done: false })), earnedMD: [], recruitedLegendaries: [], lostRecruits: [], bondedLost: [], team: [], floor: 1, turn: 0, dead: false, log: [], scene: 'dungeon', diary: { monsterHouses: 0, recruited: 0, kecleonRobs: 0, itemsSold: 0 }, stonesFound: [] });
+  if (caveGuests(def)) addCaveGuests(def);
   newFloor();
 }
 // No se ha podido entrar en la mazmorra: se explica por qué y se da la salida (antes el motivo iba al registro de
@@ -1099,9 +1115,10 @@ function showPenaltyReport(p, where) {
 // Quien te trae de vuelta al caer: siempre Bruno, el Ursaring de otro equipo de rescate
 const RESCUER = { name: 'Bruno', art: 'el', sp: 'Ursaring' };
 async function endRun(outcome) {
-  const bonds = [...state.team.map(a => ({ species: a.species, floors: a.floors, nick: a.nick })), ...state.bondedLost];
+  const bonds = [...state.team.filter(a => !a.guest).map(a => ({ species: a.species, floors: a.floors, nick: a.nick })), ...state.bondedLost];   // (los invitados no)
   const fell = { x: state.player.x, y: state.player.y };
   const fallen = `${state.dungeonDef.name}, piso B${state.floor}F`;   // para el mensaje de Chansey
+  const dungeonIdForStory = state.dungeonDef?.id;   // (para las escenas «a la vuelta»: ¿de qué mazmorra se vuelve?)
   // resumen para la pantalla de «mazmorra completada» (antes de que se reinicie el estado)
   const summary = outcome === 'clear' ? { dungeon: state.dungeonDef.name, floors: state.floor, pokes: state.runPokes, items: [...state.inventory], held: state.player.held,
     leader: state.player.name, lv0: state.player.runStartLevel ?? state.player.level, lv1: state.player.level,
@@ -1149,6 +1166,7 @@ async function endRun(outcome) {
   }
   r.messages.forEach(say);
   // (el rescate se ofrece al caer, antes de volver al gremio: ver deathChoice)
+  state.lastRun = { dungeon: dungeonIdForStory, outcome };
   whenIdle().then(() => whenIdle()).then(() => playPendingScenes(true));   // las escenas, cuando ya se ha leído todo lo demás (también las de «a la vuelta»)
   if (lost.length) openDialog([{ who: lost.map(s => SPECIES[s].name).join(', '), text: `${lost.length > 1 ? '(Al unísono) ' : ''}Me había equivocado, pensaba que eras más fuerte…`, portraits: lost }]);
 }
@@ -1530,7 +1548,7 @@ function defeatEnemy(e, by) {
 function tryRecruit(e, by) {
   if (by !== state.player || cheb(e, state.player) > 1 || e.minion || e.mega || e.noRecruit) return; // golpe final del líder y adyacente (Kecleon incluido: tasa -49 %); los Mega guardianes no se reclutan
   if (state.team.length >= CFG.teamMax) return;
-  if (rankOf(meta.rankPts) < RECRUIT_MIN_RANK) { if (!state.recruitHintShown) { state.recruitHintShown = true; say(`(Los Pokémon aún no confían en ti: podrás reclutar a partir de rango ${RANKS[RECRUIT_MIN_RANK].name}.)`); } return; }
+  if (!canRecruit(meta)) { if (!state.recruitHintShown) { state.recruitHintShown = true; say('(Aún no sabes llevar un equipo: podrás reclutar Pokémon después de la Cueva Húmeda.)'); } return; }
   const chance = recruitChance(state.player, e, meta.starters.includes(e.species) || state.team.some(a => a.species === e.species)) + (state.player.iqSkills?.includes('Fast Friend') ? 1 : 0);
   if (chance <= 0 || state.rng.random() * 100 >= chance) return;
   const recruit = createMon(e.species, e.level, { x: e.x, y: e.y, tactic: 'seguir', floors: 1, held: null });   // el piso en que se une ya cuenta
@@ -1612,7 +1630,8 @@ function downed(mon) {
     return;
   }
   state.team = state.team.filter(a => a !== mon);
-  if (mon.floors >= CFG.bondFloors) { state.bondedLost.push({ species: mon.species, floors: mon.floors, nick: mon.nick }); say(`${mon.name} cae, pero vuestro vínculo ya está forjado.`); }
+  if (mon.guest) say(`${mon.name} se retira a recuperarse. ¡Seguid sin él!`);   // un invitado no se pierde
+  else if (mon.floors >= CFG.bondFloors) { state.bondedLost.push({ species: mon.species, floors: mon.floors, nick: mon.nick }); say(`${mon.name} cae, pero vuestro vínculo ya está forjado.`); }
   else { state.lostRecruits.push(mon.species); say(`${mon.name} cae… y se marcha.`); }
 }
 
@@ -2512,6 +2531,7 @@ function openTeamMenu() {
       if (j0 === 0) return openSummary(a, openTeamMenu);
       const j = j0 - 1;
       if (j < keys.length) { a.tactic = keys[j]; say(`${a.name}: "${TACTICS[a.tactic]}".`); openTeamMenu(); }
+      else if (a.guest) { say(`${a.name} es un invitado: os acompaña hasta rescatar al equipo de Smeargle.`); openTeamMenu(); }
       else openMenu({ title: `¿Expulsar a ${a.name}?${a.floors < CFG.bondFloors ? ' Se perderá.' : ' El vínculo se mantiene.'}`, items: ['No', 'Sí'], onCancel: openTeamMenu, onSelect: k => { if (k === 1) { state.team = state.team.filter(x => x !== a); if (a.floors >= CFG.bondFloors) state.bondedLost.push({ species: a.species, floors: a.floors }); else state.lostRecruits.push(a.species); say(`${a.name} abandona el equipo.`); } render(); } });
     } });
   } });
