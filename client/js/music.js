@@ -15,13 +15,13 @@ const TRACKS = {
   menu:    { url: 'client/assets/music/menu.mp3', loop: 16 * 4 * 60 / 88, set: 'base', approved: true },        // menú principal
   quiz:    { url: 'client/assets/music/quiz.mp3', loop: 16 * 4 * 60 / 72, set: 'base', approved: true },        // test de personalidad y escenas de entrada
   village: { url: 'client/assets/music/village.mp3', loop: 32 * 4 * 60 / 113, set: 'base', approved: true },   // aldea (plaza, gremio, mercado, casas)
-  rest:    { url: 'client/assets/music/rest.mp3', loop: 12 * 4 * 60 / 64, set: 'B', approved: false },         // zona de descanso (nana)
-  sad:     { url: 'client/assets/music/sad.mp3', set: 'antigua', approved: false },                            // escena triste: despertar tras caer
+  rest:    { url: 'client/assets/music/rest.mp3', loop: 12 * 4 * 60 / 64, set: 'B', approved: true },         // zona de descanso (nana)
+  sad:     { url: 'client/assets/music/sad.mp3', set: 'antigua', approved: true },                            // escena triste: despertar tras caer
   // mazmorras
   bosque:  { url: 'client/assets/music/bosque.mp3', loop: 16 * 4 * 60 / 108, set: 'B', approved: false },      // Bosque Frondoso y Campo de Entrenamiento
   cueva:   { url: 'client/assets/music/cueva.mp3', loop: 16 * 4 * 60 / 90, set: 'B', approved: false },
   monte:   { url: 'client/assets/music/monte.mp3', loop: 16 * 4 * 60 / 120, set: 'B', approved: false },
-  ruinas:  { url: 'client/assets/music/ruinas.mp3', loop: 16 * 4 * 60 / 82, set: 'B', approved: false },
+  ruinas:  { url: 'client/assets/music/ruinas.mp3', loop: 16 * 4 * 60 / 82, set: 'B', approved: true },
   tiempo:  { url: 'client/assets/music/tiempo.mp3', loop: 16 * 4 * 60 / 126, set: 'B', approved: false },
   suenos:  { url: 'client/assets/music/suenos.mp3', loop: 16 * 4 * 60 / 74, set: 'B', approved: false },
   boss:    { url: 'client/assets/music/boss.mp3', loop: 16 * 4 * 60 / 150, set: 'B', approved: false },        // jefe
