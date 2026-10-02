@@ -119,10 +119,11 @@ async function fade(c, to, ms) {
   if (fast()) { c.fade = target; D.render(); return; }
   await new Promise(res => { const tick = () => { const k = Math.min(1, (now() - t0) / ms); c.fade = from + (target - from) * k; D.render(); if (k < 1 && !c.skip) requestAnimationFrame(tick); else { c.fade = target; res(); } }; tick(); });
 }
-function dirToward(a, b) {   // hacia dónde mirar para ver a b (diagonal solo si de verdad está en diagonal)
-  if (!b) return a.facing; const dx = b.x - a.x, dy = b.y - a.y, m = Math.max(Math.abs(dx), Math.abs(dy)); if (!m) return a.facing;
-  const hx = Math.abs(dx) > m * 0.4 ? Math.sign(dx) : 0, hy = Math.abs(dy) > m * 0.4 ? Math.sign(dy) : 0; return [hx, hy];
+function dirToward(a, b) {   // hacia dónde mirar para ver a b: las 4 cardinales salvo que esté claramente en diagonal
+  if (!b) return a.facing; const dx = b.x - a.x, dy = b.y - a.y, ax = Math.abs(dx), ay = Math.abs(dy); if (!ax && !ay) return a.facing;
+  const diag = Math.min(ax, ay) > Math.max(ax, ay) * 0.75; return [diag || ax >= ay ? Math.sign(dx) : 0, diag || ay > ax ? Math.sign(dy) : 0];
 }
+const octant = (x, y) => ((Math.round(Math.atan2(y, x) / (Math.PI / 4)) % 8) + 8) % 8;   // 0..7 (8 direcciones)
 async function move(c, who, step) {
   if (!who) return;
   const pts = (step.to || []).map(p => ({ x: p[0], y: p[1] })), speed = (step.speed || 1) * 1.6;   // px por fotograma a 60 fps
@@ -166,11 +167,11 @@ async function emote(c, who, step) {
 async function say(c, who, step) {
   if (fast()) return;
   // todos los que escuchan miran a quien habla (salvo dormidos, en pose, volando o «pensativos»)
-  // solo se gira quien tiene a quien habla claramente de espaldas o muy de lado (si ya mira más o menos hacia ahí, no se mueve)
+  // solo se gira quien tiene a quien habla a 90° o más (8 direcciones: la misma o la de al lado no cuentan)
   if (who && !who.hidden) for (const a of Object.values(c.actors)) {
     if (a === who || a.hidden || a.anim || a.hover || a.pensive || a.noLook || (a.isPlayer && D.state.hub.inBed)) continue;
-    const [fx, fy] = a.facing || [0, 1], dx = who.x - a.x, dy = who.y - a.y, L = Math.hypot(dx, dy) || 1, fl = Math.hypot(fx, fy) || 1;
-    if ((fx * dx + fy * dy) / (L * fl) < 0.3) { const f = dirToward(a, who); if (f) a.facing = f; }
+    const [fx, fy] = a.facing || [0, 1], d = Math.abs(octant(fx, fy) - octant(who.x - a.x, who.y - a.y)), diff = Math.min(d, 8 - d);
+    if (diff >= 2) { const f = dirToward(a, who); if (f) a.facing = f; }   // misma dirección o la de al lado: no se mueve
   }
   const page = { who: step.name ?? who?.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: (step.text || '').replace(/\{jugador\}/g, D.playerName?.() || 'Novato'), think: !!step.think };
   if (step.unknown || who?.form) { page.who = step.name ?? '???'; page.sp = null; }   // name: '' = una voz sin nombre (desde fuera de plano)
