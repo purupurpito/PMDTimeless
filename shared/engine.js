@@ -301,7 +301,7 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     const big = kind === 'bigLegendary', isFinal = floor === def.floors;
     const species = isFinal ? def.finalBoss : rng.pick(def.legendaries);
     const md = isFinal ? def.md : rng.pick(big && rng.random() < 0.7 ? MD_RARE_POOL : MD_POOL);
-    boss = createMon(species, isFinal && def.finalBossLevel ? def.finalBossLevel : wildLevel() + (big ? 8 : 5), { x: stairs.x, y: stairs.y + 1, asleep: false, isBoss: true, isLegendary: true, md, big, noRecruit: isFinal && !!def.finalBossNoRecruit });
+    boss = createMon(species, isFinal && def.finalBossLevel ? def.finalBossLevel : wildLevel() + (big ? 8 : 5), { x: stairs.x, y: stairs.y + 1, asleep: false, isBoss: true, isLegendary: !!SPECIES[species]?.legendary, md, big, noRecruit: isFinal && !!def.finalBossNoRecruit });
     if (isFinal && def.finalBossMoves) boss.moves = def.finalBossMoves.map(n => ({ name: n, pp: MOVES[n]?.pp ?? 20 }));   // p. ej. Chatot del entrenamiento: solo Placaje
     enemies.push(boss);
     if (big) for (let i = 0; i < 4; i++) { const p = randomFloorIn(rng, rooms[0], tiles); if (!occupied(p.x, p.y)) enemies.push(createMon(rng.pick(MINIBOSS_POOL), wildLevel() + 1, { ...p, asleep: false, minion: true })); }

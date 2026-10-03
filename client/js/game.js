@@ -1363,6 +1363,36 @@ function openStatueMenu() {
     onCancel: () => { state.menu = null; render(); },
     onSelect: i => { state.menu = null; if (i === 0) say('La escalera de la derecha te lleva al siguiente piso.'); else if (i === 1) pauseRun(); else if (i === 2) endRun('exit'); render(); } });
 }
+// ---- Pisos especiales: de vez en cuando, un piso con sorpresa (con su propia semilla: no altera el resto de la mazmorra)
+const FLOOR_EVENTS = [
+  { id: 'dorado', w: 3, title: '¡Piso dorado!', text: '¡Piso dorado! Hay Pepitas por todo el suelo.', items: ['Pepita', 'Pepita', 'Pepita', 'Perla'], n: [5, 8] },
+  { id: 'huerto', w: 4, title: '¡Un huerto escondido!', text: '¡Un huerto escondido! Hay bayas y manzanas por el suelo.', items: ['Baya Aranja', 'Baya Aranja', 'Manzana', 'Manzana', 'Baya Zidra', 'Baya Atania'], n: [6, 9] },
+  { id: 'tranquilo', w: 3, title: 'Un piso tranquilo', text: 'Un piso tranquilo… No se oye a nadie. Aprovecha para respirar.' },
+  { id: 'multitud', w: 3, title: '¡Cuántos Pokémon!', text: '¡Cuántos Pokémon! En este piso ganas el doble de experiencia.' },
+];
+function floorEvent(def) {
+  state.floorEvent = null;
+  if (def.id === 'entrenamiento' || state.floor < 2 || state.floor >= def.floors || state.monsterHouse || state.dungeon.arena || state.enemies.some(e => e.isBoss)) return;
+  const er = makeRng(floorSeed(state.run.seed, state.floor) ^ 0x5eed);
+  const huerto = def.id === 'huerto' && er.int(0, 99) < 40;   // en el Huerto de Spinda, muchos pisos son huertos
+  if (!huerto && er.int(0, 99) >= 12 && !window.__mmForceFloorEvent) return;
+  let pick = er.int(0, FLOOR_EVENTS.reduce((a, e) => a + e.w, 0) - 1), ev = FLOOR_EVENTS[0];
+  for (const e of FLOOR_EVENTS) { if (pick < e.w) { ev = e; break; } pick -= e.w; }
+  if (huerto) ev = FLOOR_EVENTS.find(e => e.id === 'huerto');
+  if (window.__mmForceFloorEvent) ev = FLOOR_EVENTS.find(e => e.id === window.__mmForceFloorEvent) || ev;
+  state.floorEvent = ev.id; const p = state.player;
+  if (ev.items) {
+    const n = er.int(ev.n[0], ev.n[1]);
+    for (let k = 0, tries = 0; k < n && tries < 400; tries++) {
+      const x = er.int(1, CFG.map.w - 2), y = er.int(1, CFG.map.h - 2);
+      if (!walkableFor(p, x, y) || occupied(x, y) || (x === p.x && y === p.y) || state.groundItems.some(gi => gi.x === x && gi.y === y)) continue;
+      state.groundItems.push({ name: ev.items[er.int(0, ev.items.length - 1)], x, y }); k++;
+    }
+  }
+  if (ev.id === 'tranquilo') state.enemies = state.enemies.filter(e => e.isBoss || e.shopkeeper);
+  if (ev.id === 'multitud') for (let k = 0; k < 5; k++) spawnWild();
+  setTimeout(() => { showCard(ev.title, `B${state.floor}F`); say(ev.text); playSfx?.('coin'); }, 1700);   // (tras el cartel del piso)
+}
 function newFloor() {
   const def0 = state.dungeonDef;
   if (state.player) track('floor_enter', { next: state.floor, prevTurns: state.floorTurns || 0, hp: pct(state.player), belly: Math.round(state.player.belly ?? 0), bag: state.inventory?.length || 0, team: state.team.length });
@@ -1382,6 +1412,7 @@ function newFloor() {
   Object.assign(p, state.dungeon.start); p.facing = [0, -1];
   // el equipo aparece alrededor del líder
   for (const a of state.team) { const spot = DIRS8.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).find(s => walkableFor(a, s.x, s.y) && !occupied(s.x, s.y)); Object.assign(a, spot || { x: p.x, y: p.y }); a.facing = [0, -1]; }
+  floorEvent(def);   // ¿piso especial? (dorado, huerto, tranquilo o multitud)
   state.seen = Array.from({ length: CFG.map.h }, () => new Array(CFG.map.w).fill(false));
   floorStartTraits(); updateVisibility(); render();
   (built.messages || []).forEach(say);
@@ -1498,7 +1529,7 @@ function useMove(userMon, move) {
 }
 
 // ---------- música de la mazmorra: tema de la mazmorra (según la era), jefe, guardián Mega, Casa Monstruo o tienda ----------
-const DUNGEON_TRACK = { entrenamiento: 'bosque', bosque: 'bosque', cueva: 'cueva', monte: 'monte', ruinas: 'ruinas', tiempo: 'tiempo', suenos: 'suenos' };
+const DUNGEON_TRACK = { entrenamiento: 'bosque', bosque: 'bosque', cueva: 'cueva', monte: 'monte', ruinas: 'ruinas', tiempo: 'tiempo', suenos: 'suenos', huerto: 'shop' };   // (el huerto, con el bazar de swing: fruta y buen humor)
 function updateDungeonMusic() {
   if (state.scene !== 'dungeon' || !state.player) return;
   if (state.dungeon?.restArea) return playTrack('rest');
@@ -1534,7 +1565,7 @@ function floorClock() {
   }
   // un enemigo nuevo cada 36 turnos, lejos de la vista, hasta un máximo de 15 en el piso
   const bossFloor = state.enemies.some(e => e.isBoss) || state.dungeon.arena;
-  if (state.floorTurns % CFG.spawnEvery === 0 && state.enemies.length < CFG.spawnCap && !bossFloor) spawnWild();
+  if (state.floorTurns % CFG.spawnEvery === 0 && state.enemies.length < CFG.spawnCap && !bossFloor && state.floorEvent !== 'tranquilo') spawnWild();   // (un piso tranquilo sigue tranquilo)
   return true;
 }
 function spawnWild() {
@@ -1558,7 +1589,7 @@ function defeatEnemy(e, by) {
   state.enemies = state.enemies.filter(x => x !== e);
   const p = e.shopkeeper ? 0 : pokesFor(e.species, state.floor); state.runPokes += p; if (p) setTimeout(() => playSfx('coin'), 180);
   say(e.shopkeeper ? `¡${e.name} derrotado! (Un Kecleon nunca lleva Pokés encima…)` : `¡${e.name} derrotado! +${p} Pokés.`);
-  const exp = expGained(e.species, e.level, !!e.hitByMove); // ×0,5 si solo recibió ataques normales
+  const exp = expGained(e.species, e.level, !!e.hitByMove) * (state.floorEvent === 'multitud' ? 2 : 1); // ×0,5 si solo recibió ataques normales; ×2 en un piso «multitud»
   say(`+${exp} de experiencia.`);
   const xp = m => Math.round(exp * (m.iqSkills?.includes('Exp. Elite') ? 1.25 : 1));   // Élite de Experiencia
   gainExp(state.player, xp(state.player)); for (const a of state.team) gainExp(a, xp(a)); // en PMD cada miembro recibe la experiencia entera
