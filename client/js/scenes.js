@@ -22,7 +22,8 @@ const isBlack = () => !!D.state.screenFade && D.state.screenFade.to === 1;
 function screenFade(from, to, ms) {
   const S = D.state; if (fast()) { S.screenFade = to ? { from: 1, to: 1, t0: 0, ms: 1 } : null; return Promise.resolve(); }
   S.screenFade = { from, to, t0: now(), ms };
-  return new Promise(res => { const t = () => { if (now() - S.screenFade.t0 >= ms) { if (to === 0) S.screenFade = null; res(); } else setTimeout(t, 30); }; t(); });
+  const mine = S.screenFade;   // si otro fundido lo sustituye (p. ej. empieza la escena siguiente), esta espera termina sin fallar
+  return new Promise(res => { const t = () => { const f = S.screenFade; if (f !== mine || !f || now() - f.t0 >= ms) { if (to === 0 && f === mine) S.screenFade = null; res(); } else setTimeout(t, 30); }; t(); });
 }
 export const releaseBlack = () => isBlack() ? screenFade(1, 0, 700) : Promise.resolve();   // tras las escenas, la aldea vuelve con un fundido
 export function drawScreenFade(ctx, W, H) {
