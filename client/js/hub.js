@@ -26,7 +26,7 @@ export const HUB = {
     ],
     signs: [ { rect: [70, 170, 130, 230], text: 'Mercado de Kecleon ←' }, { rect: [440, 405, 500, 465], text: '↓ Aldea · Salida a las mazmorras' },
       // entrada al Café de Spinda (bajo tierra): dibujada por tools/build-cafe-hole.py; el café aún no está abierto
-      { rect: [598, 306, 640, 368], text: 'Un cartel con la cara de Spinda. Debajo, alguien ha escrito a mano: «Próximamente».' },
+      { rect: [598, 306, 640, 368], when: m => cafeOpen(m), text: 'Un cartel con la cara de Spinda. Debajo, alguien ha escrito a mano: «Próximamente».' },   // (el cartel solo está con el café abierto)
       { rect: [506, 313, 596, 372], when: m => !cafeOpen(m), text: 'Una roca enorme. Alguien ha dibujado encima, con tiza, una flecha que apunta hacia abajo.' },
       { rect: [534, 326, 596, 368], text: 'Unas escaleras bajan hacia la oscuridad. Se oye a alguien trastear ahí abajo… pero todavía está cerrado.' } ],
   },
