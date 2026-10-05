@@ -140,15 +140,17 @@ const Hub = {
       const objs = HUB_OBJECTS[id];
       const objImg = objs ? await loadImg(objs.img) : null;
       this.areas[id] = { img, walk, debug, objs: objImg ? objs.list : [], objImg };
-      // versión alternativa de la zona (p. ej. la plaza con el camino a la Fuente, al completar el Bosque Frondoso)
-      if (a.alt) { const ai = await loadImg(a.alt.img), am = await loadImg(a.alt.mask); if (ai && am) {
-        const c = document.createElement('canvas'); c.width = am.width; c.height = am.height; const cx = c.getContext('2d'); cx.drawImage(am, 0, 0);
-        const px = cx.getImageData(0, 0, c.width, c.height); this.areas[id].alt = { img: ai, walk: { w: c.width, h: c.height, data: px.data } };
-      } }
+      // versiones de la zona según el progreso (p. ej. la plaza con la roca del café y/o con el camino a la Fuente): gana la primera que se cumpla
+      this.areas[id].variants = [];
+      for (const v of (a.variants || (a.alt ? [{ ...a.alt, when: m => (m?.cleared || []).includes(a.alt.unlock) }] : []))) {
+        const vi = await loadImg(v.img), vm = await loadImg(v.mask); if (!vi || !vm) continue;
+        const c = document.createElement('canvas'); c.width = vm.width; c.height = vm.height; const cx = c.getContext('2d'); cx.drawImage(vm, 0, 0);
+        const px = cx.getImageData(0, 0, c.width, c.height); this.areas[id].variants.push({ when: v.when, img: vi, walk: { w: c.width, h: c.height, data: px.data } });
+      }
     }
   },
   // la zona tal como se ve ahora: su versión alternativa si ya está desbloqueada
-  view(id) { const a = this.areas[id], alt = HUB[id]?.alt; return a?.alt && alt && meta?.cleared?.includes(alt.unlock) ? { ...a, ...a.alt, debug: null } : a; },
+  view(id) { const a = this.areas[id]; const v = a?.variants?.find(v => { try { return v.when(meta || {}); } catch { return false; } }); return v ? { ...a, img: v.img, walk: v.walk, debug: null } : a; },
   walkable(id, x, y) { const a = this.view(id); if (!a?.walk) return true; const { w, h, data } = a.walk; x |= 0; y |= 0; if (x < 0 || y < 0 || x >= w || y >= h) return false; return data[(y * w + x) * 4] > 127; },
 };
 
@@ -689,7 +691,7 @@ function hubInteract() {
   const npc = [...area.npcs].filter(npcShown).filter(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))).sort((a, b) => talkScore(a) - talkScore(b))[0];
   if (npc) { if (!npc.fixedFacing) npc.facing = [-Math.sign(h.facing[0]), -Math.sign(h.facing[1])]; state.talkNpc = { x: npc.x, y: npc.y, area: h.area }; return talkTo(npc.talk); }
   const w = h.wanderers.find(n => Math.hypot(n.x - fx, n.y - fy) < 20); if (w) return openDialog([{ who: SPECIES[w.species].name, text: WANDER_LINES[(Math.random() * WANDER_LINES.length) | 0] }]);
-  for (const s of area.signs || []) if (inRect(fx, fy, s.rect)) return openDialog([{ who: '', text: s.text }]);
+  for (const s of area.signs || []) if ((!s.when || s.when(meta || {})) && inRect(fx, fy, s.rect)) return openDialog([{ who: '', text: s.text }]);   // (when: solo si se cumple, p. ej. la roca del café)
   for (const hs of area.hotspots || []) if (inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) return hotspotAction(hs);
   for (const ex of area.exits) if (ex.action === 'dungeons' && inRect(fx, fy, ex.rect)) return openDungeonMenu();
 }
@@ -2822,7 +2824,7 @@ function renderHub() {
   if (state.cut) return;
   // indicación de interacción cerca de un PNJ o cartel
   const fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
-  const near = def.npcs.filter(npcShown).find(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))) || (def.signs || []).find(s => inRect(fx, fy, s.rect)) || (def.hotspots || []).find(hs => inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) || def.exits.find(ex => ex.label && inExit(ex, fx, fy));
+  const near = def.npcs.filter(npcShown).find(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))) || (def.signs || []).find(s => (!s.when || s.when(meta || {})) && inRect(fx, fy, s.rect)) || (def.hotspots || []).find(hs => inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) || def.exits.find(ex => ex.label && inExit(ex, fx, fy));
   if (near && !state.menu && !state.dialog) { ctx.font = 'bold 11px sans-serif'; const hint = (document.body.classList.contains('touch-on') ? 'A' : 'Z') + ' · ' + (near.label || near.text ? (near.label || 'Leer') : 'Hablar'), hw = ctx.measureText(hint).width + 20; ctx.fillStyle = 'rgba(20,18,28,.85)'; ctx.fillRect(W / 2 - hw / 2, 8, hw, 20); ctx.fillStyle = '#f2b544'; ctx.textAlign = 'center'; ctx.fillText(hint, W / 2, 22); ctx.textAlign = 'left'; } // el fondo se ajusta al texto
   { ctx.font = '11px sans-serif'; const nm = AREA_NAMES[h.area] || ''; ctx.fillStyle = 'rgba(20,18,28,.7)'; ctx.fillRect(8, 8, ctx.measureText(nm).width + 12, 18); ctx.fillStyle = '#e9e3d3'; ctx.fillText(nm, 14, 21); } // el fondo se ajusta al texto
 }

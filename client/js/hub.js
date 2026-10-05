@@ -1,3 +1,4 @@
+export const cafeOpen = m => (m?.scenes || []).includes('roca-cafe');   // el café abre con la escena en la que se aparta la roca de la plaza
 // =====================================================================
 // LA ALDEA — cuatro zonas conectadas por los bordes, con movimiento libre, colisiones por máscara y PNJ interactivos.
 // Coordenadas en píxeles de mundo (768×515 por zona). La cámara (600×408) sigue al jugador.
@@ -6,7 +7,12 @@ export const HUB = {
   plaza: {
     img: 'client/assets/hub/plaza.png', mask: 'client/assets/hub/plaza_mask.png', spawn: { x: 384, y: 300 },
     // al completar el Bosque Frondoso se abre el camino de la derecha, a la Fuente de la Evolución
-    alt: { img: 'client/assets/hub/plaza_fuente.png', mask: 'client/assets/hub/plaza_fuente_mask.png', unlock: 'bosque' },
+    // la entrada del Café de Spinda está tapada por una roca hasta la escena que la aparta; con el Bosque superado, además, el camino a la Fuente
+    variants: [
+      { img: 'client/assets/hub/plaza_fuente_roca.png', mask: 'client/assets/hub/plaza_fuente_roca_mask.png', when: m => (m.cleared || []).includes('bosque') && !cafeOpen(m) },
+      { img: 'client/assets/hub/plaza_roca.png', mask: 'client/assets/hub/plaza_roca_mask.png', when: m => !cafeOpen(m) },
+      { img: 'client/assets/hub/plaza_fuente.png', mask: 'client/assets/hub/plaza_fuente_mask.png', when: m => (m.cleared || []).includes('bosque') },
+    ],
     // Salidas: franjas junto al borde (o la puerta). Al entrar en ellas cambias de zona.
     exits: [
       { rect: [0, 225, 22, 305], to: 'mercado', at: { x: 722, y: 288 } },
@@ -21,6 +27,7 @@ export const HUB = {
     signs: [ { rect: [70, 170, 130, 230], text: 'Mercado de Kecleon ←' }, { rect: [440, 405, 500, 465], text: '↓ Aldea · Salida a las mazmorras' },
       // entrada al Café de Spinda (bajo tierra): dibujada por tools/build-cafe-hole.py; el café aún no está abierto
       { rect: [598, 306, 640, 368], text: 'Un cartel con la cara de Spinda. Debajo, alguien ha escrito a mano: «Próximamente».' },
+      { rect: [506, 313, 596, 372], when: m => !cafeOpen(m), text: 'Una roca enorme. Alguien ha dibujado encima, con tiza, una flecha que apunta hacia abajo.' },
       { rect: [534, 326, 596, 368], text: 'Unas escaleras bajan hacia la oscuridad. Se oye a alguien trastear ahí abajo… pero todavía está cerrado.' } ],
   },
   gremio: {
