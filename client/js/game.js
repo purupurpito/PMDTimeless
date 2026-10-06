@@ -1431,6 +1431,16 @@ function newFloor() {
   else say(`${def.name} B${state.floor}F.`);
   if (state.weather && state.weather !== 'none') say(`El clima aquí es: ${WEATHER[state.weather].name}.`);
   autosave('floor');   // guardado automático al empezar cada piso
+  // Monte Acero, cinco pisos antes de la cima, la primera vez: Scyther llega ante Zapdos
+  if (def.id === 'monte' && state.floor === def.floors - 5 && !(meta?.scenes || []).includes('scyther-zapdos')) setTimeout(() => dungeonScene('scyther-zapdos'), 1400);
+}
+// una escena a mitad de mazmorra: se pausa la exploración, se ve la escena (en una zona solo de escenas) y se vuelve al piso
+async function dungeonScene(id, retry = 0) {
+  const sc = SCENES.find(x => x.id === id); if (!sc || state.scene !== 'dungeon') return;
+  if (state.dialog || state.menu || state.busy || state.resolving || state.dcut || state.cut) { if (retry < 40) setTimeout(() => dungeonScene(id, retry + 1), 400); return; }
+  state.dcut = true; const back = state.scene;
+  try { state.scene = 'hub'; state.dcut = false; hubLoop(); await runScene(sc); }   // (el bucle de la aldea mueve a los actores; se para solo al volver a la mazmorra)
+  finally { state.scene = back; state.cut = null; state.screenFade = { from: 1, to: 0, t0: performance.now(), ms: 700 }; musicZone = null; updateDungeonMusic(); render(); }
 }
 
 const tileAt = (x, y) => (y >= 0 && y < CFG.map.h && x >= 0 && x < CFG.map.w) ? state.dungeon.tiles[y][x] : T.WALL;
@@ -3115,10 +3125,10 @@ function renderDialog() {
   const cost = up => focus.reduce((s, f) => s + regions(up).reduce((q, r) => q + overlap(f, r), 0), 0);
   // Se decide una vez por frase (para que no salte mientras lees): la colocación que no tapa a nadie; abajo si da igual
   if (d.placedFor !== d.i) {
-    d.placedFor = d.i; const cb = cost(false), ct = cost(true); d.top = ct < cb;
+    d.placedFor = d.i; const cb = cost(false), ct = cost(true); d.top = !state.cut?.boxBottom && ct < cb;   // (boxBottom: la escena lo quiere siempre abajo, p. ej. para que se vea el cielo)
     // En una escena, si ninguna colocación deja libre a quien habla (pantallas bajas), la cámara se mueve lo justo
     const spk = state.cut?.speaking, cam0 = state.dlgCam;
-    if (spk && state.cut.cam && Math.min(cb, ct) > 0 && cam0) {
+    if (spk && state.cut.cam && !state.cut.boxBottom && Math.min(cb, ct) > 0 && cam0) {
       const regs = regions(d.top), f = focus[0];
       const bandT = d.top ? Math.max(...regs.map(r => r.b)) + 4 : 4, bandB = d.top ? LOG.h - 4 : Math.min(...regs.map(r => r.t)) - 4;
       const need = ((f.t + f.b) / 2) - (bandT + bandB) / 2, mapH = HUB[state.hub.area]?.h || 515;

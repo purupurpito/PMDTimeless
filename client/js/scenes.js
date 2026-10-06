@@ -42,8 +42,8 @@ export async function playScene(scene) {
   if (scene.area && scene.area !== h.area) h.area = scene.area;
   if (scene.player) { h.x = scene.player.x; h.y = scene.player.y; h.facing = DIRS[scene.player.dir || 'down']; }
   const c = S.cut = {
-    id: scene.id, skip: false, night: !!scene.night, lights: scene.lights || [], hidePlayer: !!scene.hidePlayer, hideNpcs: !!scene.hideNpcs, hideNpcIds: scene.hideNpcIds || [], bird: null, poster: null,
-    fade: scene.startDark === false ? 0 : 1,   // (si venimos de un fundido a negro, sigue en negro) narration: null, cam: scene.cam ? { ...scene.cam } : null,
+    id: scene.id, skip: false, boxBottom: !!scene.boxBottom, night: !!scene.night, lights: scene.lights || [], hidePlayer: !!scene.hidePlayer, hideNpcs: !!scene.hideNpcs, hideNpcIds: scene.hideNpcIds || [], bird: null, poster: null,
+    fade: scene.startDark === false ? 0 : 1, narration: null, cam: scene.cam ? { ...scene.cam } : null,   // (fade: si venimos de un fundido a negro, sigue en negro)
     actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null, tint: scene.tint || null,
   };
   if (dark) S.screenFade = null;   // el fundido de la propia escena (que empieza en negro) toma el relevo
@@ -106,6 +106,17 @@ async function runStep(step, c) {
       D.render(); return;
     }
     case 'shake': c.shake = { t0: now(), ms: step.ms || 700, amp: step.amp || 4 }; if (step.wait) await delay(step.ms || 700); return;
+    case 'bolt': {   // un rayo que cae en (x, y): con destello y temblor, o suave (de fondo, sin temblor)
+      (c.bolts ||= []).push({ t0: now(), x: step.x, y: step.y }); if (!step.soft || !c.flash || now() - c.flash.t0 > 400) c.flash = { t0: now(), max: step.soft ? 0.18 : 0.6 };
+      if (!step.soft) c.shake = { t0: now(), ms: 320, amp: 6 }; D.render(); return;
+    }
+    case 'storm': {   // tormenta de fondo: rayos suaves en el cielo, hasta el borde de la cumbre (arco cx, cy, rx, ry), hasta que se apague
+      c.storm = step.on !== false; if (!c.storm) return;
+      (async () => { while (c.storm && !c.skip && cut() === c) { await delay(1100 + Math.random() * 1500); if (!c.storm || c.skip || cut() !== c) break;
+        const x = (step.x0 ?? 110) + Math.random() * ((step.x1 ?? 658) - (step.x0 ?? 110)), k = Math.max(-1, Math.min(1, (x - step.cx) / step.rx));
+        (c.bolts ||= []).push({ t0: now(), x, y: step.cy - step.ry * Math.sqrt(1 - k * k) - 6 }); if (!c.flash || now() - c.flash.t0 > 400) c.flash = { t0: now(), max: 0.18 }; D.render(); } })();
+      return;
+    }
     case 'se': D.sfx?.(step.name); return;
     case 'music': D.music?.(step.track || null); return;
     case 'flag': D.flag?.(step); return;
@@ -286,6 +297,11 @@ function drawObject(ctx, o, sx, sy) {
     ctx.fillStyle = '#8a2a1a'; ctx.fillRect(-7, -4, 14, 2); ctx.fillStyle = '#6a5230'; ctx.fillRect(-7, 0, 10, 1); ctx.fillRect(-7, 3, 12, 1);
     ctx.fillStyle = '#c0282a'; ctx.beginPath(); ctx.arc(0, -7, 2, 0, 7); ctx.fill();
   }
+  if (o.kind === 'mark') {   // la señal de que va a caer un rayo ahí (parpadea)
+    const k = 0.5 + 0.5 * Math.sin(now() / 45); ctx.globalAlpha = 0.35 + 0.45 * k; ctx.strokeStyle = '#fff6a8'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(sx, sy, 20 + 4 * k, 8 + 1.5 * k, 0, 0, 7); ctx.stroke();
+  }
+  if (o.kind === 'scorch') { ctx.globalAlpha = 0.55; ctx.fillStyle = '#2a1a10'; ctx.beginPath(); ctx.ellipse(sx, sy, 18, 7, 0, 0, 7); ctx.fill(); }   // la marca quemada
   if (o.kind === 'tray') {   // la bandeja de las entregas: tabla con una carta y una manzana
     const s = 1.6; ctx.translate(sx, sy); ctx.scale(s, s);
     ctx.fillStyle = '#3a2210'; ctx.fillRect(-17, -5, 34, 12); ctx.fillStyle = '#9a6030'; ctx.fillRect(-15, -3, 30, 8); ctx.fillStyle = '#c08048'; ctx.fillRect(-15, -3, 30, 2);
@@ -309,6 +325,11 @@ export function drawSceneOverlay(ctx, W, H, cam) {
   if (c.tint) { ctx.fillStyle = c.tint; ctx.fillRect(0, 0, W, H); }   // la luz de la tarde, etc.
   if (c.memory) drawMemory(ctx, W, H, cam, c);   // un recuerdo: tinte de memoria y la lucecita
   if (c.poster) drawWantedPoster(ctx, W, H, c.poster.t0);
+  // rayos (desde el cielo hasta un punto) y su destello
+  for (const b of c.bolts || []) { const k = (now() - b.t0) / 260; if (k >= 1) continue;
+    ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#fff6a8'; ctx.lineWidth = 4; ctx.beginPath();
+    let x = b.x - cam.x, y = -10; ctx.moveTo(x, y); const ty = b.y - cam.y; let z = 7; while (y < ty) { y = Math.min(ty, y + 26); x += (z = -z) * 2; ctx.lineTo(x, y); } ctx.stroke(); ctx.restore(); }
+  if (c.flash) { const t = now() - c.flash.t0, a = t < 40 ? t / 40 : Math.max(0, 1 - (t - 40) / 300); if (a > 0) { ctx.fillStyle = `rgba(255,250,200,${a * c.flash.max})`; ctx.fillRect(0, 0, W, H); } }
   if (c.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${c.fade})`; ctx.fillRect(0, 0, W, H); }
   if (c.narration) {
     const k = Math.min(1, (now() - c.narration.t0) / 500); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);

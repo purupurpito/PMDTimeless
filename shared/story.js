@@ -865,6 +865,47 @@ export const SCENES = [
     ],
   },
   {
+    // Monte Acero, cinco pisos antes de la cima (solo la primera vez; se lanza desde newFloor): Scyther llega agotado ante Zapdos.
+    // Hablan, Zapdos le lanza un rayo, Scyther lo esquiva de un salto atrás… y empieza su combate (fuera de pantalla).
+    id: 'scyther-zapdos', trigger: 'monte', when: () => false,
+    area: 'cima', hidePlayer: true, hideNpcs: true, cam: { x: 84, y: 0 }, boxBottom: true, music: 'tension',   // (cuadro siempre abajo: que se vea el cielo)
+    actors: { zapdos: { sp: 'zapdos', x: 384, y: 172, dir: 'down', noLook: true }, scyther: { sp: 'scyther', x: 384, y: 560, dir: 'up' } },
+    objects: { mark: { kind: 'mark', x: 384, y: 221, hidden: true }, scorch: { kind: 'scorch', x: 384, y: 221, hidden: true } },
+    steps: [
+      { do: 'narration', text: 'Mientras tanto, en la cima del Monte Acero…' },
+      { do: 'fade', to: 'in', ms: 1000 }, { do: 'wait', ms: 400 },
+      { do: 'bolt', x: 560, y: 140 }, { do: 'wait', ms: 700 }, { do: 'bolt', x: 230, y: 134 }, { do: 'wait', ms: 500 },   // la tormenta: rayos que hacen temblar
+      { do: 'bolt', x: 470, y: 123 }, { do: 'wait', ms: 900 },
+      { do: 'storm', on: true, cx: 384, cy: 336, rx: 400, ry: 212 },                                                                       // y luego, rayos de fondo
+      { do: 'move', who: 'scyther', to: [[384, 290]], speed: 0.56 },                                         // Scyther sube, agotado
+      { do: 'anim', who: 'scyther', anim: 'Hurt', ms: 500 }, { do: 'emote', who: 'scyther', fx: 'sweat' }, { do: 'wait', ms: 700 },
+      { do: 'move', who: 'scyther', to: [[384, 222]], speed: 0.44 }, { do: 'wait', ms: 500 },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Así que tú eres quien anda tras las Plumas Sagradas.' },
+      { do: 'say', who: 'scyther', mood: 'Normal', text: 'Moltres y Articuno no me dejaron hablar. Espero que tú sí.' },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Te escucho. Pero escucharte no me obliga a nada.' },
+      { do: 'say', who: 'scyther', mood: 'Determined', text: 'Necesito tu pluma. Con las tres, abriré el portal.' },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Muchos han querido abrirlo. Ninguno sabía lo que hay al otro lado.' },
+      { do: 'wait', ms: 500 },
+      { at: [{ do: 'say', who: 'scyther', mood: 'Sad', text: 'Yo sí.' },                                      // y Zapdos se sorprende
+              { do: 'emote', who: 'zapdos', fx: 'shock', delay: 650 }, { do: 'jump', who: 'zapdos', to: [384, 172], ms: 300, h: 8, delay: 650 }] },
+      { do: 'wait', ms: 900 },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: '… Apenas te sostienes en pie. ¿Cuántos días llevas sin descansar?' },
+      { do: 'say', who: 'scyther', mood: 'Determined', text: 'Los suficientes. No hay tiempo.' },
+      { do: 'wait', ms: 400 },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Entonces no me dejas elección.' },
+      // Zapdos carga un rayo sobre Scyther… que salta hacia atrás justo a tiempo
+      { do: 'storm', on: false }, { do: 'wait', ms: 300 },
+      { do: 'anim', who: 'zapdos', anim: 'Charge', hold: true }, { do: 'object', id: 'mark', action: 'show' }, { do: 'wait', ms: 380 },
+      { do: 'jump', who: 'scyther', to: [384, 282], ms: 380, h: 18, nowait: true }, { do: 'wait', ms: 300 },   // salto recto hacia atrás, sin dejar de mirarle
+      { do: 'bolt', x: 384, y: 221 }, { do: 'object', id: 'mark', action: 'hide' }, { do: 'object', id: 'scorch', action: 'show' },
+      { do: 'anim', who: 'zapdos', anim: 'Attack', ms: 500 },
+      { do: 'emote', who: 'scyther', fx: 'sweat' }, { do: 'wait', ms: 600 },
+      { do: 'say', who: 'scyther', mood: 'Determined', text: 'Que así sea.' },
+      { do: 'anim', who: 'scyther', anim: 'Charge', hold: true }, { do: 'wait', ms: 500 },                  // carga… y se apaga la escena
+      { do: 'fade', to: 'out', ms: 1100 },
+    ],
+  },
+  {
     // La primera vez que sales hacia la Cueva Húmeda: Machamp, Heracross y Ampharos te recogen (se lanza desde startRun, no sola)
     id: 'cueva-salida', trigger: 'cueva', when: () => false,
     area: 'plaza', player: { x: 384, y: 360, dir: 'down' }, cam: { x: 84, y: 40 }, hideNpcIds: [],

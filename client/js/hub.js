@@ -66,6 +66,11 @@ export const HUB = {
     npcs: [ { id: 'rowlet', x: 408, y: 262, facing: [0, 1], talk: 'rowlet', fixedFacing: true, reach: 70 } ],   // «???»: lleva tanto tiempo como el maestro del gremio
     signs: [ { rect: [590, 240, 672, 336], text: 'El bosque es demasiado espeso para seguir… Por ahora.' } ],
   },
+  // solo para escenas (no se llega andando): la cima del Monte Acero, con el cielo de tormenta (tools/build-cima.py)
+  cima: {
+    img: 'client/assets/hub/scene_cima.png', mask: 'client/assets/hub/scene_cima_mask.png', spawn: { x: 384, y: 300 },
+    exits: [], npcs: [], signs: [],
+  },
   mercado: {
     img: 'client/assets/hub/mercado.png', mask: 'client/assets/hub/mercado_mask.png', spawn: { x: 730, y: 300 },
     exits: [ { rect: [746, 245, 768, 335], to: 'plaza', at: { x: 48, y: 265 } } ],
