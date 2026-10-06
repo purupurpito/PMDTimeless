@@ -865,6 +865,31 @@ export const SCENES = [
     ],
   },
   {
+    // La cima del Monte Acero, la primera vez (se lanza al llegar a la sala de Zapdos): Zapdos, cansado tras su combate con Scyther,
+    // te pone a prueba. Termina con la señal del rayo bajo tus pies y el fundido al combate.
+    id: 'zapdos-cima', trigger: 'monte', when: () => false,
+    area: 'cima', player: { x: 384, y: 600, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 0 }, boxBottom: true, music: 'tension',
+    actors: { zapdos: { sp: 'zapdos', x: 384, y: 172, dir: 'down', noLook: true } },
+    objects: { mark: { kind: 'mark', x: 384, y: 261, hidden: true } },
+    steps: [
+      { do: 'narration', text: 'Tras una larga y ardua batalla…' },
+      { do: 'fade', to: 'in', ms: 1000 }, { do: 'storm', on: true, cx: 384, cy: 336, rx: 400, ry: 212 },
+      { do: 'wait', ms: 300 }, { do: 'emote', who: 'zapdos', fx: 'sweat' }, { do: 'wait', ms: 1000 },               // Zapdos, algo cansado
+      { do: 'move', who: 'player', to: [[384, 262]], speed: 0.9 },
+      { do: 'emote', who: 'player', fx: 'shock' }, { do: 'jump', who: 'player', to: [384, 262], ms: 260, h: 8 }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Otro visitante. Hoy no deja de subir gente.' },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Hace poco estuvo aquí un Scyther. Se fue sin lo que buscaba.' },
+      { do: 'emote', who: 'player', fx: 'exclaim' }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: '¿Y tú? ¿También vienes a por mi pluma?' },
+      { do: 'emote', who: 'player', fx: 'question' }, { do: 'wait', ms: 900 },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Da igual lo que respondas. Muéstrame por qué luchas.' },
+      // la señal del rayo, bajo nuestros pies… y de ahí, al combate
+      { do: 'storm', on: false }, { do: 'anim', who: 'zapdos', anim: 'Charge', hold: true }, { do: 'object', id: 'mark', action: 'show' },
+      { do: 'emote', who: 'player', fx: 'shock' }, { do: 'wait', ms: 700 },
+      { do: 'fade', to: 'out', ms: 700 },
+    ],
+  },
+  {
     // Monte Acero, cinco pisos antes de la cima (solo la primera vez; se lanza desde newFloor): Scyther llega agotado ante Zapdos.
     // Hablan, Zapdos le lanza un rayo, Scyther lo esquiva de un salto atrás… y empieza su combate (fuera de pantalla).
     id: 'scyther-zapdos', trigger: 'monte', when: () => false,

@@ -1422,6 +1422,10 @@ function newFloor() {
   if (built.kind === 'jirachi' || state.dungeon.arena) {
     // el jefe habla al llegar (la sala de descanso anterior ya ofrecía guardar o volver)
     if (def.id === 'entrenamiento' && built.boss?.species === 'chatot') { chatotBossIntro(built.boss); }
+    else if (def.id === 'monte' && built.boss?.species === 'zapdos' && !(meta?.scenes || []).includes('zapdos-cima')) {   // la primera vez: la escena de la cima
+      built.boss.hp = Math.round(built.boss.maxHp * 0.75);   // viene de pelear con Scyther: algo cansado
+      setTimeout(() => dungeonScene('zapdos-cima'), 300);
+    }
     else {
     const boss = built.boss, lines = BOSS_LINES[boss?.species] || [boss?.big ? `${boss.name} te espera con sus súbditos.` : `${boss?.name} aguarda al final de la sala. Su presencia llena el aire.`];
     openDialog(lines.map(t => ({ who: BOSS_LINES[boss?.species] ? boss.name : undefined, sp: BOSS_LINES[boss?.species] ? boss.species : undefined, mood: 'Determined', text: t })));
