@@ -23,6 +23,7 @@ import { VERSION_LABEL } from '../../shared/version.js';
 import { asset } from './ui.js';
 import { ITEM_ICON, MACHINE_ICON, MD_ICON, ICON_COLS } from './item-sprites.js';
 import { PORTRAIT, PORTRAIT_COLS } from './portraits.js';
+import { ALL_TILESETS } from './tileset-list.js';
 import { DTEF_SLOT, DUNGEON_TILESET } from './tilesets.js';
 import { contactStatus, floorWeather, activeIQ, iqSkillsFor, ABILITY_ES, ABILITY_DESC, abilitiesOf, has as hasAbility } from '../../shared/abilities.js';
 
@@ -1449,6 +1450,16 @@ function newFloor() {
   else say(`${def.name} B${state.floor}F.`);
   if (state.weather && state.weather !== 'none') say(`El clima aquí es: ${WEATHER[state.weather].name}.`);
   autosave('floor');   // guardado automático al empezar cada piso
+  // Mazmorra del Tiempo: algunos pisos (uno de cada cinco, más o menos; nunca el primero ni las salas de jefe) tienen el tiempo roto:
+  // paredes, agua o lava y suelo de eras distintas, al azar (siempre igual para la misma exploración y piso)
+  if (def.id === 'tiempo' && built.kind === 'normal' && state.floor > 1) {
+    let h = (state.run.seed ^ (state.floor * 2654435761)) >>> 0; const rnd = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+    if (rnd() < 0.2) {
+      const pick = () => ALL_TILESETS[Math.floor(rnd() * ALL_TILESETS.length)];
+      state.dungeon.broken = { set: pick(), wall: pick(), floor: pick(), water: pick(), lava: pick() };
+      say('El tiempo se resquebraja… Este piso mezcla eras que nunca debieron tocarse.');
+    }
+  }
   // Sierra Ígnea: al llegar a los últimos pisos, el calor aprieta (la Barriga baja al doble)
   if (def.hungerLastFloors && state.floor === def.floors - def.hungerLastFloors + 1) say('¡El calor aprieta cerca de la cima! La Barriga se vacía el doble de rápido.');
   // Montaña Gélida: el frío te deja (a ti y a tu equipo) a la mitad de velocidad
@@ -1826,12 +1837,13 @@ const NB = [[0, 1, 0x01], [1, 1, 0x02], [1, 0, 0x04], [1, -1, 0x08], [0, -1, 0x1
 function currentTileset() {
   const own = DUNGEON_TILESET[state.dungeonDef?.id];
   const ts = (state.dungeon?.arena && own) ? own : DUNGEON_TILESET[state.era || state.dungeonDef?.id];
+  if (state.dungeon?.broken) return state.dungeon.broken;   // Mazmorra del Tiempo: un piso donde el tiempo se rompe (cada capa, de una era distinta)
   return ts?.peak && state.floor >= ts.peakFrom ? { ...ts, set: ts.peak } : ts;   // la cima (p. ej. la del Monte Eléctrico)
 }
 function drawDtef(t, x, y, px, py, tile) {
   if (state.dungeon?.restArea) return false;
   const cfg = currentTileset(); if (!cfg) return false;
-  const terr = terrainOf(x, y), setName = terr === 'lava' ? (cfg.lava || cfg.set) : cfg.set, ts = tileset(setName);
+  const terr = terrainOf(x, y), setName = cfg[terr] || (terr === 'lava' ? (cfg.lava || cfg.set) : cfg.set), ts = tileset(setName);   // (cfg.wall/floor/water/lava: una capa de otro juego)
   if (!ts) return false;
   const same = terr === 'floor' ? (a => a !== 'wall') : (a => a === terr);   // el suelo casa con todo lo que no es pared
   let mask = 0; for (const [dx, dy, bit] of NB) if (same(terrainOf(x + dx, y + dy))) mask |= bit;
