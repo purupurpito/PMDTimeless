@@ -23,7 +23,7 @@ import { VERSION_LABEL } from '../../shared/version.js';
 import { asset } from './ui.js';
 import { ITEM_ICON, MACHINE_ICON, MD_ICON, ICON_COLS } from './item-sprites.js';
 import { PORTRAIT, PORTRAIT_COLS } from './portraits.js';
-import { ALL_TILESETS } from './tileset-list.js';
+import { TILESET_LAYERS } from './tileset-list.js';
 import { DTEF_SLOT, DUNGEON_TILESET } from './tilesets.js';
 import { contactStatus, floorWeather, activeIQ, iqSkillsFor, ABILITY_ES, ABILITY_DESC, abilitiesOf, has as hasAbility } from '../../shared/abilities.js';
 
@@ -1455,8 +1455,9 @@ function newFloor() {
   if (def.id === 'tiempo' && built.kind === 'normal' && state.floor > 1) {
     let h = (state.run.seed ^ (state.floor * 2654435761)) >>> 0; const rnd = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
     if (rnd() < 0.2) {
-      const pick = () => ALL_TILESETS[Math.floor(rnd() * ALL_TILESETS.length)];
-      state.dungeon.broken = { set: pick(), wall: pick(), floor: pick(), water: pick(), lava: pick() };
+      const pick = layer => { const l = TILESET_LAYERS[layer]; return l[Math.floor(rnd() * l.length)]; };   // cada capa, solo entre los juegos que la traen
+      const floor = pick('floor');
+      state.dungeon.broken = { set: floor, wall: pick('wall'), floor, water: pick('water'), lava: pick('water') };
       say('El tiempo se resquebraja… Este piso mezcla eras que nunca debieron tocarse.');
     }
   }
