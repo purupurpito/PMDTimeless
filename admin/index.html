@@ -115,7 +115,7 @@ function draw() {
   $('#rows').innerHTML = list.map(u => `<tr>${COLS.map(([k, , n]) => {
     let v = u[k]; if (k === 'createdAt' || k === 'lastLogin') v = fmt(v); if (k === 'runStatus') v = STATUS[v] || '—'; if (k === 'playMin') v = hm(v);
     if (k === 'runStatus' && ['active', 'paused', 'rescue_pending'].includes(u.runStatus)) return `<td>${v} <button class="unstick" data-id="${u.id}" data-name="${String(u.name).replace(/"/g, '')}" title="Cierra la exploración y le devuelve los objetos con los que entró">Desatascar</button></td>`;
-    if (k === 'name') return `<td>${String(v ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))} <button class="resetu" data-id="${u.id}" data-name="${String(u.name).replace(/"/g, '')}" title="Reiniciar la partida de esta cuenta">Reiniciar</button></td>`;
+    if (k === 'name') return `<td>${String(v ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))} <button class="resetu" data-id="${u.id}" data-name="${String(u.name).replace(/"/g, '')}" title="Reiniciar la partida de esta cuenta">Reiniciar</button> <button class="starteru" data-id="${u.id}" data-name="${String(u.name).replace(/"/g, '')}" title="Cambiar el inicial de esta cuenta (sin tocar el resto de su partida)">Inicial</button></td>`;
     if (k === 'ip') return `<td class="${ipCount[v] > 1 ? 'ipdup' : 'dim'}">${v ? v + (ipCount[v] > 1 ? ` (×${ipCount[v]})` : '') : '—'}</td>`;
     return `<td class="${n ? 'num' : ''}">${String(v ?? '—').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>`; }).join('')}</tr>`).join('');
   $('#s-dup').textContent = Object.values(ipCount).filter(n => n > 1).length;
@@ -153,6 +153,14 @@ $('#rows').addEventListener('click', async ev => {
   const txt = prompt(`Esto reinicia la partida de ${b.dataset.name} (vuelve a como estaba recién registrada, con el inicial de su test) y no se puede deshacer.\nEscribe su nombre para confirmar:`);
   if (txt === null) return; if (txt !== b.dataset.name) { alert('El nombre no coincide: cancelado.'); return; }
   try { const r = await api('/admin/reset-user', { userId: +b.dataset.id, confirm: txt }); alert(`Hecho: la partida de ${r.name} se ha reiniciado.`); load(); }
+  catch (e) { alert(e.message); }
+});
+// Cambiar el inicial de una cuenta: se escribe la especie (p. ej. zapdos) y se confirma
+$('#rows').addEventListener('click', async ev => {
+  const b = ev.target.closest('.starteru'); if (!b) return;
+  const sp = prompt(`Nuevo inicial para ${b.dataset.name} (la especie, en minúsculas; p. ej. zapdos).\nNo toca el resto de su partida y vale desde su siguiente exploración:`);
+  if (!sp) return; if (!confirm(`¿Poner ${sp.trim().toLowerCase()} como inicial de ${b.dataset.name}?`)) return;
+  try { const r = await api('/admin/set-starter', { userId: +b.dataset.id, species: sp }); alert(`Hecho: el inicial de ${r.name} ahora es ${r.starter}.`); load(); }
   catch (e) { alert(e.message); }
 });
 // Desatascar: cierra la exploración a medias de una cuenta (le devuelve los objetos con los que entró)
