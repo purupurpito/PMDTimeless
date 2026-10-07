@@ -1454,7 +1454,7 @@ function newFloor() {
   // paredes, agua o lava y suelo de eras distintas, al azar (siempre igual para la misma exploración y piso)
   if (def.id === 'tiempo' && built.kind === 'normal' && state.floor > 1) {
     let h = (state.run.seed ^ (state.floor * 2654435761)) >>> 0; const rnd = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
-    if (rnd() < 0.2) {
+    if (rnd() < 0.2 || window.__mmForceBroken) {   // (__mmForceBroken: las pruebas fuerzan que todos salgan rotos)
       const pick = layer => { const l = TILESET_LAYERS[layer]; return l[Math.floor(rnd() * l.length)]; };   // cada capa, solo entre los juegos que la traen
       // el piso se parte en fragmentos irregulares (cada casilla, del fragmento más cercano), cada uno de una era distinta
       const floors = Array.from({ length: 6 + Math.floor(rnd() * 3) }, () => pick('floor')), walls = Array.from({ length: 3 + Math.floor(rnd() * 2) }, () => pick('wall'));
@@ -1867,24 +1867,26 @@ function drawDtef(t, x, y, px, py, tile) {
   const cfg = currentTileset(); if (!cfg) return false;
   const terr = terrainOf(x, y), frag = cfg.map ? cfg.seeds[cfg.map[y]?.[x] ?? 0] : null;   // (piso roto: el fragmento de esta casilla)
   const hh = ((x * 73856093) ^ (y * 19349663) ^ 0x5bd1e995) >>> 0, tnow = performance.now();
-  if (frag && terr === 'floor' && hh % 23 === 0) { drawVoid(px, py, tile, hh, tnow); return true; }   // un agujero al vacío
+  const calm = state.dungeon.tiles[y]?.[x] === T.STAIRS;   // la escalera, siempre limpia y reconocible
+  if (frag && terr === 'wall' && hh % 4 === 0 && NB.some(([dx, dy]) => terrainOf(x + dx, y + dy) !== 'wall')) { drawVoid(px, py, tile, hh, tnow); return true; }   // un agujero al vacío (solo en paredes: tampoco se pisa)
   let setName = frag && terr === 'floor' ? frag.f : frag && terr === 'wall' ? frag.w : cfg[terr] || (terr === 'lava' ? (cfg.lava || cfg.set) : cfg.set);
-  if (frag && hh % 9 === 0 && Math.floor(tnow / 480 + (hh % 7)) % 3 === 0) { const pool = terr === 'wall' ? cfg.walls : cfg.floors; if (pool && terr !== 'water' && terr !== 'lava') setName = pool[(hh >> 4) % pool.length]; }   // parpadea entre eras
+  if (frag && !calm && hh % 9 === 0 && Math.floor(tnow / 480 + (hh % 7)) % 3 === 0) { const pool = terr === 'wall' ? cfg.walls : cfg.floors; if (pool && terr !== 'water' && terr !== 'lava') setName = pool[(hh >> 4) % pool.length]; }   // parpadea entre eras
   const ts = tileset(setName);
   if (!ts) return false;
   const same = terr === 'floor' ? (a => a !== 'wall') : (a => a === terr);   // el suelo casa con todo lo que no es pared
   let mask = 0; for (const [dx, dy, bit] of NB) if (same(terrainOf(x + dx, y + dy))) mask |= bit;
   let slot = DTEF_SLOT[mask], col0 = terr === 'wall' ? 0 : terr === 'floor' ? 12 : 6;
-  if (frag && hh % 11 === 0) { slot = (hh >> 3) % 48; col0 = [0, 6, 12][(hh >> 9) % 3]; }   // una pieza que no toca (pared, orilla…) donde no debería
+  if (frag && !calm && hh % 11 === 0 && terr !== 'water' && terr !== 'lava') slot = (hh >> 3) % 48;   // una pieza que no toca, pero de su misma capa (no engaña sobre qué se pisa)
   const h = ((x * 73856093) ^ (y * 19349663)) >>> 0, cell = Math.floor(slot / 6) * 18 + col0 + slot % 6;
   let v = h % 9 === 0 ? 1 : h % 9 === 1 ? 2 : 0; if (v && (!ts.img[v] || ts.empty[v]?.[cell])) v = 0;   // de vez en cuando, una variante
   const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-  if (frag && (hh % 13 === 0 || hh % 17 === 0)) {   // piezas desencajadas: desplazadas unos píxeles, o volteadas
+  if (frag && !calm && (hh % 13 === 0 || hh % 17 === 0)) {   // piezas desencajadas: desplazadas unos píxeles, o volteadas
     const ox = ((hh >> 6) % 7) - 3, oy = ((hh >> 11) % 7) - 3, flip = hh % 17 === 0;
     ctx.save(); ctx.translate(px + ox + (flip ? tile + 0.75 : 0), py + oy); if (flip) ctx.scale(-1, 1);
     ctx.drawImage(ts.img[v], (col0 + slot % 6) * 24, Math.floor(slot / 6) * 24, 24, 24, 0, 0, tile + 0.75, tile + 0.75); ctx.restore();
   } else ctx.drawImage(ts.img[v], (col0 + slot % 6) * 24, Math.floor(slot / 6) * 24, 24, 24, px, py, tile + 0.75, tile + 0.75);   // un pelín más grande: sin huecos al escalar
-  if (frag && hh % 7 === 0) { ctx.fillStyle = ['rgba(170,60,255,.22)', 'rgba(40,220,255,.2)', 'rgba(255,40,120,.18)'][(hh >> 5) % 3]; ctx.fillRect(px, py, tile + 0.75, tile + 0.75); }   // casillas teñidas, como mal reveladas
+  if (frag && terr === 'wall') { ctx.fillStyle = 'rgba(0, 0, 0, .42)'; ctx.fillRect(px, py, tile + 0.75, tile + 0.75); }   // paredes oscurecidas: siempre se leen como pared
+  if (frag && !calm && hh % 7 === 0) { ctx.fillStyle = ['rgba(170,60,255,.22)', 'rgba(40,220,255,.2)', 'rgba(255,40,120,.18)'][(hh >> 5) % 3]; ctx.fillRect(px, py, tile + 0.75, tile + 0.75); }   // casillas teñidas, como mal reveladas
   if (frag && terr !== 'wall') {   // la grieta entre dos fragmentos de eras distintas: una luz violeta que palpita
     const m = cfg.map, here = m[y][x]; ctx.fillStyle = `rgba(190, 120, 255, ${0.45 + 0.3 * Math.sin(tnow / 260 + (hh % 10))})`;
     if (x + 1 < CFG.map.w && m[y][x + 1] !== here && terrainOf(x + 1, y) !== 'wall') ctx.fillRect(px + tile - 1.5, py, 2.5, tile + 0.75);
