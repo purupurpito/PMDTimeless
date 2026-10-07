@@ -225,6 +225,10 @@ async function object(c, o, action, ms = 600) {
     o.hidden = false; o.fall = { t0: now(), ms, x: o.x, y0: o.y0 ?? o.y - 200, y1: o.y };
     if (!fast()) await delay(ms); o.fall.done = true; return;
   }
+  if (action === 'drift') {   // baja flotando de (x0, y0) a (x, y), meciéndose, con su sombra en el suelo acercándose y creciendo
+    o.hidden = false; o.drift = { t0: now(), ms, x0: o.x0 ?? o.x, y0: o.y0 ?? o.y, x1: o.x, y1: o.y, h: o.h ?? 120 };
+    if (!fast()) await delay(ms); o.drift.done = true; return;
+  }
   if (action === 'show') { o.hidden = false; o.alpha = 1; return; }
   if (action === 'hide') { o.hidden = true; return; }
   if (action === 'flicker-hide') {
@@ -241,6 +245,13 @@ export function sceneEntities(area) {
   for (const o of Object.values(c.objects)) if (!o.hidden) {
     let oy = o.y;
     if (o.fall && !o.fall.done) { const k = Math.min(1, (now() - o.fall.t0) / o.fall.ms); oy = o.fall.y0 + (o.fall.y1 - o.fall.y0) * k; }
+    if (o.drift && !o.drift.done) {   // flotando: por encima de todo, con su sombra
+      const d = o.drift, k = Math.min(1, (now() - d.t0) / d.ms), gx = d.x0 + (d.x1 - d.x0) * k, gy = d.y0 + (d.y1 - d.y0) * k, alt = d.h * (1 - k) * (1 - k * 0.3), sway = Math.sin(k * Math.PI * 3.5) * 16 * (1 - k);
+      ents.push({ kind: 'sceneobj', x: gx, y: 1e9, draw: (ctx, sx, sy, cam) => { const ox = gx + sway - (cam?.x ?? 0), oyy = gy - (cam?.y ?? 0), r = 4 + 9 * k;
+        ctx.save(); ctx.fillStyle = `rgba(0,0,0,${0.08 + 0.2 * k})`; ctx.beginPath(); ctx.ellipse(ox, oyy, r, r * 0.38, 0, 0, 7); ctx.fill(); ctx.restore();
+        drawObject(ctx, o, ox, oyy - alt); }, obj: o });
+      continue;
+    }
     ents.push({ kind: 'sceneobj', x: o.x, y: o.fall && !o.fall.done ? 1e9 : oy, draw: (ctx, sx, sy) => drawObject(ctx, o, sx, o.fall && !o.fall.done ? sy - (o.fall.y1 * 0 + 1e9 - oy) : sy), obj: o });   // mientras cae, por encima de todo
   }
   for (const a of Object.values(c.actors)) if (!a.hidden && !a.isPlayer) ents.push({ kind: 'actor', actor: a, x: a.x, y: a.y, species: a.sp, facing: a.facing, movedAt: a.movedAt, anim: a.anim, still: a.still });
@@ -264,7 +275,8 @@ export function drawSceneActor(ctx, e, sx, sy, scale, drawMon) {
   for (const em of a.emotes) { const tt = em.hold ? ((t - em.t0) / 1000) % (EMOTE_LEN[em.fx] || 1) : (t - em.t0) / 1000; drawEmote(ctx, em.fx, sx + (a.facing?.[0] || 0) * 3 * scale, sy - scale * 26 - lift, tt, 2); }
 }
 // saltos en arco (también el jugador: se le aplica la altura en el dibujo de la aldea)
-const liftOf = a => { const j = a.jumpArc; if (!j) return 0; const k = (now() - j.t0) / j.ms; if (k >= 1) { a.jumpArc = null; return 0; } return Math.sin(Math.PI * k) * j.h; };
+const PLUMA = Object.assign(new Image(), { src: 'client/assets/items/pluma_trueno_24.png' });
+const liftOf = a => { const j = a.jumpArc; let up = a.lift || 0; if (!j) return up; const k = (now() - j.t0) / j.ms; if (k >= 1) { a.jumpArc = null; return up; } return up + Math.sin(Math.PI * k) * j.h; };   // (lift: elevado sobre su sombra, p. ej. alzando el vuelo)
 async function jumpTo(a, to, ms, h) {
   if (!a) return; const from = [a.x, a.y], t0 = now(), isP = a.isPlayer, hub = D.state.hub;
   if (isP) hub.jumpArc = { t0, ms, h }; else a.jumpArc = { t0, ms, h };
@@ -299,6 +311,7 @@ function drawObject(ctx, o, sx, sy) {
     ctx.fillStyle = '#8a2a1a'; ctx.fillRect(-7, -4, 14, 2); ctx.fillStyle = '#6a5230'; ctx.fillRect(-7, 0, 10, 1); ctx.fillRect(-7, 3, 12, 1);
     ctx.fillStyle = '#c0282a'; ctx.beginPath(); ctx.arc(0, -7, 2, 0, 7); ctx.fill();
   }
+  if (o.kind === 'pluma') { if (!PLUMA.complete) return; ctx.imageSmoothingEnabled = false; ctx.drawImage(PLUMA, Math.round(sx - 24), Math.round(sy - 40), 48, 48); return; }   // la Pluma Trueno (tools/pluma)
   if (o.kind === 'mark') {   // la señal de que va a caer un rayo ahí (parpadea)
     const k = 0.5 + 0.5 * Math.sin(now() / 45); ctx.globalAlpha = 0.35 + 0.45 * k; ctx.strokeStyle = '#fff6a8'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.ellipse(sx, sy, 20 + 4 * k, 8 + 1.5 * k, 0, 0, 7); ctx.stroke();

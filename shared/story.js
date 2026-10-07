@@ -990,6 +990,37 @@ export const SCENES = [
     ],
   },
   {
+    // Tras vencer a Zapdos por primera vez (se lanza desde endRun): se levanta, te da su pluma (la Pluma Trueno) y se va volando.
+    id: 'zapdos-pluma', trigger: 'monte', when: () => false,
+    area: 'cima', player: { x: 384, y: 262, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 0 }, boxBottom: true, music: 'tension',
+    actors: { zapdos: { sp: 'zapdos', x: 384, y: 172, dir: 'down', noLook: true } },
+    objects: { pluma: { kind: 'pluma', x: 398, y: 272, x0: 392, y0: 176, h: 120, hidden: true } },
+    steps: [
+      { do: 'anim', who: 'zapdos', anim: 'Hurt', hold: true },                                                  // Zapdos, vencido
+      { do: 'fade', to: 'in', ms: 900 }, { do: 'storm', on: true, cx: 384, cy: 336, rx: 400, ry: 212 }, { do: 'wait', ms: 900 },
+      { do: 'emote', who: 'zapdos', fx: 'dots' }, { do: 'wait', ms: 1000 },
+      { do: 'anim', who: 'zapdos', anim: null }, { do: 'jump', who: 'zapdos', to: [384, 172], ms: 900, h: 3 }, { do: 'wait', ms: 200 },   // se levanta despacio
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: '… Bien. Luchas para proteger, no para quitar. Lo he notado.' },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Ese Scyther luchaba como quien ya ha perdido algo. Tú no.' },
+      { do: 'emote', who: 'player', fx: 'question' }, { do: 'wait', ms: 900 },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Mi pluma. No te la doy por haber ganado… sino por cómo lo has hecho.' },
+      // se le desprende una pluma, que baja meciéndose hasta tus pies
+      { do: 'anim', who: 'zapdos', anim: 'Charge', ms: 700 },
+      { do: 'object', id: 'pluma', action: 'drift', ms: 2600 },
+      { do: 'emote', who: 'player', fx: 'exclaim' }, { do: 'jump', who: 'player', to: [384, 262], ms: 260, h: 8 }, { do: 'wait', ms: 300 },
+      { do: 'object', id: 'pluma', action: 'hide' },                                                            // la recoges
+      { do: 'say', name: '', text: '¡Has recibido la Pluma Trueno!' },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: 'Llévala a tu gremio y que la guarden bien. Las tres Plumas Sagradas juntas abren un portal…' },
+      { do: 'say', who: 'zapdos', mood: 'Normal', text: '… y no todos los que quieren abrirlo deberían.' },
+      // se va volando: hacia arriba, de frente, batiendo las alas, a velocidad constante
+      { do: 'storm', on: false }, { do: 'wait', ms: 400 }, { do: 'anim', who: 'zapdos', anim: 'Charge', ms: 500 },
+      { do: 'bolt', x: 384, y: 160 },
+      { do: 'anim', who: 'zapdos', anim: 'Walk', hold: true }, { do: 'tween', who: 'zapdos', set: { lift: 400 }, ms: 1900 }, { do: 'hide', who: 'zapdos' },
+      { do: 'wait', ms: 700 }, { do: 'emote', who: 'player', fx: 'dots' }, { do: 'wait', ms: 1500 },
+      { do: 'fade', to: 'out', ms: 1200 },
+    ],
+  },
+  {
     // La cima del Monte Acero, la primera vez (se lanza al llegar a la sala de Zapdos): Zapdos, cansado tras su combate con Scyther,
     // te pone a prueba. Termina con la señal del rayo bajo tus pies y el fundido al combate.
     id: 'zapdos-cima', trigger: 'monte', when: () => false,

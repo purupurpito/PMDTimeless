@@ -1165,6 +1165,8 @@ async function endRun(outcome) {
     team: state.team.map(a => `${a.name} Nv${a.level}`), recruited: state.diary?.recruited || 0, missions: (state.missions || []).filter(m => m.done).length } : null;
   // al superar la Cueva Húmeda entera, la primera vez: Scyther, en lo más hondo (y con esta escena se desbloquea reclutar)
   if (outcome === 'clear' && state.dungeonDef?.id === 'cueva' && !(meta?.scenes || []).includes('scyther-cueva')) await dungeonScene('scyther-cueva', { keepDark: true });
+  // al vencer a Zapdos por primera vez: te da su pluma (la Pluma Trueno), que se guarda en el gremio
+  if (outcome === 'clear' && state.dungeonDef?.id === 'monte' && !(meta?.scenes || []).includes('zapdos-pluma')) await dungeonScene('zapdos-pluma', { keepDark: true });
   if (state.run) state.run.ending = true;   // ya no se autoguarda
   { const st = runStats(), top = Object.entries(st.moves).sort((a, b) => b[1] - a[1]).slice(0, 8); track('run_summary', { outcome, floor: state.floor, dealt: st.dealt, taken: st.taken, kills: st.kills, items: st.items, moves: Object.fromEntries(top), min: Math.round((state.run?.playMs || 0) / 60000) }); }
   const endBody = { playMs: Math.round(state.run?.playMs || 0), outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] };
@@ -2839,7 +2841,7 @@ function renderHub() {
       ctx.globalAlpha = 1; continue;
     }
     const sx = e.x - cam.x, sy = e.y - cam.y, key = e.kind === 'npc' ? e.id : e.species;
-    if (e.kind === 'sceneobj') { e.draw(ctx, sx, sy); continue; }
+    if (e.kind === 'sceneobj') { e.draw(ctx, sx, sy, cam); continue; }   // (la cámara: para lo que se dibuja por su posición en el mapa, como la pluma flotando)
     if (e.kind === 'actor') { drawSceneActor(ctx, e, sx, sy, HUB_SCALE, (c, m, px, py, t) => Sprites.drawMon(c, m, px, py, t)); continue; }
     if (e.kind === 'me' && h.inBed) {   // tumbado en la cama: el personaje de lado, algo más bajo (la manta ya está en la imagen)
       ctx.save(); ctx.translate(sx, sy - HUB_SCALE * 4); ctx.rotate(-Math.PI / 2);
