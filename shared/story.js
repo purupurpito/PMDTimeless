@@ -1021,7 +1021,7 @@ export const SCENES = [
     ],
   },
   {
-    // La cima del Monte Acero, la primera vez (se lanza al llegar a la sala de Zapdos): Zapdos, cansado tras su combate con Scyther,
+    // La cima del Monte Eléctrico, la primera vez (se lanza al llegar a la sala de Zapdos): Zapdos, cansado tras su combate con Scyther,
     // te pone a prueba. Termina con la señal del rayo bajo tus pies y el fundido al combate.
     id: 'zapdos-cima', trigger: 'monte', when: () => false,
     area: 'cima', player: { x: 384, y: 600, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 0 }, boxBottom: true, music: 'tension',
@@ -1046,14 +1046,14 @@ export const SCENES = [
     ],
   },
   {
-    // Monte Acero, cinco pisos antes de la cima (solo la primera vez; se lanza desde newFloor): Scyther llega agotado ante Zapdos.
+    // Monte Eléctrico, cinco pisos antes de la cima (solo la primera vez; se lanza desde newFloor): Scyther llega agotado ante Zapdos.
     // Hablan, Zapdos le lanza un rayo, Scyther lo esquiva de un salto atrás… y empieza su combate (fuera de pantalla).
     id: 'scyther-zapdos', trigger: 'monte', when: () => false,
     area: 'cima', hidePlayer: true, hideNpcs: true, cam: { x: 84, y: 0 }, boxBottom: true, music: 'tension',   // (cuadro siempre abajo: que se vea el cielo)
     actors: { zapdos: { sp: 'zapdos', x: 384, y: 172, dir: 'down', noLook: true }, scyther: { sp: 'scyther', x: 384, y: 560, dir: 'up' } },
     objects: { mark: { kind: 'mark', x: 384, y: 221, hidden: true }, scorch: { kind: 'scorch', x: 384, y: 221, hidden: true } },
     steps: [
-      { do: 'narration', text: 'Mientras tanto, en la cima del Monte Acero…' },
+      { do: 'narration', text: 'Mientras tanto, en la cima del Monte Eléctrico…' },
       { do: 'fade', to: 'in', ms: 1000 }, { do: 'wait', ms: 400 },
       { do: 'bolt', x: 560, y: 140 }, { do: 'wait', ms: 700 }, { do: 'bolt', x: 230, y: 134 }, { do: 'wait', ms: 500 },   // la tormenta: rayos que hacen temblar
       { do: 'bolt', x: 470, y: 123 }, { do: 'wait', ms: 900 },

@@ -90,7 +90,7 @@ export function applySpeed(mon, delta) {
 }
 // nivel efectivo este turno (con las habilidades que dependen del clima)
 export function speedOf(mon, weather = 'none') {
-  let s = mon.speed || 0;
+  let s = (mon.speed || 0) - (mon.coldSlow ? 1 : 0);   // (coldSlow: el frío de la Montaña Gélida)
   if ((weather === 'rain' && hasAbility(mon, 'SWIFT_SWIM')) || (weather === 'sun' && hasAbility(mon, 'CHLOROPHYLL'))) s++;
   return Math.max(-1, Math.min(3, s));
 }
@@ -365,6 +365,19 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     for (let i = enemies.length - 1; i >= 0; i--) if (carpet.some(c => c.x === enemies[i].x && c.y === enemies[i].y)) enemies.splice(i, 1);
     shop = { room, carpet, keeper: { x: cx, y: cy } };
     messages.push('Huele a incienso… hay una tienda de Kecleon en este piso.');
+  }
+  // Monte Eléctrico: rayos ocultos en el suelo (como trampas). Pocos, y en el camino más corto de la entrada a la escalera, 2 como mucho.
+  if (def.thunderTraps && kind === 'normal') {
+    const key = (x, y) => y * 1000 + x, H = tiles.length, W = tiles[0].length;
+    const prev = new Map([[key(start.x, start.y), -1]]), q = [[start.x, start.y]];   // camino más corto (8 direcciones), para controlar cuántos pisa quien va directo
+    for (let i = 0; i < q.length && !prev.has(key(stairs.x, stairs.y)); i++) { const [x, y] = q[i];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) { const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || prev.has(key(nx, ny)) || tiles[ny][nx] === T.WALL) continue; prev.set(key(nx, ny), key(x, y)); q.push([nx, ny]); } }
+    const path = new Set(); for (let k = key(stairs.x, stairs.y); prev.has(k) && k !== -1; k = prev.get(k)) path.add(k);
+    const floorTiles = []; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (tiles[y][x] === T.FLOOR && !(x === start.x && y === start.y) && !(x === stairs.x && y === stairs.y)) floorTiles.push([x, y]);
+    const p = Math.min(0.03, 0.75 / Math.max(18, path.size)); let onPath = 0; const traps = [];   // ~0,75 rayos de media en el camino directo (máximo 2)
+    for (const [x, y] of floorTiles) if (rng.random() < p) { if (path.has(key(x, y))) { if (onPath >= 2) continue; onPath++; } traps.push({ x, y }); }
+    dungeon.thunder = traps; dungeon.thunderOnPath = onPath;
   }
   return { dungeon, enemies, groundItems, npcs, monsterHouse, kind, boss, messages, shop, weather };
 }

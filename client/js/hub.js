@@ -72,7 +72,7 @@ export const HUB = {
   // solo para escenas (no se llega andando): salas de la Cueva Húmeda (tools/build-cueva-sala.py; la del fondo, con la pared a la izquierda)
   cuevasala: { img: 'client/assets/hub/scene_cueva_sala.png', mask: 'client/assets/hub/scene_cueva_sala_mask.png', spawn: { x: 384, y: 400 }, exits: [], npcs: [], signs: [] },
   cuevafondo: { img: 'client/assets/hub/scene_cueva_fondo.png', mask: 'client/assets/hub/scene_cueva_fondo_mask.png', spawn: { x: 205, y: 255 }, exits: [], npcs: [], signs: [] },
-  // solo para escenas (no se llega andando): la cima del Monte Acero, con el cielo de tormenta (tools/build-cima.py)
+  // solo para escenas (no se llega andando): la cima del Monte Eléctrico, con el cielo de tormenta (tools/build-cima.py)
   cima: {
     img: 'client/assets/hub/scene_cima.png', mask: 'client/assets/hub/scene_cima_mask.png', spawn: { x: 384, y: 300 }, h: 640,
     exits: [], npcs: [], signs: [],

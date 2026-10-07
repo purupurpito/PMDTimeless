@@ -1326,11 +1326,17 @@ function arenaCleared() {
   setTimeout(go, 700);
 }
 // Lo que dicen los jefes al llegar a su sala
+const BIRD_AFTER = {   // lo que dicen Moltres y Articuno al ser vencidos
+  moltres: ['… Espera. Tú no llevas mi pluma.', 'Ese Scyther subió hasta aquí y me la quitó. Ni siquiera le dejé hablar… ni él a mí.', 'Si buscas al ladrón, busca a un Scyther. Y date prisa.'],
+  articuno: ['… No ibas con él. Lo noto.', 'Un Scyther se llevó mi pluma. Dice que con las tres abrirá un portal.', 'Si de verdad lo abre, no será solo asunto nuestro.'],
+};
 const BOSS_LINES = {
   chatot: ['¡Alto ahí, recluta!', 'Antes de dejarte ir a mazmorras de verdad, tendrás que superar mi examen.', '¡En guardia! Y nada de llorar después, ¿eh?'],
   celebi: ['El bosque te ha visto crecer piso a piso…', 'Demuéstrame que mereces llegar hasta aquí.'],
   suicune: ['El agua de esta cueva no miente. Veamos si tu corazón es igual de claro.'],
   zapdos: ['¡Has escalado hasta la cima de la tormenta! Aquí mando yo.'],
+  moltres: ['¡¿Otra vez?! ¡Ya te llevaste mi pluma, insecto!', '… No. Tú no eres él. Pero si vienes de su parte… ¡arderás igual!'],
+  articuno: ['Otro que sube a por mi pluma. Llegas tarde: ya me la quitaron.', 'Y esta vez no me pillarán desprevenida.'],
   mew: ['Hihi… ¿Vienes a jugar? ¡Me encanta jugar!'],
   jirachi: ['Una luz suave llena la sala…', 'Si quieres mi deseo, demuestra que lo mereces.'],
 };
@@ -1443,10 +1449,25 @@ function newFloor() {
   else say(`${def.name} B${state.floor}F.`);
   if (state.weather && state.weather !== 'none') say(`El clima aquí es: ${WEATHER[state.weather].name}.`);
   autosave('floor');   // guardado automático al empezar cada piso
-  // Monte Acero, cinco pisos antes de la cima, la primera vez: Scyther llega ante Zapdos
+  // Sierra Ígnea: al llegar a los últimos pisos, el calor aprieta (la Barriga baja al doble)
+  if (def.hungerLastFloors && state.floor === def.floors - def.hungerLastFloors + 1) say('¡El calor aprieta cerca de la cima! La Barriga se vacía el doble de rápido.');
+  // Montaña Gélida: el frío te deja (a ti y a tu equipo) a la mitad de velocidad
+  for (const a of [state.player, ...(state.team || [])]) if (a) a.coldSlow = !!def.coldSlow;
+  if (def.coldSlow && state.floor === 1) say('Hace un frío que entumece… Tu equipo se mueve a la mitad de velocidad.');
+  // Monte Eléctrico, cinco pisos antes de la cima, la primera vez: Scyther llega ante Zapdos
   if (def.id === 'monte' && state.floor === def.floors - 5 && !(meta?.scenes || []).includes('scyther-zapdos')) setTimeout(() => dungeonScene('scyther-zapdos'), 1400);
   // Cueva Húmeda, la primera bajada: en B10F, los rehenes (Quagsire y los Wooper acorralan a Teddiursa y Sentret)
   if (built.kind === 'rescue' && !(meta?.scenes || []).includes('cueva-rehenes')) setTimeout(() => dungeonScene('cueva-rehenes'), 1400);
+}
+// Monte Eléctrico: al pisar una casilla con un rayo oculto, cae un impactrueno sobre el jugador (y el rayo se gasta)
+function thunderTrap(p) {
+  const t = state.dungeon?.thunder; if (!t?.length) return;
+  const i = t.findIndex(r => r.x === p.x && r.y === p.y); if (i < 0) return;
+  t.splice(i, 1);
+  const dmg = Math.max(4, Math.round(p.maxHp * 0.12)); p.hp = Math.max(1, p.hp - dmg);
+  state.flash = { t0: performance.now(), ms: 320 }; playSfx('hit');
+  say(`¡Cae un rayo sobre ${p.name}! Pierde ${dmg} PS.`);
+  if (state.rng.random() < 0.25 && applyStatus(state.rng, p, 'paralysis', 1)) say(`¡${p.name} se ha quedado paralizado!`);
 }
 // una escena a mitad de mazmorra: se pausa la exploración, se ve la escena (en una zona solo de escenas) y se vuelve al piso
 async function dungeonScene(id, opts = {}) {
@@ -1557,7 +1578,7 @@ function useMove(userMon, move) {
 }
 
 // ---------- música de la mazmorra: tema de la mazmorra (según la era), jefe, guardián Mega, Casa Monstruo o tienda ----------
-const DUNGEON_TRACK = { entrenamiento: 'bosque', bosque: 'bosque', cueva: 'cueva', monte: 'monte', ruinas: 'ruinas', tiempo: 'tiempo', suenos: 'suenos', huerto: 'shop' };   // (el huerto, con el bazar de swing: fruta y buen humor)
+const DUNGEON_TRACK = { entrenamiento: 'bosque', bosque: 'bosque', cueva: 'cueva', monte: 'monte', sierra: 'monte', gelida: 'monte', ruinas: 'ruinas', tiempo: 'tiempo', suenos: 'suenos', huerto: 'shop' };   // (el huerto, con el bazar de swing: fruta y buen humor)
 function updateDungeonMusic() {
   if (state.scene !== 'dungeon' || !state.player) return;
   if (state.dungeon?.restArea) return playTrack('rest');
@@ -1634,6 +1655,8 @@ function defeatEnemy(e, by) {
     else say(`¡${e.name} suelta su ${e.dropsStone.name}!`);
   }
   else if (e.isBoss && !e.shopkeeper) { const move = state.rng.pick(TM_POOL); addItem(`MT: ${move}`); say(`${e.name} deja caer una MT: ${move}.`); }
+  // Moltres y Articuno, vencidos: se dan cuenta de que no ibas con Scyther (el final de la mazmorra espera a que cierres el diálogo)
+  if (e.isBoss && BIRD_AFTER[e.species] && state.dungeonDef?.finalBoss === e.species) openDialog(BIRD_AFTER[e.species].map(t => ({ who: e.name, sp: e.species, mood: 'Normal', text: t })));
   dropCarried(e);   // solo suelta lo que hubiera recogido, y al suelo (no a tu bolsa)
   tryRecruit(e, by);
   arenaCleared();   // ¿era el jefe de la sala?
@@ -1802,7 +1825,8 @@ const NB = [[0, 1, 0x01], [1, 1, 0x02], [1, 0, 0x04], [1, -1, 0x08], [0, -1, 0x1
 // escenario del piso: las mazmorras sin fin viajan por las eras de las demás (su escenario); en las salas de jefe, el suyo propio
 function currentTileset() {
   const own = DUNGEON_TILESET[state.dungeonDef?.id];
-  return (state.dungeon?.arena && own) ? own : DUNGEON_TILESET[state.era || state.dungeonDef?.id];
+  const ts = (state.dungeon?.arena && own) ? own : DUNGEON_TILESET[state.era || state.dungeonDef?.id];
+  return ts?.peak && state.floor >= ts.peakFrom ? { ...ts, set: ts.peak } : ts;   // la cima (p. ej. la del Monte Eléctrico)
 }
 function drawDtef(t, x, y, px, py, tile) {
   if (state.dungeon?.restArea) return false;
@@ -2130,6 +2154,7 @@ function playerAction(kind, dx = 0, dy = 0, extra) {
     if (npc) { const m = state.missions.find(m => m.id === npc.missionId); if (m) { m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`¡${npc.name}: "¡Gracias por rescatarme!" Volverá contigo al gremio.`); } endTurn(true); return; }
     if (!canMove(p, dx, dy)) { if (!state.enemies.some(e => e.x === p.x + dx && e.y === p.y + dy)) playSfx('bump'); render(); return; } // chocar (con un enemigo o una pared) solo te gira hacia allí; se ataca con A
     p.x += dx; p.y += dy; p.movedAt = performance.now();
+    thunderTrap(p);   // Monte Eléctrico: ¿había un rayo oculto aquí?
     const gi = state.groundItems.findIndex(g => g.x === p.x && g.y === p.y);
     if (gi >= 0 && state.groundItems[gi].shop) { const g = state.groundItems[gi]; say(`Kecleon: "${g.name}, ${shopPriceFor(g)} Pokés." (Menú → Suelo para cogerlo)`); }
     else if (gi >= 0) { const g = state.groundItems[gi]; if (g.megaStone) { state.groundItems.splice(gi, 1); (state.stonesFound ||= []).push(g.megaStone); say('¡Has encontrado la ' + g.name + '! Llevala al maestro Pidgeot.'); } else if (addItem(g.name, false)) { playSfx('pickup'); state.groundItems.splice(gi, 1); if (g.shop) { const price = Math.round(g.price * (state.player.species === 'kecleon' ? KECLEON_DISCOUNT : 1)); state.shop.unpaid.push({ name: g.name, price }); say(`Coges ${g.name} (${price} P). Kecleon: ${state.player.species === 'kecleon' ? '"Para ti con descuento, hermano. Pero paga."' : '"¡Paga antes de irte!"'}`); } else say(`Recoges ${g.name}.`); if (g.missionId) { const m = state.missions.find(m => m.id === g.missionId); if (m) { m.done = true; say('¡Es el objeto de la misión!'); } } } }
@@ -2256,7 +2281,8 @@ async function resolveTurn(playerActed) {
   // barriga: −1 cada 10 turnos; vacía, se pierde 1 PS por turno y no se regenera (Exploradores del Cielo)
   // en la Mazmorra del Tiempo la barriga baja a la mitad de velocidad (1 cada 20 turnos)
   const hf = (ITEMS[p.held]?.hunger ?? 1) * (p.iqSkills?.includes('Energy Saver') ? 0.75 : 1);   // Cinto Glotón ×2, Banda Aguante ×0,5, Cinto Apretado ×0
-  const bellyEvery = hf === 0 ? Infinity : Math.max(1, Math.round(CFG.bellyEveryTurns * (CFG.bellySlowDungeons[state.dungeonDef?.id] || 1) / hf));
+  const heat = state.dungeonDef?.hungerLastFloors && state.floor > state.dungeonDef.floors - state.dungeonDef.hungerLastFloors ? 2 : 1;   // Sierra Ígnea: el calor de los últimos pisos
+  const bellyEvery = hf === 0 ? Infinity : Math.max(1, Math.round(CFG.bellyEveryTurns * (CFG.bellySlowDungeons[state.dungeonDef?.id] || 1) / hf / heat));
   if (p.belly > 0) { if (state.turn % bellyEvery === 0) { p.belly--; if (p.belly === 20) { say(`¡${p.name} tiene hambre!`); playSfx('hunger'); } if (p.belly === 10) { say(`¡${p.name} tiene muchísima hambre! Come algo pronto.`); playSfx('hunger'); } if (p.belly === 0) { say(`¡La barriga de ${p.name} está vacía! Pierde PS en cada turno.`); playSfx('hunger'); openDialog([{ who: p.name, sp: p.species, mood: 'Pain', text: `¡La barriga de ${p.name} está vacía! Si no come algo, irá perdiendo PS.` }]); } } regen(p); }
   else { p.hp = Math.max(0, p.hp - 1); if (state.turn % 10 === 0) say('El hambre te va quitando PS…'); if (p.hp <= 0) { downed(p); if (state.dead) return; } }
   weatherTick();
