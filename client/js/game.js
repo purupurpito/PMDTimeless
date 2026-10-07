@@ -1457,11 +1457,11 @@ function newFloor() {
     if (rnd() < 0.2) {
       const pick = layer => { const l = TILESET_LAYERS[layer]; return l[Math.floor(rnd() * l.length)]; };   // cada capa, solo entre los juegos que la traen
       // el piso se parte en fragmentos irregulares (cada casilla, del fragmento más cercano), cada uno de una era distinta
-      const floors = Array.from({ length: 4 + Math.floor(rnd() * 3) }, () => pick('floor')), walls = Array.from({ length: 2 + Math.floor(rnd() * 2) }, () => pick('wall'));
-      const W = CFG.map.w, H = CFG.map.h, seeds = Array.from({ length: 55 + Math.floor(rnd() * 21) }, (_, i) => ({ x: rnd() * W, y: rnd() * H, f: floors[Math.floor(rnd() * floors.length)], w: walls[Math.floor(rnd() * walls.length)] }));
+      const floors = Array.from({ length: 6 + Math.floor(rnd() * 3) }, () => pick('floor')), walls = Array.from({ length: 3 + Math.floor(rnd() * 2) }, () => pick('wall'));
+      const W = CFG.map.w, H = CFG.map.h, seeds = Array.from({ length: 420 + Math.floor(rnd() * 120) }, (_, i) => ({ x: rnd() * W, y: rnd() * H, f: floors[Math.floor(rnd() * floors.length)], w: walls[Math.floor(rnd() * walls.length)] }));
       const map = [];
       for (let y = 0; y < H; y++) { const row = []; for (let x = 0; x < W; x++) { let best = 0, bd = Infinity; seeds.forEach((s, i) => { const d = (s.x - x) ** 2 + ((s.y - y) * 1.3) ** 2; if (d < bd) { bd = d; best = i; } }); row.push(best); } map.push(row); }
-      state.dungeon.broken = { set: floors[0], water: pick('water'), lava: pick('water'), seeds, map };
+      state.dungeon.broken = { set: floors[0], water: pick('water'), lava: pick('water'), seeds, map, floors, walls };
       say('El tiempo se resquebraja… Este piso mezcla eras que nunca debieron tocarse.');
     }
   }
@@ -1475,6 +1475,23 @@ function newFloor() {
   // Cueva Húmeda, la primera bajada: en B10F, los rehenes (Quagsire y los Wooper acorralan a Teddiursa y Sentret)
   if (built.kind === 'rescue' && !(meta?.scenes || []).includes('cueva-rehenes')) setTimeout(() => dungeonScene('cueva-rehenes'), 1400);
 }
+// Mazmorra del Tiempo, pisos rotos: un agujero al vacío (negro, con estrellitas y un borde violeta)
+function drawVoid(px, py, tile, hh, t) {
+  const s = tile + 0.75; ctx.fillStyle = '#06030c'; ctx.fillRect(px, py, s, s);
+  for (let i = 0; i < 3; i++) { const k = (hh >> (i * 5)) & 31, tw = 0.5 + 0.5 * Math.sin(t / 300 + i + hh % 9); ctx.fillStyle = `rgba(220, 200, 255, ${0.3 + 0.6 * tw})`; ctx.fillRect(px + (k % 6) * s / 6 + 2, py + Math.floor(k / 6) * s / 6 + 2, 2, 2); }
+  ctx.strokeStyle = `rgba(170, 90, 255, ${0.5 + 0.3 * Math.sin(t / 200 + hh % 5)})`; ctx.lineWidth = 1.5; ctx.strokeRect(px + 0.75, py + 0.75, s - 1.5, s - 1.5);
+}
+// …y de vez en cuando, la imagen falla: franjas de la pantalla desplazadas un instante
+function drawGlitch() {
+  if (!state.dungeon?.broken || state.scene !== 'dungeon') return;
+  const t = performance.now(), phase = t % 3400; if (phase > 140) return;
+  const c = ctx.canvas, n = 3 + Math.floor((t / 37) % 4);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (let i = 0; i < n; i++) { const y = Math.floor(((t * 13 + i * 977) % 1000) / 1000 * c.height), h = 6 + ((i * 53 + Math.floor(t)) % 22), dx = (((i * 31 + Math.floor(t / 20)) % 25) - 12) * 2;
+    ctx.drawImage(c, 0, y, c.width, h, dx, y, c.width, h); }
+  ctx.fillStyle = 'rgba(160, 60, 255, .08)'; ctx.fillRect(0, 0, c.width, c.height); ctx.restore();
+}
+setInterval(() => { if (state.dungeon?.broken && state.scene === 'dungeon') scheduleRender(); }, 120);   // (que parpadee y falle aunque no te muevas)
 // Monte Eléctrico: al pisar una casilla con un rayo oculto, cae un impactrueno sobre el jugador (y el rayo se gasta)
 function thunderTrap(p) {
   const t = state.dungeon?.thunder; if (!t?.length) return;
@@ -1849,17 +1866,27 @@ function drawDtef(t, x, y, px, py, tile) {
   if (state.dungeon?.restArea) return false;
   const cfg = currentTileset(); if (!cfg) return false;
   const terr = terrainOf(x, y), frag = cfg.map ? cfg.seeds[cfg.map[y]?.[x] ?? 0] : null;   // (piso roto: el fragmento de esta casilla)
-  const setName = frag && terr === 'floor' ? frag.f : frag && terr === 'wall' ? frag.w : cfg[terr] || (terr === 'lava' ? (cfg.lava || cfg.set) : cfg.set), ts = tileset(setName);
+  const hh = ((x * 73856093) ^ (y * 19349663) ^ 0x5bd1e995) >>> 0, tnow = performance.now();
+  if (frag && terr === 'floor' && hh % 23 === 0) { drawVoid(px, py, tile, hh, tnow); return true; }   // un agujero al vacío
+  let setName = frag && terr === 'floor' ? frag.f : frag && terr === 'wall' ? frag.w : cfg[terr] || (terr === 'lava' ? (cfg.lava || cfg.set) : cfg.set);
+  if (frag && hh % 9 === 0 && Math.floor(tnow / 480 + (hh % 7)) % 3 === 0) { const pool = terr === 'wall' ? cfg.walls : cfg.floors; if (pool && terr !== 'water' && terr !== 'lava') setName = pool[(hh >> 4) % pool.length]; }   // parpadea entre eras
+  const ts = tileset(setName);
   if (!ts) return false;
   const same = terr === 'floor' ? (a => a !== 'wall') : (a => a === terr);   // el suelo casa con todo lo que no es pared
   let mask = 0; for (const [dx, dy, bit] of NB) if (same(terrainOf(x + dx, y + dy))) mask |= bit;
-  const slot = DTEF_SLOT[mask], col0 = terr === 'wall' ? 0 : terr === 'floor' ? 12 : 6;
+  let slot = DTEF_SLOT[mask], col0 = terr === 'wall' ? 0 : terr === 'floor' ? 12 : 6;
+  if (frag && hh % 11 === 0) { slot = (hh >> 3) % 48; col0 = [0, 6, 12][(hh >> 9) % 3]; }   // una pieza que no toca (pared, orilla…) donde no debería
   const h = ((x * 73856093) ^ (y * 19349663)) >>> 0, cell = Math.floor(slot / 6) * 18 + col0 + slot % 6;
   let v = h % 9 === 0 ? 1 : h % 9 === 1 ? 2 : 0; if (v && (!ts.img[v] || ts.empty[v]?.[cell])) v = 0;   // de vez en cuando, una variante
   const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(ts.img[v], (col0 + slot % 6) * 24, Math.floor(slot / 6) * 24, 24, 24, px, py, tile + 0.75, tile + 0.75);   // un pelín más grande: sin huecos al escalar
-  if (frag && terr !== 'wall') {   // la grieta entre dos fragmentos de eras distintas
-    const m = cfg.map, here = m[y][x]; ctx.fillStyle = 'rgba(10, 6, 20, .55)';
+  if (frag && (hh % 13 === 0 || hh % 17 === 0)) {   // piezas desencajadas: desplazadas unos píxeles, o volteadas
+    const ox = ((hh >> 6) % 7) - 3, oy = ((hh >> 11) % 7) - 3, flip = hh % 17 === 0;
+    ctx.save(); ctx.translate(px + ox + (flip ? tile + 0.75 : 0), py + oy); if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(ts.img[v], (col0 + slot % 6) * 24, Math.floor(slot / 6) * 24, 24, 24, 0, 0, tile + 0.75, tile + 0.75); ctx.restore();
+  } else ctx.drawImage(ts.img[v], (col0 + slot % 6) * 24, Math.floor(slot / 6) * 24, 24, 24, px, py, tile + 0.75, tile + 0.75);   // un pelín más grande: sin huecos al escalar
+  if (frag && hh % 7 === 0) { ctx.fillStyle = ['rgba(170,60,255,.22)', 'rgba(40,220,255,.2)', 'rgba(255,40,120,.18)'][(hh >> 5) % 3]; ctx.fillRect(px, py, tile + 0.75, tile + 0.75); }   // casillas teñidas, como mal reveladas
+  if (frag && terr !== 'wall') {   // la grieta entre dos fragmentos de eras distintas: una luz violeta que palpita
+    const m = cfg.map, here = m[y][x]; ctx.fillStyle = `rgba(190, 120, 255, ${0.45 + 0.3 * Math.sin(tnow / 260 + (hh % 10))})`;
     if (x + 1 < CFG.map.w && m[y][x + 1] !== here && terrainOf(x + 1, y) !== 'wall') ctx.fillRect(px + tile - 1.5, py, 2.5, tile + 0.75);
     if (y + 1 < CFG.map.h && m[y + 1][x] !== here && terrainOf(x, y + 1) !== 'wall') ctx.fillRect(px, py + tile - 1.5, tile + 0.75, 2.5);
   }
@@ -3054,6 +3081,7 @@ function renderDungeon() {
   }
   ctx.restore();
   drawWeather();
+  drawGlitch();   // (Mazmorra del Tiempo, pisos rotos)
   if (state.showMap !== false && !state.dungeon.arena) drawMinimap();
   if (held.has('L') && !state.menu && !state.dialog) drawMoveHints();
   if (state.effects.length || animating || sliding || (state.weather && state.weather !== 'none')) scheduleRender();   // sliding: alguien se está deslizando
