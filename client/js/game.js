@@ -1456,8 +1456,12 @@ function newFloor() {
     let h = (state.run.seed ^ (state.floor * 2654435761)) >>> 0; const rnd = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
     if (rnd() < 0.2) {
       const pick = layer => { const l = TILESET_LAYERS[layer]; return l[Math.floor(rnd() * l.length)]; };   // cada capa, solo entre los juegos que la traen
-      const floor = pick('floor');
-      state.dungeon.broken = { set: floor, wall: pick('wall'), floor, water: pick('water'), lava: pick('water') };
+      // el piso se parte en fragmentos irregulares (cada casilla, del fragmento más cercano), cada uno de una era distinta
+      const floors = Array.from({ length: 4 + Math.floor(rnd() * 3) }, () => pick('floor')), walls = Array.from({ length: 2 + Math.floor(rnd() * 2) }, () => pick('wall'));
+      const W = CFG.map.w, H = CFG.map.h, seeds = Array.from({ length: 55 + Math.floor(rnd() * 21) }, (_, i) => ({ x: rnd() * W, y: rnd() * H, f: floors[Math.floor(rnd() * floors.length)], w: walls[Math.floor(rnd() * walls.length)] }));
+      const map = [];
+      for (let y = 0; y < H; y++) { const row = []; for (let x = 0; x < W; x++) { let best = 0, bd = Infinity; seeds.forEach((s, i) => { const d = (s.x - x) ** 2 + ((s.y - y) * 1.3) ** 2; if (d < bd) { bd = d; best = i; } }); row.push(best); } map.push(row); }
+      state.dungeon.broken = { set: floors[0], water: pick('water'), lava: pick('water'), seeds, map };
       say('El tiempo se resquebraja… Este piso mezcla eras que nunca debieron tocarse.');
     }
   }
@@ -1844,7 +1848,8 @@ function currentTileset() {
 function drawDtef(t, x, y, px, py, tile) {
   if (state.dungeon?.restArea) return false;
   const cfg = currentTileset(); if (!cfg) return false;
-  const terr = terrainOf(x, y), setName = cfg[terr] || (terr === 'lava' ? (cfg.lava || cfg.set) : cfg.set), ts = tileset(setName);   // (cfg.wall/floor/water/lava: una capa de otro juego)
+  const terr = terrainOf(x, y), frag = cfg.map ? cfg.seeds[cfg.map[y]?.[x] ?? 0] : null;   // (piso roto: el fragmento de esta casilla)
+  const setName = frag && terr === 'floor' ? frag.f : frag && terr === 'wall' ? frag.w : cfg[terr] || (terr === 'lava' ? (cfg.lava || cfg.set) : cfg.set), ts = tileset(setName);
   if (!ts) return false;
   const same = terr === 'floor' ? (a => a !== 'wall') : (a => a === terr);   // el suelo casa con todo lo que no es pared
   let mask = 0; for (const [dx, dy, bit] of NB) if (same(terrainOf(x + dx, y + dy))) mask |= bit;
@@ -1853,6 +1858,11 @@ function drawDtef(t, x, y, px, py, tile) {
   let v = h % 9 === 0 ? 1 : h % 9 === 1 ? 2 : 0; if (v && (!ts.img[v] || ts.empty[v]?.[cell])) v = 0;   // de vez en cuando, una variante
   const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
   ctx.drawImage(ts.img[v], (col0 + slot % 6) * 24, Math.floor(slot / 6) * 24, 24, 24, px, py, tile + 0.75, tile + 0.75);   // un pelín más grande: sin huecos al escalar
+  if (frag && terr !== 'wall') {   // la grieta entre dos fragmentos de eras distintas
+    const m = cfg.map, here = m[y][x]; ctx.fillStyle = 'rgba(10, 6, 20, .55)';
+    if (x + 1 < CFG.map.w && m[y][x + 1] !== here && terrainOf(x + 1, y) !== 'wall') ctx.fillRect(px + tile - 1.5, py, 2.5, tile + 0.75);
+    if (y + 1 < CFG.map.h && m[y + 1][x] !== here && terrainOf(x, y + 1) !== 'wall') ctx.fillRect(px, py + tile - 1.5, tile + 0.75, 2.5);
+  }
   ctx.imageSmoothingEnabled = prev; return true;
 }
 
