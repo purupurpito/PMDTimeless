@@ -214,6 +214,26 @@ function paintTerrain(rng, room, tiles, tile) {
     if (((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1 && rng.random() < 0.9) tiles[y][x] = tile;
 }
 
+function landBridges(tiles, start, targets) {
+  const H = tiles.length, W = tiles[0].length, key = (x, y) => y * 1000 + x, D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const land = t => t !== T.WALL && t !== T.WATER && t !== T.LAVA;
+  const reach = () => { const seen = new Set([key(start.x, start.y)]), q = [[start.x, start.y]];
+    for (let i = 0; i < q.length; i++) { const [x, y] = q[i]; for (const [dx, dy] of D4) { const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen.has(key(nx, ny)) || !land(tiles[ny][nx])) continue; seen.add(key(nx, ny)); q.push([nx, ny]); } }
+    return seen; };
+  let seen = reach();
+  for (const t of targets) {
+    if (!t || seen.has(key(t.x, t.y))) continue;
+    // camino más corto desde lo alcanzable, pudiendo cruzar agua y lava (no paredes); luego se convierte en suelo
+    const prev = new Map(), q = []; for (const k of seen) { prev.set(k, -1); q.push(k); }
+    for (let i = 0; i < q.length && !prev.has(key(t.x, t.y)); i++) { const x = q[i] % 1000, y = Math.floor(q[i] / 1000);
+      for (const [dx, dy] of D4) { const nx = x + dx, ny = y + dy, k = key(nx, ny);
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || prev.has(k) || tiles[ny][nx] === T.WALL) continue; prev.set(k, q[i]); q.push(k); } }
+    for (let k = key(t.x, t.y); prev.has(k) && prev.get(k) !== -1; k = prev.get(k)) { const x = k % 1000, y = Math.floor(k / 1000); if (tiles[y][x] === T.WATER || tiles[y][x] === T.LAVA) tiles[y][x] = T.FLOOR; }
+    seen = reach();
+  }
+}
+
 export function generateDungeon(rng, def = {}) {
   const { w, h } = CFG.map;
   const tiles = Array.from({ length: h }, () => new Array(w).fill(T.WALL));
@@ -366,6 +386,9 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     shop = { room, carpet, keeper: { x: cx, y: cy } };
     messages.push('Huele a incienso… hay una tienda de Kecleon en este piso.');
   }
+  // Que todo lo importante se alcance por tierra (sin nadar, volar ni resistir el fuego): si la escalera, un objeto o alguien a quien
+  // rescatar ha quedado en una isla del estanque, se tiende un camino de tierra hasta él (el agua o la lava del camino más corto, a suelo)
+  landBridges(tiles, start, [stairs, ...groundItems, ...npcs]);
   // Monte Eléctrico: rayos ocultos en el suelo (como trampas). Pocos, y en el camino más corto de la entrada a la escalera, 2 como mucho.
   if (def.thunderTraps && kind === 'normal') {
     const key = (x, y) => y * 1000 + x, H = tiles.length, W = tiles[0].length;
