@@ -865,6 +865,131 @@ export const SCENES = [
     ],
   },
   {
+    // Al superar la Cueva Húmeda entera, la primera vez (se lanza desde endRun): en lo más hondo, un grupo de Golbat te acorrala
+    // contra la pared y Scyther te salva. Con esta escena se desbloquea reclutar.
+    id: 'scyther-cueva', trigger: 'cueva', when: () => false,
+    area: 'cuevafondo', player: { x: 205, y: 255, dir: 'right' }, hideNpcs: true, cam: { x: 84, y: 60 }, music: 'tension',
+    actors: { g1: { sp: 'golbat', name: 'Golbat', x: 760, y: 190, dir: 'left', hidden: true }, g2: { sp: 'golbat', name: 'Golbat', x: 760, y: 255, dir: 'left', hidden: true }, g3: { sp: 'golbat', name: 'Golbat', x: 760, y: 320, dir: 'left', hidden: true }, scyther: { sp: 'scyther', x: 262, y: 258, dir: 'right', hidden: true } },
+    steps: [
+      { do: 'narration', text: 'Cueva Húmeda, en lo más hondo…' },
+      { do: 'fade', to: 'in', ms: 900 }, { do: 'wait', ms: 300 },
+      { do: 'anim', who: 'player', anim: 'Hurt', ms: 600 }, { do: 'emote', who: 'player', fx: 'sweat' }, { do: 'wait', ms: 700 },   // agotado, sin bayas
+      // un grupo de Golbat te rodea contra la pared
+      { do: 'show', who: 'g1' }, { do: 'show', who: 'g2' }, { do: 'show', who: 'g3' }, { do: 'emote', who: 'player', fx: 'shock' },
+      { at: [{ do: 'move', who: 'g2', to: [[345, 255]], speed: 1.0 }, { do: 'move', who: 'g1', to: [[330, 195]], speed: 1.0, delay: 250 }, { do: 'move', who: 'g3', to: [[330, 318]], speed: 1.0, delay: 450 }] },
+      { do: 'wait', ms: 500 },
+      // el del centro se acerca hasta tocarte, te golpea y retrocede sin dejar de mirarte… y el de arriba ya se lanza
+      { do: 'move', who: 'g2', to: [[258, 255]], speed: 1.9 }, { do: 'anim', who: 'g2', anim: 'Attack', ms: 300 }, { do: 'anim', who: 'player', anim: 'Hurt', ms: 420 }, { do: 'shake', ms: 260, amp: 4 },
+      { at: [{ do: 'move', who: 'g2', to: [[330, 255]], speed: 1.6, keepFacing: true }, { do: 'move', who: 'g1', to: [[250, 212]], speed: 1.9 }] },
+      { do: 'anim', who: 'g1', anim: 'Attack', ms: 300 }, { do: 'anim', who: 'player', anim: 'Hurt', hold: true }, { do: 'shake', ms: 260, amp: 4 }, { do: 'wait', ms: 600 },   // derrotado
+      { do: 'move', who: 'g1', to: [[330, 195]], speed: 1.6, keepFacing: true }, { do: 'wait', ms: 150 },
+      // ataque conjunto de los tres… la pantalla se funde a blanco (¿te han derrotado?)… y al volver, Scyther está entre ellos y tú
+      { do: 'emote', who: 'g2', fx: 'anger' }, { do: 'wait', ms: 350 },
+      { at: [{ do: 'move', who: 'g1', to: [[312, 200]], speed: 1.5 }, { do: 'move', who: 'g2', to: [[322, 255]], speed: 1.5 }, { do: 'move', who: 'g3', to: [[312, 312]], speed: 1.5 },
+             { do: 'anim', who: 'g1', anim: 'Attack', ms: 700 }, { do: 'anim', who: 'g2', anim: 'Attack', ms: 700 }, { do: 'anim', who: 'g3', anim: 'Attack', ms: 700 },
+             { do: 'flash', up: 350, hold: 500, down: 650, delay: 150 }, { do: 'shake', ms: 300, amp: 6, delay: 500 }] },
+      { do: 'show', who: 'scyther' }, { do: 'anim', who: 'scyther', anim: 'Attack', hold: true }, { do: 'wait', ms: 1100 },
+      { do: 'slash', x: 322, y: 255 }, { do: 'anim', who: 'g2', anim: 'Hurt', hold: true }, { do: 'wait', ms: 170 },
+      { do: 'slash', x: 312, y: 200 }, { do: 'anim', who: 'g1', anim: 'Hurt', hold: true }, { do: 'wait', ms: 170 },
+      { do: 'slash', x: 312, y: 312 }, { do: 'anim', who: 'g3', anim: 'Hurt', hold: true }, { do: 'wait', ms: 620 },
+      { do: 'anim', who: 'scyther', anim: null }, { do: 'wait', ms: 800 },
+      { do: 'emote', who: 'g1', fx: 'sweat' }, { do: 'emote', who: 'g2', fx: 'sweat' }, { do: 'emote', who: 'g3', fx: 'sweat' }, { do: 'wait', ms: 1400 },   // derrotados; un momento de silencio
+      { do: 'say', who: 'scyther', mood: 'Normal', text: 'Escapad. He usado Falsotortazo para no acabar con vosotros.' },
+      { do: 'say', who: 'scyther', mood: 'Determined', text: 'Si os quedáis, acabaré lo que he empezado.' },
+      // se levantan y huyen hacia el otro lado: primero reculan mirándole, luego se dan la vuelta
+      { do: 'anim', who: 'g1', anim: null }, { do: 'anim', who: 'g2', anim: null }, { do: 'anim', who: 'g3', anim: null },
+      { do: 'emote', who: 'g1', fx: 'shock' }, { do: 'emote', who: 'g2', fx: 'shock' }, { do: 'emote', who: 'g3', fx: 'shock' },
+      { at: [{ do: 'move', who: 'g1', to: [[362, 200]], speed: 0.9, keepFacing: true }, { do: 'move', who: 'g2', to: [[372, 255]], speed: 0.9, back: true, delay: 120 }, { do: 'move', who: 'g3', to: [[362, 312]], speed: 0.9, back: true, delay: 240 }] },
+      { do: 'turn', who: 'g1', dir: 'right' }, { do: 'turn', who: 'g2', dir: 'right' }, { do: 'turn', who: 'g3', dir: 'right' },
+      { at: [{ do: 'move', who: 'g1', to: [[840, 160]], speed: 1.9 }, { do: 'move', who: 'g2', to: [[840, 255]], speed: 1.9, delay: 120 }, { do: 'move', who: 'g3', to: [[840, 352]], speed: 1.9, delay: 240 }] },
+      { do: 'hide', who: 'g1' }, { do: 'hide', who: 'g2' }, { do: 'hide', who: 'g3' }, { do: 'wait', ms: 500 },
+      // Scyther se acerca con calma, con una Baya Aranja
+      { do: 'prop', who: 'scyther', set: { item: 'Baya Aranja' } }, { do: 'turn', who: 'scyther', dir: 'left' }, { do: 'move', who: 'scyther', to: [[258, 268]], speed: 0.6, keepFacing: true }, { do: 'turn', who: 'scyther', toward: 'player' }, { do: 'wait', ms: 500 },
+      { do: 'say', who: 'scyther', mood: 'Normal', text: 'Toma.' },
+      { do: 'prop', who: 'scyther', set: { item: null } }, { do: 'wait', ms: 300 }, { do: 'anim', who: 'player', anim: null }, { do: 'turn', who: 'player', toward: 'scyther' }, { do: 'emote', who: 'player', fx: 'notice' }, { do: 'wait', ms: 900 },   // te la da; te recuperas
+      { do: 'say', who: 'scyther', mood: 'Normal', text: 'No tendrías que haber bajado tanto. Y menos solo.' },
+      { do: 'emote', who: 'player', fx: 'question' }, { do: 'wait', ms: 800 },
+      { do: 'say', who: 'scyther', mood: 'Sad', text: '… Tampoco yo. Pero yo no tengo elección.' },
+      { do: 'emote', who: 'player', fx: 'dots' }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'scyther', mood: 'Determined', text: 'No le digas a tu gremio que me has visto. Buscan a quien no deben.' },
+      { do: 'turn', who: 'scyther', dir: 'right' }, { do: 'wait', ms: 300 }, { do: 'move', who: 'scyther', to: [[820, 262]], speed: 3.0 }, { do: 'hide', who: 'scyther' },
+      { do: 'wait', ms: 800 }, { do: 'turn', who: 'player', dir: 'right' }, { do: 'emote', who: 'player', fx: 'dots' }, { do: 'wait', ms: 1600 },
+      { do: 'fade', to: 'out', ms: 1100 },
+    ],
+  },
+  {
+    // Cueva Húmeda, B10F, la primera vez (se lanza desde newFloor): Quagsire y dos Wooper tienen acorralados a Teddiursa y Sentret.
+    // Termina con el fundido a negro; de ahí, al combate contra ellos en el propio piso.
+    id: 'cueva-rehenes', trigger: 'cueva', when: () => false,
+    area: 'cuevasala', player: { x: 380, y: 560, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 40 }, music: 'tension',
+    actors: { machamp: { sp: 'machamp', x: 320, y: 590, dir: 'up' }, heracross: { sp: 'heracross', x: 440, y: 595, dir: 'up' }, ampharos: { sp: 'ampharos', x: 380, y: 640, dir: 'up' },
+      quagsire: { sp: 'quagsire', x: 380, y: 262, dir: 'up', noLook: true }, w1: { sp: 'wooper', name: 'Wooper', x: 300, y: 250, dir: 'up', noLook: true }, w2: { sp: 'wooper', name: 'Wooper', x: 460, y: 250, dir: 'up', noLook: true },
+      teddiursa: { sp: 'teddiursa', x: 352, y: 205, dir: 'down' }, sentret: { sp: 'sentret', x: 412, y: 205, dir: 'down' } },
+    steps: [
+      { do: 'narration', text: 'Cueva Húmeda, B10F. A mitad de camino…' },
+      { do: 'anim', who: 'teddiursa', anim: 'Hurt', hold: true }, { do: 'anim', who: 'sentret', anim: 'Hurt', hold: true },
+      { do: 'fade', to: 'in', ms: 900 },
+      { at: [{ do: 'move', who: 'player', to: [[380, 400]], speed: 1.0 }, { do: 'move', who: 'machamp', to: [[320, 420]], speed: 1.0 }, { do: 'move', who: 'heracross', to: [[440, 425]], speed: 1.0 }, { do: 'move', who: 'ampharos', to: [[380, 470]], speed: 0.95 }] },
+      { do: 'say', who: 'machamp', mood: 'Normal', text: 'Alto.' },
+      { at: [{ do: 'emote', who: 'quagsire', fx: 'shock' }, { do: 'emote', who: 'w1', fx: 'shock' }, { do: 'emote', who: 'w2', fx: 'shock' }, { do: 'jump', who: 'quagsire', to: [380, 262], ms: 240, h: 8 }, { do: 'jump', who: 'w1', to: [300, 250], ms: 240, h: 8 }, { do: 'jump', who: 'w2', to: [460, 250], ms: 240, h: 8 }] },
+      { do: 'turn', who: 'quagsire', toward: 'player' }, { do: 'turn', who: 'w1', toward: 'player' }, { do: 'turn', who: 'w2', toward: 'player' }, { do: 'wait', ms: 900 },
+      { do: 'anim', who: 'teddiursa', anim: null }, { do: 'anim', who: 'sentret', anim: null }, { do: 'turn', who: 'teddiursa', toward: 'machamp' }, { do: 'turn', who: 'sentret', toward: 'machamp' },
+      { do: 'say', who: 'teddiursa', mood: 'Teary-Eyed', text: '¡Machamp! ¡Ayuda, por favor!' },
+      { do: 'say', who: 'sentret', mood: 'Happy', text: '¡Sabía que vendría alguien! ¡Lo sabía!' },
+      { do: 'turn', who: 'w1', toward: 'teddiursa' }, { do: 'jump', who: 'w1', to: [300, 250], ms: 260, h: 10 },
+      { do: 'say', who: 'w1', mood: 'Angry', text: '¡Silencio, rehenes!' },
+      { do: 'turn', who: 'w1', toward: 'player' }, { do: 'wait', ms: 400 },
+      { do: 'say', who: 'quagsire', mood: 'Normal', text: '… Vaya. Más exploradores.' },
+      { do: 'say', who: 'quagsire', mood: 'Normal', text: 'Estos dos rompieron nuestras rocas para pasar. Y el agua se fue por el agujero.' },
+      { do: 'say', who: 'quagsire', mood: 'Determined', text: 'Hasta que el agua vuelva, se quedan aquí.' },
+      { do: 'say', who: 'ampharos', mood: 'Normal', text: 'Podemos ayudaros a taponar ese agujero. Pero primero, soltadlos.' },
+      { do: 'turn', who: 'quagsire', toward: 'ampharos' }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'quagsire', mood: 'Normal', text: '… No.' },
+      { do: 'turn', who: 'quagsire', toward: 'player' }, { do: 'jump', who: 'w2', to: [460, 250], ms: 260, h: 10 },
+      { do: 'say', who: 'w2', mood: 'Shouting', text: '¡No, no y no!' },
+      { do: 'anim', who: 'heracross', anim: 'Strike', ms: 500 },
+      { do: 'say', who: 'heracross', mood: 'Determined', text: '¡Se acabó la charla!' },
+      { do: 'turn', who: 'machamp', toward: 'heracross' }, { do: 'wait', ms: 300 },
+      { do: 'say', who: 'machamp', mood: 'Normal', text: 'Normalmente no te doy la razón… Pero es hora de pelear.' },
+      { do: 'emote', who: 'quagsire', fx: 'anger' }, { do: 'wait', ms: 700 },
+      { do: 'fade', to: 'out', ms: 700 },
+    ],
+  },
+  {
+    // Tras vencer a Quagsire y los Wooper (se lanza desde defeatEnemy): los dejan ir, los rehenes libres, y a casa.
+    id: 'cueva-rescate', trigger: 'cueva', when: () => false,
+    area: 'cuevasala', player: { x: 380, y: 360, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 40 }, music: 'tension',
+    actors: { machamp: { sp: 'machamp', x: 318, y: 384, dir: 'up' }, heracross: { sp: 'heracross', x: 442, y: 388, dir: 'up' }, ampharos: { sp: 'ampharos', x: 380, y: 440, dir: 'up' },
+      quagsire: { sp: 'quagsire', x: 380, y: 262, dir: 'down', noLook: true }, w1: { sp: 'wooper', name: 'Wooper', x: 300, y: 250, dir: 'down', noLook: true }, w2: { sp: 'wooper', name: 'Wooper', x: 460, y: 250, dir: 'down', noLook: true },
+      teddiursa: { sp: 'teddiursa', x: 352, y: 205, dir: 'down' }, sentret: { sp: 'sentret', x: 412, y: 205, dir: 'down' } },
+    steps: [
+      { do: 'anim', who: 'quagsire', anim: 'Hurt', hold: true }, { do: 'anim', who: 'w1', anim: 'Hurt', hold: true }, { do: 'anim', who: 'w2', anim: 'Hurt', hold: true },
+      { do: 'fade', to: 'in', ms: 800 }, { do: 'wait', ms: 600 },
+      { do: 'wait', ms: 1200 }, { do: 'emote', who: 'quagsire', fx: 'dots' }, { do: 'wait', ms: 1000 },
+      { do: 'anim', who: 'quagsire', anim: null }, { do: 'jump', who: 'quagsire', to: [380, 262], ms: 900, h: 3 }, { do: 'wait', ms: 200 }, { do: 'turn', who: 'quagsire', toward: 'player' },
+      { do: 'say', who: 'quagsire', mood: 'Sad', text: '… Está bien. Llevaos a los vuestros.' },
+      { do: 'anim', who: 'w1', anim: null }, { do: 'jump', who: 'w1', to: [300, 250], ms: 300, h: 7 }, { do: 'emote', who: 'w1', fx: 'dots' }, { do: 'wait', ms: 450 },
+      { do: 'anim', who: 'w2', anim: null }, { do: 'jump', who: 'w2', to: [460, 250], ms: 300, h: 7 }, { do: 'emote', who: 'w2', fx: 'dots' }, { do: 'wait', ms: 900 },
+      { do: 'turn', who: 'quagsire', toward: 'player' }, { do: 'turn', who: 'w1', toward: 'player' }, { do: 'turn', who: 'w2', toward: 'player' }, { do: 'wait', ms: 300 },
+      { do: 'say', who: 'quagsire', mood: 'Normal', text: 'Pero el agua sigue sin volver.' },
+      { do: 'say', who: 'ampharos', mood: 'Happy', text: 'Volveremos con piedras y taparemos ese agujero. Palabra de Ampharos.' },
+      { do: 'turn', who: 'quagsire', toward: 'ampharos' }, { do: 'emote', who: 'quagsire', fx: 'dots' }, { do: 'wait', ms: 1000 },
+      { do: 'say', who: 'quagsire', mood: 'Normal', text: '… Más os vale.' },
+      { at: [{ do: 'move', who: 'quagsire', to: [[300, 262], [-60, 262]], speed: 1.0 }, { do: 'move', who: 'w1', to: [[-60, 250]], speed: 1.2, delay: 250 }, { do: 'move', who: 'w2', to: [[440, 300], [235, 300], [195, 252], [-60, 252]], speed: 1.2, delay: 450 }] },
+      { do: 'hide', who: 'quagsire' }, { do: 'hide', who: 'w1' }, { do: 'hide', who: 'w2' },
+      { do: 'anim', who: 'teddiursa', anim: null }, { do: 'anim', who: 'sentret', anim: null }, { do: 'turn', who: 'player', toward: 'teddiursa' }, { do: 'wait', ms: 400 },
+      { do: 'move', who: 'teddiursa', to: [[360, 300]], speed: 1.4 }, { do: 'jump', who: 'teddiursa', to: [360, 300], ms: 300, h: 14 },
+      { do: 'say', who: 'teddiursa', mood: 'Joyous', text: '¡Gracias! ¡Gracias, gracias, gracias!' },
+      { do: 'move', who: 'sentret', to: [[410, 300]], speed: 1.3 }, { do: 'turn', who: 'sentret', toward: 'machamp' },
+      { do: 'say', who: 'sentret', mood: 'Worried', text: '¿Y Smeargle? Nos separó la crecida… ¿Está…?' },
+      { do: 'say', who: 'machamp', mood: 'Normal', text: 'En el gremio. Tumbado, quejándose y dibujando. Está bien.' },
+      { do: 'emote', who: 'sentret', fx: 'heart' }, { do: 'jump', who: 'sentret', to: [410, 300], ms: 260, h: 10 }, { do: 'wait', ms: 800 },
+      { do: 'jump', who: 'heracross', to: [442, 388], ms: 260, h: 10 },
+      { do: 'say', who: 'heracross', mood: 'Joyous', text: '¡A casa! ¡Yo llevo a los dos! … Bueno, a uno.' },
+      { do: 'wait', ms: 400 }, { do: 'fade', to: 'out', ms: 1300 },
+    ],
+  },
+  {
     // La cima del Monte Acero, la primera vez (se lanza al llegar a la sala de Zapdos): Zapdos, cansado tras su combate con Scyther,
     // te pone a prueba. Termina con la señal del rayo bajo tus pies y el fundido al combate.
     id: 'zapdos-cima', trigger: 'monte', when: () => false,
@@ -965,7 +1090,7 @@ export const SCENES = [
   {
     // Si fallas en la Cueva Húmeda (y aún no la has superado): a la mañana siguiente, los veteranos te animan (se repite cada vez)
     id: 'cueva-animo', trigger: 'return', repeat: true,
-    when: m => m.lastRun?.dungeon === 'cueva' && m.lastRun.outcome !== 'clear' && !(m.cleared || []).includes('cueva') && (m.scenes || []).includes('cueva-salida'),
+    when: m => m.lastRun?.dungeon === 'cueva' && !['clear', 'rescue'].includes(m.lastRun.outcome) && !(m.cleared || []).includes('cueva') && (m.scenes || []).includes('cueva-salida'),   // (el rescate no es un fallo)
     area: 'plaza', player: { x: 384, y: 330, dir: 'up' }, cam: { x: 84, y: 40 }, hideNpcIds: [],
     actors: { machamp: { sp: 'machamp', x: 384, y: 176, dir: 'down', hidden: true }, heracross: { sp: 'heracross', x: 384, y: 176, dir: 'down', hidden: true }, ampharos: { sp: 'ampharos', x: 384, y: 176, dir: 'down', hidden: true } },
     steps: [
@@ -1015,7 +1140,7 @@ export const SCENES = [
   },
   {
     // Sin cena: la primera noche tras fallar una exploración (fuera del tutorial). Norma 12; Mawile te pasa una manzana; Chatot «no ha visto nada»
-    id: 'sin-cena', trigger: 'return', when: m => !!m.lastRun && m.lastRun.outcome !== 'clear' && m.lastRun.dungeon !== 'entrenamiento' && (m.scenes || []).includes('el-testigo'),
+    id: 'sin-cena', trigger: 'return', when: m => !!m.lastRun && !['clear', 'rescue'].includes(m.lastRun.outcome) && m.lastRun.dungeon !== 'entrenamiento' && (m.scenes || []).includes('el-testigo'),
     area: 'gremio', night: true, player: { x: 405, y: 330, dir: 'up' }, cam: { x: 84, y: 60 }, hideNpcIds: ['chatot', 'mawile', 'machamp', 'heracross', 'ampharos'],
     actors: { chatot: { sp: 'chatot', x: 410, y: 252, dir: 'down' }, mawile: { sp: 'mawile', x: 470, y: 290, dir: 'left', noLook: true } },
     steps: [

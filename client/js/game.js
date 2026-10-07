@@ -771,7 +771,11 @@ function talkToBase(kind) {
     case 'sell': return npcGreeting('Kecleon', KECLEON_PURPLE_LINES, 'kp', openSellMenu, 'kecleon_purple');   // el morado, con sus propios retratos
     case 'storage': return npcGreeting('Kangaskhan', KANGASKHAN_LINES, 'kk', openStorageMenu);
     case 'gulpin': return npcGreeting('Gulpin', GULPIN_LINES, 'gu', openGulpinMenu);
-    case 'smeargle': return npcGreeting('Smeargle', (meta?.scenes || []).includes('veteranos')
+    case 'teddiursa': return npcGreeting('Teddiursa', ['Chansey dice que reposo. Reposo es… ¿no moverse? Es difícil.', '¿Tú también bajarás a por el agua de los Wooper? Ampharos lo prometió.', 'Gracias otra vez. Y otra. Y otra más.'], 'td');
+    case 'sentret': return npcGreeting('Sentret', ['Yo vigilaba la entrada. Y aun así nos pillaron. … Los Wooper son muy silenciosos.', 'Smeargle no ha parado de dibujar desde que llegamos. Nos ha dibujado doce veces.', 'Cuando volvamos a salir, iré de vigía otra vez. Pero mejor.'], 'st');
+    case 'smeargle': return npcGreeting('Smeargle', meta?.rescueDone
+      ? ['¡Teddiursa y Sentret, aquí! ¡Enteros! Os debo doce dibujos. Mínimo.', 'Chansey me ha prohibido dibujar. Dibujo igual. Con la otra mano.', 'El agua de los Wooper… Ampharos lo prometió, y Ampharos cumple.']
+      : (meta?.scenes || []).includes('veteranos')
       ? ['Me han dicho que vais a la cueva. Cuando volváis, os dibujaré a todos. ¡Con orejas!', 'El camino lo tengo en la cabeza. Si Machamp me deja, os lo pinto antes de salir.', 'Los mapas se los llevó el agua… pero los colores no se me olvidan. Azul para el agua, rojo para el peligro.']
       : ['…zzz… los mapas… el camino… zzz…', '(Smeargle duerme profundamente. Murmura algo sobre una cueva.)', '…zzz… ¿orejas?… ¿le dibujo orejas?… zzz…'], 'sm');
     case 'machamp': return npcGreeting('Machamp', ['Hmm.', 'Los puentes se arreglan. Los exploradores perdidos, se buscan.', 'No hables con el estómago vacío. Come primero.', 'Heracross es ruidoso. Pero en la cueva nadie vigila mejor que él.'], 'ma');
@@ -882,7 +886,7 @@ function openRankMenu() {
 // RUN
 // =====================================================================
 // Hasta superar la Cueva Húmeda, Machamp, Heracross y Ampharos van contigo como invitados (no se guardan ni se expulsan)
-const caveGuests = def => def?.id === 'cueva' && !canRecruit(meta) && (meta?.scenes || []).includes('veteranos');
+const caveGuests = def => def?.id === 'cueva' && !canRecruit(meta) && (meta?.scenes || []).includes('veteranos') && !meta?.rescueDone;   // los veteranos te acompañan solo hasta el rescate (B10F)
 function addCaveGuests(def) {
   for (const sp of ['machamp', 'heracross', 'ampharos']) {
     const gst = createMon(sp, Math.max(state.player.level + 2, def.lvl + 4), { x: state.player.x, y: state.player.y, tactic: 'seguir', floors: 0, held: null });
@@ -1159,6 +1163,8 @@ async function endRun(outcome) {
   const summary = outcome === 'clear' ? { dungeon: state.dungeonDef.name, floors: state.floor, pokes: state.runPokes, items: [...state.inventory], held: state.player.held,
     leader: state.player.name, lv0: state.player.runStartLevel ?? state.player.level, lv1: state.player.level,
     team: state.team.map(a => `${a.name} Nv${a.level}`), recruited: state.diary?.recruited || 0, missions: (state.missions || []).filter(m => m.done).length } : null;
+  // al superar la Cueva Húmeda entera, la primera vez: Scyther, en lo más hondo (y con esta escena se desbloquea reclutar)
+  if (outcome === 'clear' && state.dungeonDef?.id === 'cueva' && !(meta?.scenes || []).includes('scyther-cueva')) await dungeonScene('scyther-cueva', { keepDark: true });
   if (state.run) state.run.ending = true;   // ya no se autoguarda
   { const st = runStats(), top = Object.entries(st.moves).sort((a, b) => b[1] - a[1]).slice(0, 8); track('run_summary', { outcome, floor: state.floor, dealt: st.dealt, taken: st.taken, kills: st.kills, items: st.items, moves: Object.fromEntries(top), min: Math.round((state.run?.playMs || 0) / 60000) }); }
   const endBody = { playMs: Math.round(state.run?.playMs || 0), outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] };
@@ -1437,14 +1443,18 @@ function newFloor() {
   autosave('floor');   // guardado automático al empezar cada piso
   // Monte Acero, cinco pisos antes de la cima, la primera vez: Scyther llega ante Zapdos
   if (def.id === 'monte' && state.floor === def.floors - 5 && !(meta?.scenes || []).includes('scyther-zapdos')) setTimeout(() => dungeonScene('scyther-zapdos'), 1400);
+  // Cueva Húmeda, la primera bajada: en B10F, los rehenes (Quagsire y los Wooper acorralan a Teddiursa y Sentret)
+  if (built.kind === 'rescue' && !(meta?.scenes || []).includes('cueva-rehenes')) setTimeout(() => dungeonScene('cueva-rehenes'), 1400);
 }
 // una escena a mitad de mazmorra: se pausa la exploración, se ve la escena (en una zona solo de escenas) y se vuelve al piso
-async function dungeonScene(id, retry = 0) {
-  const sc = SCENES.find(x => x.id === id); if (!sc || state.scene !== 'dungeon') return;
-  if (state.dialog || state.menu || state.busy || state.resolving || state.dcut || state.cut) { if (retry < 40) setTimeout(() => dungeonScene(id, retry + 1), 400); return; }
+async function dungeonScene(id, opts = {}) {
+  const sc = SCENES.find(x => x.id === id); if (!sc || state.scene !== 'dungeon') return false;
+  for (let i = 0; i < 40 && (state.dialog || state.menu || state.busy || state.resolving || state.dcut || state.cut); i++) await new Promise(r => setTimeout(r, 400));   // espera a que no haya nada en pantalla
+  if (state.scene !== 'dungeon' || state.dialog || state.menu || state.busy || state.resolving || state.dcut || state.cut) return false;
   state.dcut = true; const back = state.scene;
   try { state.scene = 'hub'; state.dcut = false; hubLoop(); await runScene(sc); }   // (el bucle de la aldea mueve a los actores; se para solo al volver a la mazmorra)
-  finally { state.scene = back; state.cut = null; state.screenFade = { from: 1, to: 0, t0: performance.now(), ms: 700 }; musicZone = null; updateDungeonMusic(); render(); }
+  finally { state.scene = back; state.cut = null; if (!opts.keepDark) { state.screenFade = { from: 1, to: 0, t0: performance.now(), ms: 700 }; musicZone = null; updateDungeonMusic(); } render(); }   // (keepDark: se sigue en negro, p. ej. para volver al gremio)
+  return true;
 }
 
 const tileAt = (x, y) => (y >= 0 && y < CFG.map.h && x >= 0 && x < CFG.map.w) ? state.dungeon.tiles[y][x] : T.WALL;
@@ -1625,6 +1635,15 @@ function defeatEnemy(e, by) {
   dropCarried(e);   // solo suelta lo que hubiera recogido, y al suelo (no a tu bolsa)
   tryRecruit(e, by);
   arenaCleared();   // ¿era el jefe de la sala?
+  if (e.rescueGroup && !state.enemies.some(x => x !== e && x.rescueGroup && x.hp > 0)) setTimeout(rescueDone, 900);   // han caído Quagsire y los dos Wooper
+}
+// Los compañeros de Smeargle, rescatados: la escena, y a casa (cuenta como misión cumplida, no como Cueva superada)
+async function rescueDone() {
+  if (state.scene !== 'dungeon' || !state.run || state.run.ending) return;
+  state.npcs = (state.npcs || []).filter(n => !n.captive);
+  await dungeonScene('cueva-rescate', { keepDark: true });
+  if (state.scene !== 'dungeon' || !state.run || state.run.ending) return;
+  endRun('rescue');
 }
 function tryRecruit(e, by) {
   if (by !== state.player || cheb(e, state.player) > 1 || e.minion || e.mega || e.noRecruit) return; // golpe final del líder y adyacente (Kecleon incluido: tasa -49 %); los Mega guardianes no se reclutan
@@ -2098,6 +2117,7 @@ function playerAction(kind, dx = 0, dy = 0, extra) {
     p.facing = [dx, dy];
     const npc = npcAt(p.x + dx, p.y + dy);
     if (npc?.fallen) { tryRescueComplete(); return; }
+    if (npc?.captive) { say(npc.line); render(); return; }   // los rehenes de la Cueva: te hablan, pero siguen acorralados hasta que caiga el grupo
     if (npc?.keeper) { openKeeperMenu(); return; }
     if (npc?.wants) {   // misión de entrega: si llevas lo que pide, se lo das
       const m = state.missions.find(m => m.id === npc.missionId), i = state.inventory.indexOf(npc.wants);

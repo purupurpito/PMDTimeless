@@ -339,6 +339,18 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     enemies.push(boss);
     messages.push(`Una presencia inmensa sella las escaleras… ${SPECIES[stone.guardian].name} custodia la ${stone.name}.`);
   } else if (kind === 'miniboss') { boss = createMon(rng.pick(MINIBOSS_POOL), wildLevel() + 3, { x: stairs.x, y: stairs.y, asleep: false, isBoss: true, sealsStairs: true }); enemies.push(boss); }
+  else if (kind === 'rescue') {   // la primera bajada a la Cueva Húmeda: Quagsire y dos Wooper tienen acorralados a Teddiursa y Sentret, los compañeros de Smeargle
+    boss = createMon('quagsire', wildLevel() + 3, { x: stairs.x, y: stairs.y, asleep: false, isBoss: true, sealsStairs: true, rescueGroup: true, noRecruit: true }); enemies.push(boss);
+    const free = (x, y) => tiles[y]?.[x] === T.FLOOR && !occupied(x, y) && !npcs.some(n => n.x === x && n.y === y);
+    const spots = [];
+    for (let r = 1; r <= 3 && spots.length < 4; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if ((Math.abs(dx) === r || Math.abs(dy) === r) && free(stairs.x + dx, stairs.y + dy) && spots.length < 4) spots.push({ x: stairs.x + dx, y: stairs.y + dy });
+    const [w1, w2, c1, c2] = spots;
+    if (w1) enemies.push(createMon('wooper', wildLevel() + 1, { ...w1, asleep: false, rescueGroup: true, noRecruit: true }));
+    if (w2) enemies.push(createMon('wooper', wildLevel() + 1, { ...w2, asleep: false, rescueGroup: true, noRecruit: true }));
+    if (c1) npcs.push({ ...c1, species: 'teddiursa', name: 'Teddiursa', captive: true, facing: [0, 1], line: 'Teddiursa: "¡Cuidado con Quagsire! ¡Es mucho más rápido de lo que parece!"' });
+    if (c2) npcs.push({ ...c2, species: 'sentret', name: 'Sentret', captive: true, facing: [0, 1], line: 'Sentret: "¡Los Wooper no paran de moverse! ¡Pégales cuando se queden quietos!"' });
+    messages.push('¡Teddiursa y Sentret! Quagsire y los Wooper los tienen acorralados junto a las escaleras.');
+  }
   // Tienda de Kecleon: una sala (ni la inicial ni la de las escaleras) con alfombra de objetos y el tendero
   let shop = null;
   const shopRooms = rooms.filter(r => r !== startRoom && r !== dungeon.stairsRoom && r.w >= 5 && r.h >= 4 && (!monsterHouse || r !== monsterHouse.room));

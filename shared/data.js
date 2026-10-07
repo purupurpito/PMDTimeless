@@ -266,6 +266,7 @@ export function floorKind(def, floor, flags = {}) {
   if (def.floors === Infinity && floor === CFG.jirachiFloor && !flags.jirachiUnlocked) return 'jirachi';
   if (def.floors === Infinity && floor % CFG.bigLegendaryEvery === 0) return 'bigLegendary';
   if (def.floors === Infinity && floor % CFG.legendaryEvery === 0) return 'legendary';
+  if (flags.rescue && def.id === 'cueva' && floor === CFG.minibossEvery) return 'rescue';   // la primera bajada a la Cueva: el piso de los rehenes (Quagsire y los Wooper)
   if (floor % CFG.minibossEvery === 0) return 'miniboss';
   return 'normal';
 }
@@ -273,7 +274,7 @@ export function floorKind(def, floor, flags = {}) {
 // Reclutamiento: tasa base + 2 % por nivel del líder por encima del salvaje + objeto equipado. Se recluta si rng < chance/100.
 export const RECRUIT_MIN_RANK = 2; // hasta rango Plata no se puede reclutar
 // reclutar se desbloquea al superar la Cueva Húmeda (con Machamp, Heracross y Ampharos de invitados: el «tutorial» de llevar equipo)
-export const canRecruit = m => (m?.cleared || []).includes('cueva');
+export const canRecruit = m => (m?.scenes || []).includes('scyther-cueva') || (m?.cleared || []).includes('cueva');   // con la escena de Scyther, al superar la Cueva entera (o la Cueva ya superada: los jugadores de antes no la pierden)
 export function recruitChance(leader, target, alreadyOnTeam = false) {
   // tasa real de la especie (Exploradores del Cielo); las que no están en ese juego usan la aproximación anterior
   let rate = EOS_RECRUIT[target.species] ?? EOS_RECRUIT[String(target.species).replace('mega_', '')];

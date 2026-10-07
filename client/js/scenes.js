@@ -106,6 +106,8 @@ async function runStep(step, c) {
       D.render(); return;
     }
     case 'shake': c.shake = { t0: now(), ms: step.ms || 700, amp: step.amp || 4 }; if (step.wait) await delay(step.ms || 700); return;
+    case 'slash': (c.slashes ||= []).push({ t0: now(), x: step.x, y: step.y }); if (step.shake !== false) c.shake = { t0: now(), ms: 180, amp: 5 }; D.render(); return;   // un tajo en cruz en (x, y)
+    case 'flash': c.flash = { t0: now(), up: step.up ?? 350, hold: step.hold ?? 500, down: step.down ?? 650, max: step.max ?? 1, color: step.color || '255,255,255' }; D.render(); if (step.wait) await delay(step.wait); return;   // fundido a blanco (u otro color)
     case 'bolt': {   // un rayo que cae en (x, y): con destello y temblor, o suave (de fondo, sin temblor)
       (c.bolts ||= []).push({ t0: now(), x: step.x, y: step.y }); if (!step.soft || !c.flash || now() - c.flash.t0 > 400) c.flash = { t0: now(), max: step.soft ? 0.18 : 0.6 };
       if (!step.soft) c.shake = { t0: now(), ms: 320, amp: 6 }; D.render(); return;
@@ -329,7 +331,12 @@ export function drawSceneOverlay(ctx, W, H, cam) {
   for (const b of c.bolts || []) { const k = (now() - b.t0) / 260; if (k >= 1) continue;
     ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#fff6a8'; ctx.lineWidth = 4; ctx.beginPath();
     let x = b.x - cam.x, y = -10; ctx.moveTo(x, y); const ty = b.y - cam.y; let z = 7; while (y < ty) { y = Math.min(ty, y + 26); x += (z = -z) * 2; ctx.lineTo(x, y); } ctx.stroke(); ctx.restore(); }
-  if (c.flash) { const t = now() - c.flash.t0, a = t < 40 ? t / 40 : Math.max(0, 1 - (t - 40) / 300); if (a > 0) { ctx.fillStyle = `rgba(255,250,200,${a * c.flash.max})`; ctx.fillRect(0, 0, W, H); } }
+  for (const sl of c.slashes || []) { const k = (now() - sl.t0) / 380; if (k >= 1) continue;   // tajos en cruz (Scyther)
+    ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#fff'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    const x = sl.x - cam.x, y = sl.y - cam.y - 24, r = 24 + 10 * k; ctx.beginPath(); ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y + r); ctx.moveTo(x + r, y - r); ctx.lineTo(x - r, y + r); ctx.stroke(); ctx.restore(); }
+  if (c.flash) { const f = c.flash, t = now() - f.t0;   // destello (rayo) o fundido a un color con subida, espera y bajada
+    const a = f.up !== undefined ? (t < f.up ? t / f.up : t < f.up + f.hold ? 1 : Math.max(0, 1 - (t - f.up - f.hold) / f.down)) : (t < 40 ? t / 40 : Math.max(0, 1 - (t - 40) / 300));
+    if (a > 0) { ctx.fillStyle = `rgba(${f.color || '255,250,200'},${a * f.max})`; ctx.fillRect(0, 0, W, H); } }
   if (c.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${c.fade})`; ctx.fillRect(0, 0, W, H); }
   if (c.narration) {
     const k = Math.min(1, (now() - c.narration.t0) / 500); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);

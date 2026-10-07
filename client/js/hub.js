@@ -56,7 +56,10 @@ export const HUB = {
             { x: 650, y: 326, box: [568, 284, 734, 400] }, { x: 614, y: 434, box: [532, 394, 694, 494] } ],
     npcs: [ { id: 'chansey', x: 522, y: 238, facing: [0, 1], talk: 'chansey', fixedFacing: true, reach: 84, approach: [462, 300, 600, 360] },   // tras el mostrador
             // Smeargle, recuperándose en una cama (dormido hasta que llegan los veteranos)
-            { id: 'smeargle', x: 146, y: 436, facing: [1, 1], talk: 'smeargle', afterScene: 'smeargle-vuelve', pose: 'Sleep', poseUntil: 'veteranos', fixedFacing: true, reach: 56 } ],
+            { id: 'smeargle', x: 146, y: 436, facing: [1, 1], talk: 'smeargle', afterScene: 'smeargle-vuelve', pose: 'Sleep', poseUntil: 'veteranos', fixedFacing: true, reach: 56 },
+            // los compañeros de Smeargle, rescatados de la Cueva Húmeda: a reposo junto a él
+            { id: 'teddiursa', x: 196, y: 420, facing: [-1, 1], talk: 'teddiursa', afterScene: 'cueva-rescate', reach: 48 },
+            { id: 'sentret', x: 204, y: 452, facing: [-1, 0], talk: 'sentret', afterScene: 'cueva-rescate', reach: 48 } ],
   },
   // Fuente de la Evolución (a la derecha de la plaza). Hecha con el tileset original de Apple Woods: tools/build-fuente.py.
   // El camino sigue hacia la derecha, pero el bosque aún no deja pasar.
@@ -66,6 +69,9 @@ export const HUB = {
     npcs: [ { id: 'rowlet', x: 408, y: 262, facing: [0, 1], talk: 'rowlet', fixedFacing: true, reach: 70 } ],   // «???»: lleva tanto tiempo como el maestro del gremio
     signs: [ { rect: [590, 240, 672, 336], text: 'El bosque es demasiado espeso para seguir… Por ahora.' } ],
   },
+  // solo para escenas (no se llega andando): salas de la Cueva Húmeda (tools/build-cueva-sala.py; la del fondo, con la pared a la izquierda)
+  cuevasala: { img: 'client/assets/hub/scene_cueva_sala.png', mask: 'client/assets/hub/scene_cueva_sala_mask.png', spawn: { x: 384, y: 400 }, exits: [], npcs: [], signs: [] },
+  cuevafondo: { img: 'client/assets/hub/scene_cueva_fondo.png', mask: 'client/assets/hub/scene_cueva_fondo_mask.png', spawn: { x: 205, y: 255 }, exits: [], npcs: [], signs: [] },
   // solo para escenas (no se llega andando): la cima del Monte Acero, con el cielo de tormenta (tools/build-cima.py)
   cima: {
     img: 'client/assets/hub/scene_cima.png', mask: 'client/assets/hub/scene_cima_mask.png', spawn: { x: 384, y: 300 }, h: 640,
