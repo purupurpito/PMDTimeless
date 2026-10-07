@@ -1046,6 +1046,37 @@ export const SCENES = [
     ],
   },
   {
+    // Monte Eléctrico, a mitad de la subida, la primera vez (se lanza desde newFloor): rocas cortadas en cruz y tres salvajes derrotados.
+    // El rastro de Scyther, sin que se le vea.
+    id: 'scyther-rastro', trigger: 'monte', when: () => false,
+    area: 'montesala', player: { x: 380, y: 560, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 40 }, music: 'tension',
+    actors: { onix: { sp: 'onix', x: 520, y: 300, dir: 'down-left', noLook: true }, g1: { sp: 'geodude', name: 'Geodude', x: 248, y: 330, dir: 'down-right', noLook: true },
+              g2: { sp: 'geodude', name: 'Geodude', x: 340, y: 250, dir: 'down', noLook: true } },
+    steps: [
+      { do: 'narration', text: 'Monte Eléctrico, a mitad de la subida…' },
+      { do: 'anim', who: 'onix', anim: 'Hurt', hold: true }, { do: 'anim', who: 'g1', anim: 'Hurt', hold: true }, { do: 'anim', who: 'g2', anim: 'Hurt', hold: true },   // derrotados por el suelo
+      { do: 'fade', to: 'in', ms: 900 },
+      { do: 'move', who: 'player', to: [[380, 420]], speed: 0.9 },
+      { do: 'emote', who: 'player', fx: 'shock' }, { do: 'jump', who: 'player', to: [380, 420], ms: 260, h: 8 }, { do: 'wait', ms: 900 },
+      { do: 'turn', who: 'player', toward: 'g1' }, { do: 'wait', ms: 600 }, { do: 'turn', who: 'player', toward: 'onix' }, { do: 'wait', ms: 600 }, { do: 'turn', who: 'player', toward: 'g2' }, { do: 'wait', ms: 700 },   // mira alrededor
+      { do: 'emote', who: 'player', fx: 'question' }, { do: 'wait', ms: 800 },
+      { do: 'move', who: 'player', to: [[300, 380]], speed: 0.75 }, { do: 'turn', who: 'player', toward: 'g1' }, { do: 'wait', ms: 400 },
+      { do: 'turn', who: 'g1', toward: 'player' },
+      { do: 'say', who: 'g1', mood: 'Pain', text: 'Ugh… ¿Otro más? Tranquilo… ya no queremos pelea.' },
+      { do: 'turn', who: 'g2', toward: 'player' }, { do: 'turn', who: 'player', toward: 'g2' },
+      { do: 'say', who: 'g2', mood: 'Pain', text: 'Un Scyther. Pasó por aquí como un vendaval.' },
+      { do: 'turn', who: 'onix', toward: 'player' }, { do: 'turn', who: 'player', toward: 'onix' },
+      { do: 'say', who: 'onix', mood: 'Normal', text: 'Le cortamos el paso entre los tres. Ni siquiera aflojó el ritmo.' },
+      { do: 'turn', who: 'player', toward: 'g1' },
+      { do: 'say', who: 'g1', mood: 'Normal', text: 'Lo raro es que… podía habernos dejado fuera de combate del todo. Y no lo hizo.' },
+      { do: 'turn', who: 'player', dir: 'left' }, { do: 'wait', ms: 600 }, { do: 'emote', who: 'player', fx: 'dots' }, { do: 'wait', ms: 1100 },   // las rocas cortadas
+      { do: 'turn', who: 'player', toward: 'g2' },
+      { do: 'say', who: 'g2', mood: 'Normal', text: 'Si sigues subiendo, ve con cuidado. Va por delante de ti.' },
+      { do: 'turn', who: 'player', dir: 'up' }, { do: 'wait', ms: 700 }, { do: 'emote', who: 'player', fx: 'exclaim' }, { do: 'wait', ms: 1300 },
+      { do: 'fade', to: 'out', ms: 1100 },
+    ],
+  },
+  {
     // Monte Eléctrico, cinco pisos antes de la cima (solo la primera vez; se lanza desde newFloor): Scyther llega agotado ante Zapdos.
     // Hablan, Zapdos le lanza un rayo, Scyther lo esquiva de un salto atrás… y empieza su combate (fuera de pantalla).
     id: 'scyther-zapdos', trigger: 'monte', when: () => false,

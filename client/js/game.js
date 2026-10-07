@@ -1471,6 +1471,7 @@ function newFloor() {
   for (const a of [state.player, ...(state.team || [])]) if (a) a.coldSlow = !!def.coldSlow;
   if (def.coldSlow && state.floor === 1) say('Hace un frío que entumece… Tu equipo se mueve a la mitad de velocidad.');
   // Monte Eléctrico, cinco pisos antes de la cima, la primera vez: Scyther llega ante Zapdos
+  if (def.id === 'monte' && state.floor === 12 && !(meta?.scenes || []).includes('scyther-rastro')) setTimeout(() => dungeonScene('scyther-rastro'), 1400);   // a mitad de la subida: el rastro de Scyther
   if (def.id === 'monte' && state.floor === def.floors - 5 && !(meta?.scenes || []).includes('scyther-zapdos')) setTimeout(() => dungeonScene('scyther-zapdos'), 1400);
   // Cueva Húmeda, la primera bajada: en B10F, los rehenes (Quagsire y los Wooper acorralan a Teddiursa y Sentret)
   if (built.kind === 'rescue' && !(meta?.scenes || []).includes('cueva-rehenes')) setTimeout(() => dungeonScene('cueva-rehenes'), 1400);
