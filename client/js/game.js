@@ -1516,7 +1516,7 @@ async function dungeonScene(id, opts = {}) {
 
 const tileAt = (x, y) => (y >= 0 && y < CFG.map.h && x >= 0 && x < CFG.map.w) ? state.dungeon.tiles[y][x] : T.WALL;
 const passable = (x, y) => tileAt(x, y) !== T.WALL; // para proyectiles y línea de visión
-const walkableFor = (mon, x, y) => passable(x, y) && (canCrossTerrain(mon, tileAt(x, y)) || ((mon === state.player || state.team?.includes(mon)) && (state.slip || mon.iqSkills?.includes('All-Terrain Hiker') || mon.iqSkills?.includes('Absolute Mover')) && [T.WATER, T.LAVA].includes(tileAt(x, y))));
+const walkableFor = (mon, x, y) => passable(x, y) && !((mon.rescueGroup || mon.sealsStairs) && [T.WATER, T.LAVA].includes(tileAt(x, y))) && (canCrossTerrain(mon, tileAt(x, y)) || ((mon === state.player || state.team?.includes(mon)) && (state.slip || mon.iqSkills?.includes('All-Terrain Hiker') || mon.iqSkills?.includes('Absolute Mover')) && [T.WATER, T.LAVA].includes(tileAt(x, y))));
 const enemyAt = (x, y) => state.enemies.find(e => e.x === x && e.y === y);
 const allyAt = (x, y) => (state.player.x === x && state.player.y === y) ? state.player : state.team.find(a => a.x === x && a.y === y);
 const npcAt = (x, y) => state.npcs.find(n => n.x === x && n.y === y);
@@ -2205,6 +2205,14 @@ function playerAction(kind, dx = 0, dy = 0, extra) {
       endTurn(true); return;
     }
     if (npc) { const m = state.missions.find(m => m.id === npc.missionId); if (m) { m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`¡${npc.name}: "¡Gracias por rescatarme!" Volverá contigo al gremio.`); } endTurn(true); return; }
+    // moverte hacia un compañero: os intercambiáis el sitio (como en el original), para que nunca te dejen encerrado
+    const ally = state.team.find(a => a.hp > 0 && a.x === p.x + dx && a.y === p.y + dy);
+    if (ally && tileAt(ally.x, ally.y) !== T.WALL && !(dx && dy && (tileAt(p.x + dx, p.y) === T.WALL || tileAt(p.x, p.y + dy) === T.WALL))) {
+      const px = p.x, py = p.y; p.x = ally.x; p.y = ally.y; ally.x = px; ally.y = py; p.movedAt = ally.movedAt = performance.now(); ally.facing = [-dx, -dy];
+      say(`Intercambias el sitio con ${ally.name}.`); updateVisibility();
+      if (tileAt(p.x, p.y) === T.STAIRS) { endTurn(true); askStairs(); return; }
+      endTurn(true); return;
+    }
     if (!canMove(p, dx, dy)) { if (!state.enemies.some(e => e.x === p.x + dx && e.y === p.y + dy)) playSfx('bump'); render(); return; } // chocar (con un enemigo o una pared) solo te gira hacia allí; se ataca con A
     p.x += dx; p.y += dy; p.movedAt = performance.now();
     thunderTrap(p);   // Monte Eléctrico: ¿había un rayo oculto aquí?
@@ -2579,6 +2587,7 @@ function dungeonPath(mon, to) {
       const nx = x + dx, ny = y + dy, k = key(nx, ny);
       if (nx < 0 || ny < 0 || nx >= W || ny >= H || prev.has(k) || !walkableFor(mon, nx, ny)) continue;
       if (dx && dy && (!passable(x + dx, y) || !passable(x, y + dy))) continue;   // regla de la esquina
+      if (!(nx === to.x && ny === to.y) && npcAt(nx, ny)) continue;   // los NPC (Kecleon en su tienda, alguien por rescatar) se rodean, como una pared, salvo que sean el destino
       prev.set(k, key(x, y)); q.push([nx, ny]);
     }
   }
