@@ -252,6 +252,14 @@ export const DREAM_DUNGEON = { id: 'suenos', name: 'Mazmorra de los Sueños', fl
   eras: ['bosque', 'cueva', 'monte', 'ruinas'], eraEvery: 5, terrain: ['water', 'lava'], legendaryOnly: true };
 
 export const dungeonById = id => id === 'suenos' ? DREAM_DUNGEON : DUNGEONS.find(d => d.id === id);
+// Recompensas al alcanzar cada rango (van al almacén de Kangaskhan; si no caben, en Pokés)
+export const RANK_REWARDS = {
+  1: { pokes: 500, items: ['Baya Aranja', 'Baya Aranja', 'Semilla Revivir'] },
+  2: { pokes: 1000, items: ['Baya Zidra', 'Semilla Revivir', 'Orbe Escape'] },
+  3: { pokes: 2000, items: ['Semilla Revivir', 'Semilla Revivir', 'Elixir Máximo', 'Manzana Grande'] },
+  4: { pokes: 4000, items: ['Semilla Revivir', 'Semilla Revivir', 'Manzana Dorada', 'Orbe Luminoso'] },
+  5: { pokes: 8000, items: ['Semilla Revivir', 'Semilla Revivir', 'Semilla Revivir', 'Manzana Dorada', 'Manzana Dorada', 'Elixir Máximo'] },
+};
 export const rankOf = pts => { let r = 0; RANKS.forEach((rk, i) => { if (pts >= rk.pts) r = i; }); return r; };
 // La bolsa crece con el rango, como en el original: 12 huecos de Novato y 4 más por cada rango
 export const bagSizeFor = rankPts => CFG.bagSize + 4 * rankOf(rankPts || 0);
