@@ -940,7 +940,7 @@ export const SCENES = [
       { do: 'turn', who: 'chatot', toward: 'player' },
       { do: 'say', who: 'chatot', mood: 'Normal', text: 'Novato: un rato aquí y a trabajar. Que nadie se entretenga demasiado.' },
       { do: 'move', who: 'chatot', to: [[322, 236], [295, 186], [262, 140]], speed: 1.1 }, { do: 'hide', who: 'chatot' },   // y vuelve a subir
-      { do: 'say', who: 'spinda', mood: 'Joyous', text: '¡Vuelve cuando quieras! Pronto tendré zumos para ti.' },
+      { do: 'say', who: 'spinda', mood: 'Joyous', text: '¡Y tú, vuelve cuando quieras! Tráeme una fruta y te preparo un zumo para tu próxima exploración.' },
       // y salta detrás de la barra, a su puesto (desde ahí asoma de cintura para arriba)
       { do: 'anim', who: 'spinda', anim: 'Twirl', ms: 500 },
       { do: 'jump', who: 'spinda', to: [588, 262], ms: 420, h: 22 }, { do: 'set', fg: true }, { do: 'turn', who: 'spinda', dir: 'down-left' }, { do: 'wait', ms: 1000 },

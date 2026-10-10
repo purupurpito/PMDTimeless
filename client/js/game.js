@@ -9,7 +9,7 @@ import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
 import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
-import { canRecruit } from '../../shared/data.js';
+import { canRecruit, JUICES } from '../../shared/data.js';
 import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt, drawScreenFade, releaseBlack } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
 import { spawnMoveFx, drawMoveFx, fxEndTime, fxShake, spawnSuperEffective } from './vfx.js';
@@ -773,7 +773,20 @@ function talkToBase(kind) {
     case 'sell': return npcGreeting('Kecleon', KECLEON_PURPLE_LINES, 'kp', openSellMenu, 'kecleon_purple');   // el morado, con sus propios retratos
     case 'storage': return npcGreeting('Kangaskhan', KANGASKHAN_LINES, 'kk', openStorageMenu);
     case 'gulpin': return npcGreeting('Gulpin', GULPIN_LINES, 'gu', openGulpinMenu);
-    case 'spinda': return npcGreeting('Spinda', ['¡Bienvenido al Café de Spinda! Muy pronto, zumos. De momento… ¡buena compañía!', 'Wobbuffet viene cada día. No pide nada. Solo dice «Wobbuffet».', 'Llevo aquí abajo más tiempo del que crees. La roca… ¡la puse yo! Y luego me olvidé de quitarla. Ji, ji.'], 'sp');
+    case 'spinda': {   // los zumos: una fruta de la bolsa → ventaja para la próxima exploración (uno cada vez)
+      const S = (mood, text) => ({ who: 'Spinda', sp: 'spinda', mood, text });
+      if (meta.juice && JUICES[meta.juice]) return openDialog([S('Happy', `¡Tu ${JUICES[meta.juice].name} ya está listo para la próxima exploración! Un zumo cada vez, ¿eh? Que luego todo da vueltas.`)]);
+      const fruits = [...new Set((meta.bag || []).filter(x => JUICES[x]))];
+      return openDialog([S('Joyous', '¡Bienvenido al Café de Spinda! ¿Te preparo un zumo? Lo que te tomes aquí te dará fuerzas en tu próxima exploración.')], () => {
+        if (!fruits.length) return openDialog([S('Normal', 'Vaya… no llevas ninguna fruta. ¡Tráeme una manzana o una baya y te preparo algo rico!')]);
+        openMenu({ title: '¿Qué fruta le das a Spinda?', items: [...fruits.map(f => `${f} → ${JUICES[f].name}`), 'Nada, gracias'], onCancel: () => { state.menu = null; render(); }, onSelect: async i => {
+          state.menu = null; if (i >= fruits.length) return openDialog([S('Normal', '¡Cuando quieras! El café no cierra nunca… bueno, casi nunca.')]);
+          try { const r = await api('/cafe/juice', { item: fruits[i] }); meta = r.meta; playSfx('eat');
+            openDialog([S('Joyous', `¡Marchando! Un ${r.juice.name}, recién hecho.`), { who: '', text: `(${r.juice.text})` }]); }
+          catch (e) { say(e.message); }
+        } });
+      });
+    }
     case 'sableye_cafe': return npcGreeting('Sableye', ['¡Je! El tasador del café, a tu servicio. Todo tiene un valor… sobre todo lo que brilla.', 'Esa roca de la plaza… ¿Rodó? Je. Las rocas ruedan, a veces.', '¿Has visto algo de valor por las mazmorras? Enséñamelo. Solo mirar. ¡Je, je!'], 'sb');
     case 'wobbuffet': return npcGreeting('Wobbuffet', ['¡Wobbuffet!', '¡Wobbu… ffet!', '(Wobbuffet asiente muy serio.) ¡Wobbuffet.'], 'wb');
     case 'teddiursa': return npcGreeting('Teddiursa', ['Chansey dice que reposo. Reposo es… ¿no moverse? Es difícil.', '¿Tú también bajarás a por el agua de los Wooper? Ampharos lo prometió.', 'Gracias otra vez. Y otra. Y otra más.'], 'td');
@@ -915,7 +928,11 @@ async function startRun(def) {
   state.player = createPlayer(r.run.starter); state.player.moves = moves;
   Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: def, inventory: [...r.bag], runPokes: 0, missions: r.missions.map(m => ({ ...m, done: false })), earnedMD: [], recruitedLegendaries: [], lostRecruits: [], bondedLost: [], team: [], floor: 1, turn: 0, dead: false, log: [], scene: 'dungeon', diary: { monsterHouses: 0, recruited: 0, kecleonRobs: 0, itemsSold: 0 }, stonesFound: [] });
   if (caveGuests(def)) addCaveGuests(def);
+  // el zumo de Spinda: Barriga y PS extra solo para esta exploración
+  const juice = r.run?.juice;
+  if (juice) { const p = state.player; if (juice.hp) { p.juiceHp = juice.hp; computeStats(p); p.hp = p.maxHp; } if (juice.belly) { p.maxBelly = Math.min(200, (p.maxBelly || 100) + juice.belly); p.belly = p.maxBelly; } }
   newFloor();
+  if (juice) say(`El ${juice.name} de Spinda te da fuerzas: ${juice.hp ? `+${juice.hp} PS máximos` : `Barriga máxima ${state.player.maxBelly}`}.`);
 }
 // No se ha podido entrar en la mazmorra: se explica por qué y se da la salida (antes el motivo iba al registro de
 // mensajes, que en la aldea no se ve, y parecía que el botón no hacía nada)

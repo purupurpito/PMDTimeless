@@ -27,6 +27,7 @@ export function computeStats(mon) {
     mon.atk = Math.max(1, Math.round(atk * k)); mon.def = Math.max(1, Math.round(def * k));
     mon.spa = Math.max(1, Math.round(spa * k)); mon.spd = Math.max(1, Math.round(spd * k));
     if (mon.bonus?.hp) mon.maxHp += mon.bonus.hp;   // Semilla Vida (permanente)
+    if (mon.juiceHp) mon.maxHp += mon.juiceHp;      // el zumo de Spinda (solo esta exploración)
     return mon;
   }
   const [hp, atk, def, spa, spd] = SPECIES[mon.species].base;
