@@ -5,6 +5,7 @@ import { API_URL } from './config.js';
 // Despierta al servidor nada más abrir la página, mientras el jugador aún está en la pantalla de inicio
 try { if (API_URL) fetch(API_URL + '/health', { cache: 'no-store', mode: 'no-cors' }).catch(() => {}); } catch {}
 import { startGame } from './game.js';
+import './gamepad.js';   // mando (Gamepad API): sus botones pulsan las teclas del juego
 import { SPECIES } from '../../shared/data.js';
 import { publicQuiz, scoreQuiz } from '../../server/quiz.js';   // el test se hace entero en el navegador (el servidor lo recalcula al crear la cuenta)
 import { dialog, menu, keyboard, writeText, loadManifest, portraitOf, portraitURL, asset } from './ui.js';

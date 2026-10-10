@@ -1,4 +1,4 @@
-export const cafeOpen = m => (m?.scenes || []).includes('roca-cafe');   // el café abre con la escena en la que se aparta la roca de la plaza
+export const cafeOpen = m => (m?.scenes || []).includes('cafe-pam');   // la noche del «¡PAM!» (al ascender a Bronce) Sableye rompe la roca: desde entonces, el café está abierto
 // =====================================================================
 // LA ALDEA — cuatro zonas conectadas por los bordes, con movimiento libre, colisiones por máscara y PNJ interactivos.
 // Coordenadas en píxeles de mundo (768×515 por zona). La cámara (600×408) sigue al jugador.
@@ -19,6 +19,7 @@ export const HUB = {
       { rect: [746, 230, 768, 310], to: 'fuente', at: { x: 50, y: 290 } },   // camino de la derecha: la Fuente de la Evolución
       { rect: [335, 493, 430, 515], to: 'aldea', at: { x: 384, y: 48 } },
       { rect: [345, 150, 425, 200], to: 'gremio', at: { x: 405, y: 466 }, label: 'Puerta del gremio' },
+      { rect: [498, 322, 534, 374], to: 'cafe', at: { x: 300, y: 196 }, label: 'Bajar al Café de Spinda', when: m => cafeOpen(m) },   // las escaleras del agujero (con el café abierto)
     ],
     npcs: [
       { id: 'chatot', x: 446, y: 226, facing: [-1, 1], talk: 'chatot_intro', intro: true },                          // solo al empezar: te recibe en la entrada
@@ -26,9 +27,9 @@ export const HUB = {
     ],
     signs: [ { rect: [70, 170, 130, 230], text: 'Mercado de Kecleon ←' }, { rect: [440, 405, 500, 465], text: '↓ Aldea · Salida a las mazmorras' },
       // entrada al Café de Spinda (bajo tierra): dibujada por tools/build-cafe-hole.py; el café aún no está abierto
-      { rect: [598, 306, 640, 368], when: m => cafeOpen(m), text: 'Un cartel con la cara de Spinda. Debajo, alguien ha escrito a mano: «Próximamente».' },   // (el cartel solo está con el café abierto)
+      { rect: [598, 306, 640, 368], when: m => cafeOpen(m), text: 'Un cartel con la cara de Spinda: «Café de Spinda. Zumos, batidos y… sobre todo zumos.»' },   // (el cartel solo está con el café abierto)
       { rect: [506, 313, 596, 372], when: m => !cafeOpen(m), text: 'Una roca enorme. Alguien ha dibujado encima, con tiza, una flecha que apunta hacia abajo.' },
-      { rect: [534, 326, 596, 368], text: 'Unas escaleras bajan hacia la oscuridad. Se oye a alguien trastear ahí abajo… pero todavía está cerrado.' } ],
+      { rect: [534, 326, 596, 368], when: m => !cafeOpen(m), text: 'Unas escaleras bajan hacia la oscuridad. Se oye a alguien trastear ahí abajo… pero todavía está cerrado.' } ],
   },
   gremio: {
     img: 'client/assets/hub/gremio.png', mask: 'client/assets/hub/gremio_mask.png', spawn: { x: 405, y: 466 },
@@ -72,6 +73,18 @@ export const HUB = {
   // solo para escenas (no se llega andando): salas de la Cueva Húmeda (tools/build-cueva-sala.py; la del fondo, con la pared a la izquierda)
   cuevasala: { img: 'client/assets/hub/scene_cueva_sala.png', mask: 'client/assets/hub/scene_cueva_sala_mask.png', spawn: { x: 384, y: 400 }, exits: [], npcs: [], signs: [] },
   cuevafondo: { img: 'client/assets/hub/scene_cueva_fondo.png', mask: 'client/assets/hub/scene_cueva_fondo_mask.png', spawn: { x: 205, y: 255 }, exits: [], npcs: [], signs: [] },
+  // el Café de Spinda, bajo la plaza (abre la noche del «¡PAM!»): colisiones pintadas por Ferran; la barra, en primer plano (Spinda asoma detrás)
+  cafe: {
+    img: 'client/assets/hub/cafe.png', mask: 'client/assets/hub/cafe_mask.png', spawn: { x: 300, y: 196 },
+    exits: [ { rect: [236, 110, 312, 158], to: 'plaza', at: { x: 492, y: 352 }, label: 'Subir a la plaza' } ],
+    npcs: [
+      { id: 'spinda', x: 588, y: 262, facing: [-1, 1], talk: 'spinda', still: true, fixedFacing: true, reach: 125 },   // detrás de la barra (se le habla desde los taburetes)
+      { id: 'sableye', x: 238, y: 300, facing: [1, 0], talk: 'sableye_cafe', reach: 70 },                            // junto a los cofres: el tasador
+      { id: 'wobbuffet', x: 462, y: 380, facing: [1, 0], talk: 'wobbuffet', reach: 64 },                             // de cliente
+    ],
+    signs: [],
+    fg: [ { poly: [[490, 200], [500, 205], [650, 272], [650, 345], [490, 345]], sortY: 345 } ],   // la barra: tapa a Spinda de cintura para abajo
+  },
   // solo para escenas: una sala del Monte Eléctrico con las rocas cortadas por Scyther (tools/build-monte-sala.py)
   montesala: { img: 'client/assets/hub/scene_monte_sala.png', mask: 'client/assets/hub/scene_monte_sala_mask.png', spawn: { x: 380, y: 420 }, exits: [], npcs: [], signs: [] },
   // solo para escenas (no se llega andando): la cima del Monte Eléctrico, con el cielo de tormenta (tools/build-cima.py)

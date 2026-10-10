@@ -865,6 +865,90 @@ export const SCENES = [
     ],
   },
   {
+    // La noche del ascenso a Bronce: un «¡PAM!» en la plaza (Sableye rompe la roca que tapa el café). Nadie le da importancia.
+    id: 'cafe-pam', trigger: 'return', when: m => rankOf(m.rankPts || 0) >= 1 && (m.scenes || []).includes('primera-noche'),
+    area: 'descanso', night: true, lights: [{ x: 462, y: 84, r: 110, a: 0.25 }], hideNpcIds: ['chansey'], cam: { x: 84, y: 60 },
+    player: { x: 350, y: 392, dir: 'down' }, keepPlayer: true,
+    actors: { chatot: { sp: 'chatot', x: 400, y: 332, dir: 'down' } },
+    steps: [
+      { do: 'narration', text: 'Esa noche, en el gremio…', ms: 2200 },
+      { do: 'bed', bed: 0 }, { do: 'anim', who: 'chatot', anim: 'Sleep', hold: true },
+      { do: 'fade', to: 'in', ms: 900 }, { do: 'wait', ms: 1600 },
+      { do: 'shake', ms: 900, amp: 7 }, { do: 'narration', text: '¡¡PAM!!', ms: 1100 },   // un golpe seco, desde la plaza
+      { do: 'fade', to: 'in', ms: 500 }, { do: 'wait', ms: 400 }, { do: 'emote', who: 'player', fx: 'shock' }, { do: 'wait', ms: 900 },
+      { do: 'anim', who: 'chatot', anim: null }, { do: 'emote', who: 'chatot', fx: 'dots' }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'chatot', mood: 'Sigh', text: '…mmh… Heracross… vuelve a la cama… Mañana… mañana lo hablamos…' },
+      { do: 'anim', who: 'chatot', anim: 'Sleep', hold: true }, { do: 'wait', ms: 1200 },
+      { do: 'emote', who: 'player', fx: 'dots' }, { do: 'wait', ms: 1400 },
+      { do: 'fade', to: 'out', ms: 1200 },
+    ],
+  },
+  {
+    // A la mañana siguiente: la roca ya no está. «Habrá rodado.» Y desde abajo, Spinda: el café está abierto.
+    id: 'roca-cafe', trigger: 'return', when: m => (m.scenes || []).includes('cafe-pam'),
+    area: 'plaza', player: { x: 452, y: 360, dir: 'right' }, cam: { x: 84, y: 60 },
+    actors: { chatot: { sp: 'chatot', x: 470, y: 300, dir: 'down-right' }, sableye: { sp: 'sableye', x: 420, y: 420, dir: 'up-right' }, mawile: { sp: 'mawile', x: 390, y: 330, dir: 'right' } },
+    steps: [
+      { do: 'narration', text: 'A la mañana siguiente, en la plaza…', ms: 2200 },
+      { do: 'fade', to: 'in', ms: 900 }, { do: 'wait', ms: 500 },
+      { do: 'emote', who: 'chatot', fx: 'shock' }, { do: 'jump', who: 'chatot', to: [470, 300], ms: 260, h: 10 }, { do: 'wait', ms: 500 },
+      { do: 'say', who: 'chatot', mood: 'Surprised', text: '¿Y la roca? ¡Ayer estaba aquí! ¡Una roca así no se va andando!' },
+      { do: 'turn', who: 'chatot', toward: 'sableye' }, { do: 'turn', who: 'player', toward: 'sableye' },
+      { do: 'say', who: 'sableye', mood: 'Happy', text: '¡Je! Habrá rodado. Las rocas ruedan, a veces.' },
+      { do: 'turn', who: 'mawile', toward: 'sableye' }, { do: 'emote', who: 'mawile', fx: 'dots' }, { do: 'wait', ms: 1200 },
+      { do: 'say', name: 'Una voz desde abajo', text: '¡Pasad, pasad! ¡Por fin! ¡El Café de Spinda está ABIERTO!' },
+      { do: 'turn', who: 'chatot', dir: 'right' }, { do: 'turn', who: 'player', dir: 'right' }, { do: 'emote', who: 'player', fx: 'exclaim' }, { do: 'wait', ms: 800 },
+      { do: 'say', who: 'chatot', mood: 'Sigh', text: '¿Un café? ¿Debajo de MI plaza? … Esto lo tengo que ver.' },
+      { do: 'wait', ms: 600 }, { do: 'fade', to: 'out', ms: 1000 },
+    ],
+  },
+  {
+    // La primera vez que bajas al café: la inauguración. Spinda, subida a la barra; al final salta detrás, a su puesto.
+    id: 'cafe-inauguracion', trigger: 'area:cafe', when: m => (m.scenes || []).includes('cafe-pam'),
+    area: 'cafe', player: { x: 334, y: 288, dir: 'down' }, hideNpcs: true, cam: { x: 84, y: 50 }, noFg: true,
+    actors: { spinda: { sp: 'spinda', x: 600, y: 264, dir: 'down-left' }, sableye: { sp: 'sableye', x: 238, y: 300, dir: 'right' },
+              wobbuffet: { sp: 'wobbuffet', x: 462, y: 380, dir: 'right' }, chatot: { sp: 'chatot', x: 262, y: 140, dir: 'down-right', hidden: true } },
+    steps: [
+      { do: 'narration', text: 'Bajo la plaza…', ms: 1800 },
+      { do: 'fade', to: 'in', ms: 900 }, { do: 'wait', ms: 400 },
+      { do: 'anim', who: 'spinda', anim: 'Twirl', ms: 900 },
+      { do: 'say', who: 'spinda', mood: 'Joyous', text: '¡Bienvenido, bienvenida, bienvenidos! ¡Hoy abre el Café de Spinda!' },
+      { do: 'say', who: 'spinda', mood: 'Happy', text: 'Zumos, batidos y… bueno, sobre todo zumos. ¡Eres mi primer cliente de verdad!' },
+      { do: 'turn', who: 'wobbuffet', toward: 'spinda' }, { do: 'jump', who: 'wobbuffet', to: [462, 380], ms: 240, h: 6 },
+      { do: 'say', who: 'wobbuffet', mood: 'Happy', text: '¡Wobbuffet!' },
+      { do: 'emote', who: 'spinda', fx: 'sweat' }, { do: 'wait', ms: 600 },
+      { do: 'say', who: 'spinda', mood: 'Sigh', text: '… Mi primer cliente de verdad que no sea Wobbuffet.' },
+      { do: 'turn', who: 'player', toward: 'sableye' }, { do: 'turn', who: 'sableye', toward: 'player' },
+      { do: 'say', who: 'sableye', mood: 'Joyous', text: '¡Je! Y yo seré vuestro tasador. Si encontráis algo de valor en las mazmorras, traédmelo.' },
+      { do: 'say', who: 'sableye', mood: 'Happy', text: 'Lo miro sin romper nada. Llevo toda la vida haciéndolo. ¡Je, je!' },
+      // Chatot baja por la escalera
+      { do: 'show', who: 'chatot' },
+      { at: [{ do: 'move', who: 'chatot', to: [[295, 186], [322, 236], [380, 300]], speed: 1.1 }, { do: 'turn', who: 'player', toward: 'chatot', delay: 300 }, { do: 'turn', who: 'sableye', toward: 'chatot', delay: 300 }, { do: 'turn', who: 'wobbuffet', toward: 'chatot', delay: 300 }] },
+      { do: 'turn', who: 'chatot', dir: 'right' }, { do: 'emote', who: 'chatot', fx: 'sweat' }, { do: 'wait', ms: 600 },
+      { do: 'say', who: 'chatot', mood: 'Normal', text: 'Hmpf. ¿Un café… debajo de MI plaza?' },
+      { do: 'turn', who: 'chatot', toward: 'spinda' }, { do: 'anim', who: 'spinda', anim: 'Twirl', ms: 700 },
+      { do: 'say', who: 'spinda', mood: 'Joyous', text: '¡El maestro Pidgeot me dio permiso!' },
+      { do: 'say', who: 'chatot', mood: 'Stunned', text: '¿Despierto?' },
+      { do: 'say', who: 'spinda', mood: 'Normal', text: '… Roncando. Pero asintió. Creo.' },
+      { do: 'say', who: 'chatot', mood: 'Sigh', text: 'Típico.' },
+      { do: 'turn', who: 'chatot', toward: 'sableye' }, { do: 'wait', ms: 300 },
+      { do: 'say', who: 'chatot', mood: 'Normal', text: 'Y tú, Sableye. Tasador, ¿eh?' },
+      { do: 'say', who: 'sableye', mood: 'Happy', text: '¡Je! Alguien tiene que saber lo que vale cada cosa.' },
+      { do: 'say', who: 'chatot', mood: 'Determined', text: 'Pues tasa bien. En esta aldea últimamente desaparecen cosas de mucho valor.' },
+      { do: 'wait', ms: 300 }, { do: 'emote', who: 'sableye', fx: 'dots' }, { do: 'wait', ms: 1300 },
+      { do: 'say', who: 'sableye', mood: 'Normal', text: '… ¡Je… je! Qué cosas.' },
+      { do: 'turn', who: 'chatot', toward: 'player' },
+      { do: 'say', who: 'chatot', mood: 'Normal', text: 'Novato: un rato aquí y a trabajar. Que nadie se entretenga demasiado.' },
+      { do: 'move', who: 'chatot', to: [[322, 236], [295, 186], [262, 140]], speed: 1.1 }, { do: 'hide', who: 'chatot' },   // y vuelve a subir
+      { do: 'say', who: 'spinda', mood: 'Joyous', text: '¡Vuelve cuando quieras! Pronto tendré zumos para ti.' },
+      // y salta detrás de la barra, a su puesto (desde ahí asoma de cintura para arriba)
+      { do: 'anim', who: 'spinda', anim: 'Twirl', ms: 500 },
+      { do: 'jump', who: 'spinda', to: [588, 262], ms: 420, h: 22 }, { do: 'set', fg: true }, { do: 'turn', who: 'spinda', dir: 'down-left' }, { do: 'wait', ms: 1000 },
+      { do: 'turn', who: 'sableye', dir: 'up-left' }, { do: 'wait', ms: 1400 },   // Sableye, solo, mira sus cofres
+      { do: 'fade', to: 'out', ms: 1000 },
+    ],
+  },
+  {
     // Al superar la Cueva Húmeda entera, la primera vez (se lanza desde endRun): en lo más hondo, un grupo de Golbat te acorrala
     // contra la pared y Scyther te salva. Con esta escena se desbloquea reclutar.
     id: 'scyther-cueva', trigger: 'cueva', when: () => false,

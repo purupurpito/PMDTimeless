@@ -628,7 +628,8 @@ function hubLoop() {
         const tryMove = (mx, my) => { const nx = h.x + mx, ny = h.y + my; if ([[-6, 0], [6, 0], [0, 2]].every(([ox, oy]) => Hub.walkable(h.area, nx + ox, ny + oy)) && !npcAtHub(nx, ny)) { h.x = nx; h.y = ny; return true; } return false; };
         if (!tryMove(dx * sp, dy * sp)) { tryMove(dx * sp, 0) || tryMove(0, dy * sp); }
         h.movedAt = performance.now();
-        for (const ex of area.exits) if (inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; const sc = user && !state.tour && pendingScene(meta, 'dungeon-exit'); if (sc) runScene(sc).then(() => openDungeonMenu()); else openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); fountainNews(); const asc = user && !state.tour && pendingScene(meta, 'area:' + h.area); if (asc) setTimeout(() => runScene(asc), 350); } break; }   // al irte de la plaza, Chatot entra en el gremio
+        // (when: salidas que solo están a veces, p. ej. la escalera del café)
+        for (const ex of area.exits) if ((!ex.when || ex.when(meta || {})) && inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; const sc = user && !state.tour && pendingScene(meta, 'dungeon-exit'); if (sc) runScene(sc).then(() => openDungeonMenu()); else openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); fountainNews(); const asc = user && !state.tour && pendingScene(meta, 'area:' + h.area); if (asc) setTimeout(() => runScene(asc), 350); } break; }   // al irte de la plaza, Chatot entra en el gremio
       }
     }
     h.t++; if (h.t % 2 === 0) moveWanderers();
@@ -772,6 +773,9 @@ function talkToBase(kind) {
     case 'sell': return npcGreeting('Kecleon', KECLEON_PURPLE_LINES, 'kp', openSellMenu, 'kecleon_purple');   // el morado, con sus propios retratos
     case 'storage': return npcGreeting('Kangaskhan', KANGASKHAN_LINES, 'kk', openStorageMenu);
     case 'gulpin': return npcGreeting('Gulpin', GULPIN_LINES, 'gu', openGulpinMenu);
+    case 'spinda': return npcGreeting('Spinda', ['¡Bienvenido al Café de Spinda! Muy pronto, zumos. De momento… ¡buena compañía!', 'Wobbuffet viene cada día. No pide nada. Solo dice «Wobbuffet».', 'Llevo aquí abajo más tiempo del que crees. La roca… ¡la puse yo! Y luego me olvidé de quitarla. Ji, ji.'], 'sp');
+    case 'sableye_cafe': return npcGreeting('Sableye', ['¡Je! El tasador del café, a tu servicio. Todo tiene un valor… sobre todo lo que brilla.', 'Esa roca de la plaza… ¿Rodó? Je. Las rocas ruedan, a veces.', '¿Has visto algo de valor por las mazmorras? Enséñamelo. Solo mirar. ¡Je, je!'], 'sb');
+    case 'wobbuffet': return npcGreeting('Wobbuffet', ['¡Wobbuffet!', '¡Wobbu… ffet!', '(Wobbuffet asiente muy serio.) ¡Wobbuffet.'], 'wb');
     case 'teddiursa': return npcGreeting('Teddiursa', ['Chansey dice que reposo. Reposo es… ¿no moverse? Es difícil.', '¿Tú también bajarás a por el agua de los Wooper? Ampharos lo prometió.', 'Gracias otra vez. Y otra. Y otra más.'], 'td');
     case 'sentret': return npcGreeting('Sentret', ['Yo vigilaba la entrada. Y aun así nos pillaron. … Los Wooper son muy silenciosos.', 'Smeargle no ha parado de dibujar desde que llegamos. Nos ha dibujado doce veces.', 'Cuando volvamos a salir, iré de vigía otra vez. Pero mejor.'], 'st');
     case 'smeargle': return npcGreeting('Smeargle', meta?.rescueDone
@@ -2920,7 +2924,7 @@ function renderHub() {
     ctx.drawImage(area.img, x0, y0, x1 - x0, y1 - y0, x0 - cam.x, y0 - cam.y, x1 - x0, y1 - y0); ctx.restore();
   };
   for (const e of ents) {
-    for (const f of fg) if ((f.sortY ?? f.rect?.[3] ?? Math.max(...f.poly.map(q => q[1]))) <= e.y) drawFg(f);   // sortY: hasta dónde tapa (p. ej. la viga tapa a quien cruza entre los postes) // lo que queda por encima de este personaje ya se pinta antes que él
+    if (!state.cut?.noFg) for (const f of fg) if ((f.sortY ?? f.rect?.[3] ?? Math.max(...f.poly.map(q => q[1]))) <= e.y) drawFg(f);   // (noFg: una escena lo apaga, p. ej. Spinda subida a la barra)   // sortY: hasta dónde tapa (p. ej. la viga tapa a quien cruza entre los postes) // lo que queda por encima de este personaje ya se pinta antes que él
     if (e.kind === 'obj') {
       // objeto por delante si estás detrás; si te tapa, se vuelve semitransparente para no perderte de vista
       const hides = h.y < e.base && h.x + 16 > e.x && h.x - 16 < e.x + e.w && h.y > e.oy && h.y - 44 < e.oy + e.h;

@@ -42,7 +42,7 @@ export async function playScene(scene) {
   if (scene.area && scene.area !== h.area) h.area = scene.area;
   if (scene.player) { h.x = scene.player.x; h.y = scene.player.y; h.facing = DIRS[scene.player.dir || 'down']; }
   const c = S.cut = {
-    id: scene.id, skip: false, boxBottom: !!scene.boxBottom, night: !!scene.night, lights: scene.lights || [], hidePlayer: !!scene.hidePlayer, hideNpcs: !!scene.hideNpcs, hideNpcIds: scene.hideNpcIds || [], bird: null, poster: null,
+    id: scene.id, skip: false, boxBottom: !!scene.boxBottom, noFg: !!scene.noFg, night: !!scene.night, lights: scene.lights || [], hidePlayer: !!scene.hidePlayer, hideNpcs: !!scene.hideNpcs, hideNpcIds: scene.hideNpcIds || [], bird: null, poster: null,
     fade: scene.startDark === false ? 0 : 1, narration: null, cam: scene.cam ? { ...scene.cam } : null,   // (fade: si venimos de un fundido a negro, sigue en negro)
     actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null, tint: scene.tint || null,
   };
@@ -76,7 +76,7 @@ async function runStep(step, c) {
     case 'wait': if (step.for) await waitActor(c.actors[step.for]); else await delay(step.ms || 0); return;
     case 'narration': return narration(c, step.text, step.ms || 2400);
     case 'fade': return fade(c, step.to, step.ms || 700);
-    case 'set': if ('night' in step) c.night = !!step.night; if (step.cam) c.cam = { ...step.cam }; D.render(); return;
+    case 'set': if ('night' in step) c.night = !!step.night; if (step.cam) c.cam = { ...step.cam }; if ('fg' in step) c.noFg = !step.fg; D.render(); return;   // (fg: encender o apagar el primer plano de la zona)
     case 'show': if (who) who.hidden = false; return;
     case 'hide': if (who) who.hidden = true; return;
     case 'turn': if (who) { who.facing = step.toward ? dirToward(who, c.actors[step.toward]) : DIRS[step.dir] || who.facing; D.render(); } return;
