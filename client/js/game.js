@@ -641,7 +641,7 @@ function hubLoop() {
 const inRect = (x, y, [x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
 const npcShown = n => !(n.intro && !(state.hub.introChatot && !state.tour)) && !(state.tour && n.id === 'chatot')
   && !(n.untilRank !== undefined && rankOf(meta?.rankPts || 0) >= n.untilRank) && !(n.fromRank !== undefined && rankOf(meta?.rankPts || 0) < n.fromRank)
-  && !(n.afterScene && !(meta?.scenes || []).includes(n.afterScene));   // personajes que llegan con una escena (Sneasel)   // personajes que solo están hasta (o desde) cierto rango
+  && !(n.afterScene && !(meta?.scenes || []).includes(n.afterScene)) && !(n.untilScene && (meta?.scenes || []).includes(n.untilScene));   // (untilScene: se va con una escena, p. ej. Wobbuffet al café)   // personajes que llegan con una escena (Sneasel)   // personajes que solo están hasta (o desde) cierto rango
 const npcAtHub = (x, y) => [...HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden), ...state.hub.wanderers].some(n => Math.abs(n.x - x) < 14 && Math.abs(n.y - y) < 10);
 function spawnWanderers() {
   const area = HUB[state.hub.area], h = state.hub; h.wanderers = [];

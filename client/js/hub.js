@@ -117,7 +117,7 @@ export const HUB = {
       { rect: [345, 0, 425, 22], to: 'plaza', at: { x: 384, y: 468 } },
       { rect: [345, 493, 425, 515], action: 'dungeons', label: 'Salida a las mazmorras', back: { x: 384, y: 470 } },
     ],
-    npcs: [ { id: 'wobbuffet', x: 250, y: 300, facing: [0, 1], talk: 'wobbuffet', idle: true } ],   // su balanceo es su gracia
+    npcs: [ { id: 'wobbuffet', x: 250, y: 300, facing: [0, 1], talk: 'wobbuffet', idle: true, untilScene: 'cafe-pam' } ],   // su balanceo es su gracia (cuando abre el café, se muda allí de cliente)
     wanderers: 4, // Pokémon sueltos paseando (sin función por ahora)
   },
 };
