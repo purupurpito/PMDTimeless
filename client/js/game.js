@@ -324,7 +324,7 @@ function costGrid(area) {
   if (!PATH_AREAS.has(area)) return null;
   if (costGrids.has(area)) return costGrids.get(area);
   const img = Hub.view(area)?.img; if (!img?.complete || !img.naturalWidth) return null;
-  const S = 6, W = Math.floor(768 / S), H = Math.floor(515 / S), cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+  const S = 6, W = Math.floor(img.naturalWidth / S), H = Math.floor(img.naturalHeight / S), cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
   const g = cv.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0); const d = g.getImageData(0, 0, cv.width, cv.height).data;
   const isPath = (x, y) => { const i = (y * cv.width + x) * 4, r = d[i], gg = d[i + 1], b = d[i + 2]; return r >= gg && r - b > 45 && r > 120; };   // tierra y arena
   const grid = new Uint8Array(W * H);
@@ -334,9 +334,11 @@ function costGrid(area) {
   }
   costGrids.set(area, grid); return grid;
 }
+// el tamaño de una zona de la aldea: el de su imagen (las zonas pueden ser más grandes que la pantalla y la cámara te sigue)
+const areaSize = id => { const im = Hub.view(id)?.img; return im?.naturalWidth ? { w: im.naturalWidth, h: im.naturalHeight } : { w: 768, h: 515 }; };
 // camino por el suelo transitable, sobre una rejilla de 6 px (con el coste del terreno: prefiere los caminos)
 function hubPath(area, from, to) {
-  const S = 6, W = Math.floor(768 / S), H = Math.floor(515 / S), key = (x, y) => y * W + x;
+  const S = 6, sz = areaSize(area), W = Math.floor(sz.w / S), H = Math.floor(sz.h / S), key = (x, y) => y * W + x;
   const cell = p => [Math.round(p.x / S), Math.round(p.y / S)];
   const ok = (cx, cy) => cx >= 0 && cy >= 0 && cx < W && cy < H && hubFree(area, cx * S, cy * S);
   let [tx, ty] = cell(to);
@@ -647,7 +649,7 @@ function spawnWanderers() {
   const area = HUB[state.hub.area], h = state.hub; h.wanderers = [];
   if (!area.wanderers) return;
   const pool = ['pidgey', 'rattata', 'oddish', 'sentret', 'hoothoot', 'marill', 'wooper', 'eevee', 'pikachu', 'psyduck'].filter(s => SPECIES[s]);
-  for (let i = 0; i < area.wanderers; i++) { for (let t = 0; t < 40; t++) { const x = 60 + Math.random() * 640, y = 60 + Math.random() * 400; if (Hub.walkable(h.area, x, y) && !inRect(x, y, [330, 0, 440, 515])) { h.wanderers.push({ species: pool[(Math.random() * pool.length) | 0], x, y, facing: [0, 1], wait: 0, dir: [0, 0] }); break; } } }
+  for (let i = 0; i < area.wanderers; i++) { for (let t = 0; t < 40; t++) { const asz = areaSize(h.area), x = 60 + Math.random() * (asz.w - 128), y = 60 + Math.random() * (asz.h - 115); if (Hub.walkable(h.area, x, y) && !inRect(x, y, [330, 0, 440, 515])) { h.wanderers.push({ species: pool[(Math.random() * pool.length) | 0], x, y, facing: [0, 1], wait: 0, dir: [0, 0] }); break; } } }
 }
 function moveWanderers() {
   const h = state.hub;
@@ -656,7 +658,7 @@ function moveWanderers() {
     if (!w.dir[0] && !w.dir[1] || Math.random() < 0.02) { w.dir = Math.random() < 0.35 ? [0, 0] : DIRS8[(Math.random() * 8) | 0]; w.wait = w.dir[0] || w.dir[1] ? 0 : 30 + Math.random() * 60; if (w.dir[0] || w.dir[1]) w.facing = w.dir; }
     const nx = w.x + w.dir[0], ny = w.y + w.dir[1];
     // por los caminos: si va por la tierra y el paso le saca a la hierba, casi siempre cambia de rumbo
-    const cg = costGrid(h.area), cell = (x, y) => cg ? cg[Math.floor(y / 6) * Math.floor(768 / 6) + Math.floor(x / 6)] : 1;
+    const cg = costGrid(h.area), cgW = Math.floor(areaSize(h.area).w / 6), cell = (x, y) => cg ? cg[Math.floor(y / 6) * cgW + Math.floor(x / 6)] : 1;
     const leavesPath = cg && cell(w.x, w.y) === 1 && cell(nx, ny) > 1 && Math.random() < 0.9;
     if (!leavesPath && Hub.walkable(h.area, nx, ny) && Math.hypot(nx - h.x, ny - h.y) > 20) { w.x = nx; w.y = ny; w.movedAt = performance.now(); } else w.dir = [0, 0];
   }
@@ -2914,7 +2916,7 @@ let musicZone = null;
 function renderHub() {
   if (state.scene === 'hub' && document.body.classList.contains('in-game') && !state.cut?.music && state.hub?.area !== musicZone) { musicZone = state.hub?.area; playZone(musicZone); } // solo dentro del juego (una escena con música propia manda)
   const W = LOG.w, H = LOG.h, h = state.hub, area = Hub.view(h.area), def = HUB[h.area];
-  const cam = state.cut?.cam ? { x: state.cut.cam.x, y: state.cut.cam.y } : { x: Math.max(0, Math.min(768 - W, h.x - W / 2)), y: Math.max(0, Math.min(515 - H, h.y - H / 2)) };   // en una escena, la cámara la manda el guion
+  const asz = areaSize(h.area), cam = state.cut?.cam ? { x: state.cut.cam.x, y: state.cut.cam.y } : { x: Math.max(0, Math.min(asz.w - W, h.x - W / 2)), y: Math.max(0, Math.min(asz.h - H, h.y - H / 2)) };   // en una escena, la cámara la manda el guion
   if (state.cut?.shake) { const [sx0, sy0] = sceneShake(); cam.x += sx0; cam.y += sy0; }   // temblor (alguien grita, un golpe…)
   // dónde quedan en pantalla los que participan en la conversación (para no taparlos con el cuadro de diálogo)
   if (!state.dialog) state.talkNpc = null;
@@ -3267,7 +3269,7 @@ function renderDialog() {
     if (spk && state.cut.cam && !state.cut.boxBottom && Math.min(cb, ct) > 0 && cam0) {
       const regs = regions(d.top), f = focus[0];
       const bandT = d.top ? Math.max(...regs.map(r => r.b)) + 4 : 4, bandB = d.top ? LOG.h - 4 : Math.min(...regs.map(r => r.t)) - 4;
-      const need = ((f.t + f.b) / 2) - (bandT + bandB) / 2, mapH = HUB[state.hub.area]?.h || 515;
+      const need = ((f.t + f.b) / 2) - (bandT + bandB) / 2, mapH = HUB[state.hub.area]?.h || areaSize(state.hub.area).h;
       state.cut.cam.y = Math.max(0, Math.min(Math.max(0, mapH - LOG.h), cam0.y + need));
     }
   }

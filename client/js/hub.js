@@ -1,7 +1,8 @@
 export const cafeOpen = m => (m?.scenes || []).includes('cafe-pam');   // la noche del «¡PAM!» (al ascender a Bronce) Sableye rompe la roca: desde entonces, el café está abierto
 // =====================================================================
 // LA ALDEA — cuatro zonas conectadas por los bordes, con movimiento libre, colisiones por máscara y PNJ interactivos.
-// Coordenadas en píxeles de mundo (768×515 por zona). La cámara (600×408) sigue al jugador.
+// Coordenadas en píxeles de mundo (768×515 la mayoría; una zona puede ser más grande: su tamaño es el de su imagen).
+// La cámara (600×408) sigue al jugador y se para en los bordes.
 // =====================================================================
 export const HUB = {
   plaza: {
