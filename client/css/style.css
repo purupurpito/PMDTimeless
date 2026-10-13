@@ -390,3 +390,20 @@ body.log-inside #log { display: none; }
 #log { background: var(--pmd-navy); color: #f0f0f0; font-family: var(--pmd-font); border-radius: 8px; padding: 8px 12px;
   box-shadow: inset 0 0 0 2px #f0f0f0, inset 0 0 0 4px var(--pmd-navy), inset 0 0 0 5px var(--pmd-inner); margin-top: 6px; }
 #log p:not(:first-child) { color: #9aa6d0; }
+
+/* Información dentro de la pantalla del juego (por defecto): sin paneles alrededor; la pantalla, lo más grande posible */
+body.in-game:not(.info-fuera) #screen-game header .stat,
+body.in-game:not(.info-fuera) #screen-game aside,
+body.in-game:not(.info-fuera) #screen-game footer #log,
+body.in-game:not(.info-fuera):not(.touch-on) #screen-game footer #movebar,
+body.in-game:not(.info-fuera):not(.touch-on) #screen-game .help { display: none !important; }
+body.in-game:not(.info-fuera):not(.touch-on) #screen-game header { padding-top: 4px; padding-bottom: 4px; }
+/* (información dentro) la pantalla, centrada; la cabecera, solo el logo a un lado y las opciones y «Salir» al otro */
+body.in-game:not(.info-fuera):not(.touch-on) #screen-game main { display: flex; justify-content: center; align-items: flex-start; grid-template-columns: none; }
+body.in-game:not(.info-fuera) #screen-game header { display: flex; justify-content: space-between; align-items: center; }
+body.in-game:not(.info-fuera) #screen-game header .brand { margin-right: auto; }
+/* (móvil en vertical) la pantalla, centrada en el hueco que queda sobre los mandos */
+body.in-game.touch-on:not(.info-fuera) #screen-game main { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; }
+body.in-game:not(.info-fuera) #screen-game header .settings { margin-left: auto; }
+body.in-game:not(.info-fuera) #screen-game header #logout { margin-left: 12px; }
+body.in-game.touch-on:not(.info-fuera) #screen-game { min-height: 100dvh; box-sizing: border-box; }

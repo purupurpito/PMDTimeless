@@ -583,7 +583,7 @@ function openHubMenu() {
 function openHubBag() {
   const bag = meta.bag || [];
   if (!bag.length) return openDialog([{ who: '', text: 'Tu bolsa está vacía. Lo que lleves en ella te acompaña a la próxima exploración.' }], openHubMenu);
-  openMenu({ title: `Bolsa ${bag.length}/${bagSizeFor(meta?.rankPts)}`, items: bag.map(n => isMachine(n) ? `${n.slice(0, 2)}: ${n.slice(4)}` : n), onCancel: openHubMenu,
+  openMenu({ title: `Bolsa ${bag.length}/${bagSizeFor(meta?.rankPts)}`, money: meta?.pokes || 0, items: bag.map(n => isMachine(n) ? `${n.slice(0, 2)}: ${n.slice(4)}` : n), onCancel: openHubMenu,
     onSelect: i => openDialog([{ who: '', text: itemInfo(bag[i]) }], openHubBag) });
 }
 function openHubPokemon() {
@@ -2661,7 +2661,7 @@ function itemInfo(name) {
 }
 function openBagMenu() {
   const items = [...state.inventory.map(n => isMachine(n) ? `${n.slice(0, 2)}: ${n.slice(4)}` : n), state.player.held ? `[Equipado] ${state.player.held} — quitar` : '[Nada equipado]'];   // las máquinas, con su disco
-  openMenu({ title: `Bolsa ${state.inventory.length}/${bagSizeFor(meta?.rankPts)}`, items, onSelect: j => {
+  openMenu({ title: `Bolsa ${state.inventory.length}/${bagSizeFor(meta?.rankPts)}`, money: state.runPokes || 0, items, onSelect: j => {
     if (j < state.inventory.length) return openItemMenu(j);
     if (state.player.held && state.inventory.length < bagSizeFor(meta?.rankPts)) { state.inventory.push(state.player.held); say(`Te quitas ${state.player.held}.`); state.player.held = null; }
     render();
@@ -2822,7 +2822,7 @@ function applyScale() {
   else if (pref === 'fit') {
     // lo más grande que quepa: ancho libre junto al panel lateral y alto libre entre cabecera y pie
     const aside = document.querySelector('#screen-game aside'), head = document.querySelector('#screen-game header'), foot = document.querySelector('#screen-game footer');
-    const freeW = window.innerWidth - (aside?.offsetWidth || 0) - 60, freeH = window.innerHeight - (head?.offsetHeight || 0) - (foot?.offsetHeight || 0) - 40;
+    const fuera = infoMode() === 'fuera', freeW = window.innerWidth - (fuera ? (aside?.offsetWidth || 0) + 60 : 24), freeH = window.innerHeight - (head?.offsetHeight || 0) - (foot?.offsetHeight || 0) - (fuera ? 40 : 16);
     s = Math.max(1, Math.min(freeW / LOG.w, freeH / LOG.h));
   } else s = +pref;
   canvas.style.width = Math.round(LOG.w * s) + 'px'; canvas.style.height = Math.round(LOG.h * s) + 'px';
@@ -2849,10 +2849,15 @@ const isVisibleNow = (x, y) => {
 };
 // radio de luz en los pasillos (en las salas se ve la sala entera)
 function corridorSight() { return WEATHER[state.weather]?.sight ?? CFG.corridorSight; }
-function render() { if (!state.player && state.scene === 'dungeon') return; ctx.setTransform(RK, 0, 0, RK, 0, 0); state.scene === 'hub' ? renderHub() : renderDungeon(); drawFlash(); renderFeed(); renderMenu(); renderDialog(); renderHud(); }
+function render() { if (!state.player && state.scene === 'dungeon') return; ctx.setTransform(RK, 0, 0, RK, 0, 0); state.scene === 'hub' ? renderHub() : renderDungeon(); drawInfoHud(); drawFlash(); renderFeed(); renderMenu(); renderDialog(); renderHud(); }
 // ---- mensajes dentro de la pantalla (como en Mundo Misterioso): recuadro abajo que se desvanece a los pocos segundos ----
 const FEED_MS = 4200, FEED_FADE = 600;
+// dónde va la información (PS, Barriga, mensajes…): dentro de la pantalla del juego (por defecto, como en el original), fuera u oculta
+const infoMode = () => { try { return localStorage.getItem('mm_info') || 'dentro'; } catch { return 'dentro'; } };
+const applyInfoMode = () => { const m = infoMode(); for (const k of ['dentro', 'fuera', 'oculta']) document.body.classList.toggle('info-' + k, m === k); };
+const MONEY_IMG = Object.assign(new Image(), { src: 'client/assets/items/money.png' });   // el icono de los Pokés (PMDCollab)
 const logInside = () => {   // por defecto, fuera (debajo del juego, como la pantalla de abajo de la DS); con el móvil tumbado no hay sitio: dentro
+  if (infoMode() !== 'fuera') return true;   // con la información dentro (o oculta), los mensajes también van dentro
   if (document.body.classList.contains('touch-on') && window.innerWidth > window.innerHeight) return true;
   try { return localStorage.getItem('mm_log') === 'inside'; } catch { return false; }
 };
@@ -2894,6 +2899,22 @@ function drawStatusIcon(e, px, py, tile) {
 }
 const STAT_NAMES_DE = { atk: 'el Ataque', def: 'la Defensa', spa: 'el At. Esp.', spd: 'la Def. Esp.' };   // «sube el Ataque de…»
 const AREA_NAMES = { plaza: 'Plaza del gremio', gremio: 'Gremio de Pidgeot', descanso: 'Zona de descanso', mercado: 'Mercado', aldea: 'Aldea', fuente: 'Fuente de la Evolución' };   // nombre de cada zona (etiqueta del mapa y cabecera)
+function drawInfoHud() {
+  if (infoMode() !== 'dentro' || state.scene !== 'dungeon' || !state.player || state.menu || state.cut) return;
+  const p = state.player, s = UIS(), fs = Math.round(12 * s), font = DIALOG_FONT();
+  ctx.save(); ctx.font = `${fs}px ${font}`; ctx.textBaseline = 'top';
+  const txt = (t, x, y, c = '#fff') => { ctx.fillStyle = 'rgba(0,0,0,.8)'; ctx.fillText(t, x + 1, y + 1); ctx.fillStyle = c; ctx.fillText(t, x, y); return ctx.measureText(t).width; };
+  const bar = (x, y, w, k, col) => { const h = Math.round(6 * s); ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2); ctx.fillStyle = '#383838'; ctx.fillRect(x, y, w, h); ctx.fillStyle = col; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, k)), h); };
+  let x = 10, y = 8;
+  x += txt(`${state.dungeonDef?.floors === Infinity ? '' : 'B'}${state.floor}F`, x, y, '#f8d848') + 14 * s;
+  x += txt(`Nv ${p.level}`, x, y) + 14 * s;
+  x += txt('PS', x, y, '#f8d848') + 5 * s; x += txt(`${Math.max(0, Math.ceil(p.hp))}/${p.maxHp}`, x, y) + 8 * s;
+  const k = p.hp / p.maxHp; bar(x, y + fs / 2 - 3 * s, Math.round(100 * s), k, k > 0.5 ? '#58d858' : k > 0.25 ? '#f8d030' : '#f05030');
+  y += fs + 6 * s; x = 10; const mb = p.maxBelly || 100;
+  x += txt('Barriga', x, y, '#f8b048') + 6 * s; x += txt(`${Math.round(p.belly)}/${mb}`, x, y) + 8 * s;
+  bar(x, y + fs / 2 - 3 * s, Math.round(60 * s), p.belly / mb, p.belly / mb > 0.2 ? '#f8a838' : '#f05030');
+  ctx.restore();
+}
 function renderFeed() {
   if (!logInside() || state.dialog || state.scene !== 'dungeon') return;   // solo en las mazmorras (en la aldea del original no hay registro)
   const now = performance.now(), items = (state.feed || []).filter(f => now - f.t < FEED_MS);
@@ -3216,6 +3237,11 @@ function renderMenu() {
   const tw = Math.min(w, ctx.measureText(title).width + pad * 2);
   pmdBox(x, y, tw, tabH + 6, 5);
   ctx.fillStyle = '#f8d848'; ctx.fillText(title, x + pad, y + tabH / 2 + 2, tw - pad * 2);
+  if (m.money !== undefined) {   // los Pokés, con su moneda, en una pestaña a la derecha
+    const mt = `${m.money}`, isz = Math.round(16 * s), mw = ctx.measureText(mt).width + isz + pad * 2 + 6 * s, mx = x + w - mw;
+    pmdBox(mx, y, mw, tabH + 6, 5); if (MONEY_IMG.complete) { ctx.imageSmoothingEnabled = false; ctx.drawImage(MONEY_IMG, mx + pad, y + tabH / 2 + 2 - isz / 2, isz, isz); }
+    ctx.fillStyle = '#ffffff'; ctx.fillText(mt, mx + pad + isz + 6 * s, y + tabH / 2 + 2);
+  }
   // caja de opciones
   const by = y + tabH + 2;
   pmdBox(x, by, w, h);
@@ -3447,6 +3473,8 @@ function setupMusicControl() {
   document.getElementById('set-version').textContent = VERSION_LABEL;
   const dv = document.getElementById('opt-dview');
   if (dv) { dv.value = dungeonWide() ? 'wide' : 'near'; dv.addEventListener('change', () => { try { localStorage.setItem('mm_dview', dv.value); } catch {} dv.blur(); render(); }); }
+  const inf = document.getElementById('opt-info');
+  if (inf) { inf.value = infoMode(); applyInfoMode(); inf.addEventListener('change', () => { try { localStorage.setItem('mm_info', inf.value); } catch {} applyInfoMode(); document.body.classList.toggle('log-inside', logInside()); inf.blur(); applyScale(); }); }
   const lg = document.getElementById('opt-log');
   if (lg) {
     lg.value = logInside() ? 'inside' : 'outside'; document.body.classList.toggle('log-inside', logInside());
