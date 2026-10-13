@@ -1130,6 +1130,111 @@ export const SCENES = [
     ],
   },
   {
+    // Sierra Ígnea, la cima, la primera vez (desde newFloor, en la sala del jefe): Moltres baja entre humo y te confunde con el ladrón.
+    id: 'moltres-cima', trigger: 'sierra', when: () => false,
+    area: 'cimasierra', player: { x: 384, y: 560, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 60 }, music: 'tension', boxBottom: true,
+    actors: { moltres: { sp: 'moltres', x: 384, y: 244, dir: 'down', hidden: true, lift: 300, noLook: true } },
+    objects: { humo: { kind: 'humo', x: 384, y: 182, on: false, k: 0.55 } },
+    steps: [
+      { do: 'particulas', kind: 'brasas' },
+      { do: 'narration', text: 'Sierra Ígnea, la cima…' }, { do: 'fade', to: 'in', ms: 900 },
+      { do: 'move', who: 'player', to: [[384, 344]], speed: 1.1 }, { do: 'wait', ms: 700 },
+      { do: 'turn', who: 'player', dir: 'up-left' }, { do: 'wait', ms: 500 }, { do: 'turn', who: 'player', dir: 'up-right' }, { do: 'wait', ms: 500 }, { do: 'turn', who: 'player', dir: 'up' },
+      { do: 'emote', who: 'player', fx: 'question' }, { do: 'wait', ms: 900 },
+      { do: 'shake', ms: 700, amp: 4 }, { do: 'wait', ms: 700 }, { do: 'emote', who: 'player', fx: 'shock' }, { do: 'wait', ms: 400 },
+      { do: 'humo', id: 'humo', on: true }, { do: 'wait', ms: 1400 },   // primero el humo, a bocanadas, del hueco…
+      { do: 'show', who: 'moltres' }, { do: 'anim', who: 'moltres', anim: 'Hover', hold: true }, { do: 'tween', who: 'moltres', set: { lift: 0 }, ms: 1800 }, { do: 'anim', who: 'moltres', anim: null },   // …y Moltres baja a través de él
+      { do: 'wait', ms: 900 }, { do: 'humo', id: 'humo', on: false },
+      { do: 'flash', color: '255,140,40', up: 100, hold: 100, down: 500, max: 0.7 }, { do: 'shake', ms: 500, amp: 3 }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'moltres', mood: 'Normal', text: '¡¿OTRA VEZ?! ¡Ya te llevaste mi pluma, insecto! ¡¿Qué más quieres?!' },
+      { do: 'jump', who: 'player', to: [384, 360], ms: 300, h: 8 }, { do: 'turn', who: 'player', dir: 'up' }, { do: 'emote', who: 'player', fx: 'sweat' }, { do: 'wait', ms: 700 },
+      { do: 'anim', who: 'moltres', anim: 'Rotate', ms: 800 }, { do: 'emote', who: 'moltres', fx: 'dots' }, { do: 'wait', ms: 1200 },
+      { do: 'say', who: 'moltres', mood: 'Normal', text: '… No. Tú no eres él.' },
+      { do: 'humo', id: 'humo', on: true, k: 0.4 }, { do: 'emote', who: 'moltres', fx: 'anger' }, { do: 'shake', ms: 400, amp: 3 }, { do: 'wait', ms: 600 },
+      { do: 'say', who: 'moltres', mood: 'Normal', text: 'Me da igual. Si vienes de su parte… ¡arderás igual!' },
+      { do: 'anim', who: 'moltres', anim: 'Charge', ms: 1000 }, { do: 'flash', color: '255,90,20', up: 150, hold: 300, down: 450, max: 0.55 }, { do: 'shake', ms: 900, amp: 4 }, { do: 'wait', ms: 1000 },
+      { do: 'humo', id: 'humo', on: false }, { do: 'particulas', kind: null }, { do: 'fade', to: 'out', ms: 600 },
+    ],
+  },
+  {
+    // Al vencer a Moltres, la primera vez (desde endRun): sigue furioso; te manda a por Scyther y te echa de su cima.
+    id: 'moltres-vencido', trigger: 'sierra', when: () => false,
+    area: 'cimasierra', player: { x: 384, y: 340, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 60 }, music: 'tension', boxBottom: true,
+    actors: { moltres: { sp: 'moltres', x: 384, y: 248, dir: 'down', noLook: true } },
+    steps: [
+      { do: 'particulas', kind: 'brasas' }, { do: 'anim', who: 'moltres', anim: 'Hurt', hold: true },
+      { do: 'fade', to: 'in', ms: 800 }, { do: 'wait', ms: 900 }, { do: 'anim', who: 'moltres', anim: null }, { do: 'emote', who: 'moltres', fx: 'dots' }, { do: 'wait', ms: 1200 },
+      { do: 'say', who: 'moltres', mood: 'Normal', text: '¡Grr…! … Espera. Tú no llevas mi pluma.' },
+      { do: 'emote', who: 'player', fx: 'question' }, { do: 'wait', ms: 900 },
+      { do: 'say', who: 'moltres', mood: 'Normal', text: 'Ese Scyther subió hasta aquí y me la arrancó.', multi: true },
+      { do: 'say', who: 'moltres', mood: 'Normal', text: 'Tenía prisa. Como quien huye… o como quien llega tarde a algo.' },
+      { do: 'emote', who: 'moltres', fx: 'anger' }, { do: 'anim', who: 'moltres', anim: 'Charge', ms: 700 }, { do: 'flash', color: '255,110,30', up: 120, hold: 200, down: 400, max: 0.45 }, { do: 'shake', ms: 500, amp: 3 }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'moltres', mood: 'Normal', text: '¡Y la próxima vez que lo vea, lo dejaré en cenizas!' },
+      { do: 'wait', ms: 600 }, { do: 'turn', who: 'moltres', dir: 'up-right' }, { do: 'wait', ms: 900 },
+      { do: 'say', who: 'moltres', mood: 'Normal', text: 'Mi hermana vive en la montaña helada. Se enterará de esto… y no le va a gustar.', multi: true },
+      { do: 'turn', who: 'moltres', dir: 'down' },
+      { do: 'say', who: 'moltres', mood: 'Normal', text: 'Si buscas al ladrón, busca a un Scyther. Y ahora, ¡largo de mi cima!' },
+      { do: 'anim', who: 'moltres', anim: 'Hover', hold: true }, { do: 'flash', color: '255,120,40', up: 120, hold: 200, down: 400, max: 0.6 }, { do: 'shake', ms: 500, amp: 3 },
+      { do: 'tween', who: 'moltres', set: { lift: 340 }, ms: 1500 }, { do: 'hide', who: 'moltres' },
+      { do: 'turn', who: 'player', dir: 'up' }, { do: 'wait', ms: 1200 }, { do: 'emote', who: 'player', fx: 'dots' }, { do: 'wait', ms: 1400 },
+      { do: 'particulas', kind: null }, { do: 'fade', to: 'out', ms: 1100 },
+    ],
+  },
+  {
+    // Montaña Gélida, la cima, la primera vez: Articuno sabe que Scyther derrotó a Moltres; como subes oliendo a ceniza, cree que vas con él.
+    id: 'articuno-cima', trigger: 'gelida', when: () => false,
+    area: 'cimagelida', player: { x: 384, y: 560, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 60 }, music: 'tension', boxBottom: true,
+    actors: { articuno: { sp: 'articuno', x: 384, y: 236, dir: 'down', hidden: true, lift: 300, noLook: true } },
+    objects: { grietas: { kind: 'grietas', x: 384, y: 238, k: 0, seed: 7 } },
+    steps: [
+      { do: 'particulas', kind: 'nieve' },
+      { do: 'narration', text: 'Montaña Gélida, la cima…' }, { do: 'fade', to: 'in', ms: 900 },
+      { do: 'move', who: 'player', to: [[384, 344]], speed: 1.0 }, { do: 'wait', ms: 600 },
+      { do: 'particulas', kind: 'nieve', wind: -0.9 }, { do: 'wait', ms: 900 }, { do: 'particulas', kind: null },   // la nieve se para de golpe
+      { do: 'emote', who: 'player', fx: 'shock' }, { do: 'flash', color: '200,230,255', up: 150, hold: 200, down: 550, max: 0.6 }, { do: 'wait', ms: 1100 },
+      { do: 'show', who: 'articuno' }, { do: 'tween', who: 'articuno', set: { lift: 60 }, ms: 1100, ease: 'out' },   // baja deprisa…
+      { do: 'anim', who: 'articuno', anim: 'RearUp', hold: true }, { do: 'soplo', x: 384, y: 236 }, { do: 'tween', who: 'articuno', set: { lift: 0 }, ms: 650, ease: 'out' },   // …y frena abriendo las alas
+      { do: 'wait', ms: 250 }, { do: 'anim', who: 'articuno', anim: null }, { do: 'particulas', kind: 'nieve', wind: 1.4 },
+      { do: 'grietas', id: 'grietas', ms: 700 }, { do: 'shake', ms: 300, amp: 2 },   // el hielo cruje bajo sus patas
+      { do: 'anim', who: 'articuno', anim: 'RearUp', ms: 800 }, { do: 'shake', ms: 600, amp: 3 }, { do: 'wait', ms: 300 },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: '¿Otro más? ¿Cuántos vais a subir a mi cima?' },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: 'El viento me trajo ceniza sobre la nieve. Supe enseguida que Moltres había caído.', multi: true },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: 'Fue ese Scyther. Derrotó a mi hermano, le arrancó la pluma… y luego vino a por la mía.' },
+      { do: 'emote', who: 'articuno', fx: 'anger' }, { do: 'wait', ms: 600 },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: 'Y ahora subes tú, oliendo a ceniza. ¿Vas con él?' },
+      { do: 'emote', who: 'player', fx: 'sweat' }, { do: 'jump', who: 'player', to: [384, 344], ms: 260, h: 8 }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: 'No me interesa tu respuesta. Esta cima no la pisa nadie más.' },
+      { do: 'anim', who: 'articuno', anim: 'SpAttack', ms: 1200 }, { do: 'particulas', kind: 'nieve', wind: 4, heavy: true }, { do: 'flash', color: '220,240,255', up: 200, hold: 300, down: 600, max: 0.75 }, { do: 'shake', ms: 1000, amp: 5 }, { do: 'wait', ms: 1600 },
+      { do: 'particulas', kind: null }, { do: 'fade', to: 'out', ms: 600 },
+    ],
+  },
+  {
+    // Al vencer a Articuno, la primera vez: se ablanda; te cuenta lo del portal y que solo falta la pluma de Zapdos. Y despega de verdad.
+    id: 'articuno-vencida', trigger: 'gelida', when: () => false,
+    area: 'cimagelida', player: { x: 384, y: 340, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 60 }, music: 'tension', boxBottom: true,
+    actors: { articuno: { sp: 'articuno', x: 384, y: 240, dir: 'down', noLook: true } },
+    objects: { grietas: { kind: 'grietas', x: 384, y: 238, k: 1, seed: 7 } },
+    steps: [
+      { do: 'particulas', kind: 'nieve', wind: 0.2 }, { do: 'anim', who: 'articuno', anim: 'Hurt', hold: true },
+      { do: 'fade', to: 'in', ms: 800 }, { do: 'wait', ms: 1000 }, { do: 'anim', who: 'articuno', anim: null }, { do: 'wait', ms: 600 },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: '… No ibas con él. Lo noto.' }, { do: 'wait', ms: 500 },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: 'Moltres… ¿está bien?' },
+      { do: 'jump', who: 'player', to: [384, 340], ms: 240, h: 6 }, { do: 'wait', ms: 350 }, { do: 'jump', who: 'player', to: [384, 340], ms: 240, h: 6 }, { do: 'wait', ms: 700 },   // asiente
+      { do: 'say', who: 'articuno', mood: 'Normal', text: 'Siempre ha sido el más tozudo de los tres. Seguro que ni se rindió.' }, { do: 'wait', ms: 500 },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: 'Ese Scyther se llevó mi pluma. Dice que con las tres abrirá un portal.', multi: true },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: 'Ya tiene la de Moltres y la mía. Solo le falta la de Zapdos, en el Monte Eléctrico.' },
+      { do: 'emote', who: 'player', fx: 'exclaim' }, { do: 'wait', ms: 800 },
+      { do: 'say', who: 'articuno', mood: 'Normal', text: 'Si de verdad lo abre, no será solo asunto nuestro.' },
+      // el despegue: se gira hacia el cielo, se agacha, aletazo (la nieve sale disparada) y sube acelerando, alejándose
+      { do: 'turn', who: 'articuno', dir: 'up' }, { do: 'wait', ms: 600 },
+      { do: 'tween', who: 'articuno', set: { lift: -4 }, ms: 130 }, { do: 'tween', who: 'articuno', set: { lift: 0 }, ms: 130 },
+      { do: 'anim', who: 'articuno', anim: 'RearUp', hold: true }, { do: 'soplo', x: 384, y: 236 }, { do: 'particulas', kind: 'nieve', wind: 1.2 }, { do: 'shake', ms: 250, amp: 2 }, { do: 'wait', ms: 200 },
+      { do: 'tween', who: 'articuno', set: { lift: 380, y: 170 }, ms: 1600, ease: 'in' }, { do: 'hide', who: 'articuno' },
+      { do: 'turn', who: 'player', dir: 'up-right' }, { do: 'wait', ms: 1000 }, { do: 'emote', who: 'player', fx: 'dots' }, { do: 'wait', ms: 1400 },
+      { do: 'particulas', kind: null }, { do: 'fade', to: 'out', ms: 1100 },
+    ],
+  },
+  {
     // Monte Eléctrico, a mitad de la subida, la primera vez (se lanza desde newFloor): rocas cortadas en cruz y tres salvajes derrotados.
     // El rastro de Scyther, sin que se le vea.
     id: 'scyther-rastro', trigger: 'monte', when: () => false,

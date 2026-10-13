@@ -89,7 +89,7 @@ async function runStep(step, c) {
     case 'bird': c.bird = { t0: now(), ms: step.ms || 1100, from: step.from || [824, 190], to: step.to || [-96, 400] }; if (!step.nowait) await delay(step.ms || 1100); return;
     case 'poster': return poster(c, step.kind || 'wanted');
     case 'prop': if (who) Object.assign(who, step.set || {}); D.render(); return;   // cambiar algo de un actor (volar, tamaño, objeto en las manos…)
-    case 'tween': { const p = tween(who, step.set || {}, step.ms || 600); if (!step.nowait) await p; return; }
+    case 'tween': { const p = tween(who, step.set || {}, step.ms || 600, step.ease); if (!step.nowait) await p; return; }
     case 'jump': { const p = jumpTo(who, step.to || [who.x, who.y], step.ms || 420, step.h ?? 14); if (!step.nowait) await p; return; }
     case 'area': {   // cambiar de zona a mitad de escena (un recuerdo en otro sitio), con la cámara que se indique
       if (step.area) D.state.hub.area = step.area; if (step.cam) c.cam = { ...step.cam };
@@ -119,6 +119,13 @@ async function runStep(step, c) {
         (c.bolts ||= []).push({ t0: now(), x, y: step.cy - step.ry * Math.sqrt(1 - k * k) - 6 }); if (!c.flash || now() - c.flash.t0 > 400) c.flash = { t0: now(), max: 0.18 }; D.render(); } })();
       return;
     }
+    case 'humo': { const o = c.objects[step.id]; if (o) { o.on = step.on !== false; if (step.k != null) o.k = step.k; } return; }   // el hueco echa humo (o para)
+    case 'grietas': {   // el hielo se agrieta desde el objeto, en el tiempo que se indique
+      const o = c.objects[step.id]; if (!o) return; const t0 = now(), ms = step.ms || 700;
+      while (!c.skip && cut() === c) { o.k = fast() ? 1 : Math.min(1, (now() - t0) / ms); D.render(); if (o.k >= 1) break; await delay(16); } o.k = 1; return;
+    }
+    case 'soplo': { (c.bursts ||= []).push({ t0: now(), x: step.x, y: step.y, n: step.n || 70 }); return; }   // un anillo de nieve que sale disparado (el aletazo)
+    case 'particulas': { c.particles = step.kind ? { kind: step.kind, wind: step.wind || 0, heavy: !!step.heavy, list: c.particles?.kind === step.kind ? c.particles.list : [] } : null; return; }
     case 'se': D.sfx?.(step.name); return;
     case 'music': D.music?.(step.track || null); return;
     case 'flag': D.flag?.(step); return;
@@ -283,9 +290,10 @@ async function jumpTo(a, to, ms, h) {
   for (;;) { const k = fast() ? 1 : Math.min(1, (now() - t0) / ms); a.x = from[0] + (to[0] - from[0]) * k; a.y = from[1] + (to[1] - from[1]) * k; D.render(); if (k >= 1) break; await delay(16); }
   if (isP) hub.jumpArc = null;
 }
-async function tween(a, props, ms) {   // tamaño, transparencia… poco a poco
-  if (!a) return; const from = Object.fromEntries(Object.keys(props).map(k => [k, a[k] ?? 1])), t0 = now();
-  for (;;) { const k = fast() ? 1 : Math.min(1, (now() - t0) / ms); for (const p in props) a[p] = from[p] + (props[p] - from[p]) * k; D.render(); if (k >= 1) break; await delay(16); }
+async function tween(a, props, ms, ease) {   // tamaño, transparencia, altura… poco a poco; ease: 'out' (frena al final), 'in' (acelera) o lineal
+  if (!a) return; const from = Object.fromEntries(Object.keys(props).map(k => [k, a[k] ?? (k === 'lift' ? 0 : 1)])), t0 = now();
+  const E = ease === 'out' ? k => 1 - Math.pow(1 - k, 3) : ease === 'in' ? k => Math.pow(k, 2.2) : k => k;
+  for (;;) { const k = fast() ? 1 : Math.min(1, (now() - t0) / ms), e = E(k); for (const p in props) a[p] = from[p] + (props[p] - from[p]) * e; D.render(); if (k >= 1) break; await delay(16); }
 }
 // el recuerdo: un tinte de memoria y una lucecita que recorre el camino que se indique (sube, se para, baja)
 function drawMemory(ctx, W, H, cam, c) {
@@ -316,6 +324,23 @@ function drawObject(ctx, o, sx, sy) {
     const k = 0.5 + 0.5 * Math.sin(now() / 45); ctx.globalAlpha = 0.35 + 0.45 * k; ctx.strokeStyle = '#fff6a8'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.ellipse(sx, sy, 20 + 4 * k, 8 + 1.5 * k, 0, 0, 7); ctx.stroke();
   }
+  if (o.kind === 'humo') {   // bocanadas grises que crecen, suben y se deshacen; o.on: si sigue saliendo; o.k: cuánto (0-1)
+    const ps = (o.puffs ||= []); if (o.on && Math.random() < (o.k ?? 0.55) && !fast()) ps.push({ dx: (Math.random() - 0.5) * 70, dy: 4, r: 14 + Math.random() * 10, vy: 0.9 + Math.random() * 1.2, vx: (Math.random() - 0.5) * 0.7, a: 0.85, g: 80 + Math.random() * 40 });
+    for (const q of ps) { q.dy -= q.vy; q.dx += q.vx; q.r += 0.55; q.a -= 0.0042; }
+    o.puffs = ps.filter(q => q.a > 0); ctx.globalAlpha = 1;
+    for (const q of o.puffs) { ctx.fillStyle = `rgba(${q.g},${q.g - 8},${q.g - 6},${q.a})`; ctx.beginPath(); ctx.arc(sx + q.dx, sy + q.dy, q.r, 0, 7); ctx.fill(); }
+    ctx.restore(); return;
+  }
+  if (o.kind === 'grietas') {   // grietas que salen de un punto y se ramifican; o.k: cuánto han avanzado (0-1)
+    const k = o.k || 0; if (k <= 0) { ctx.restore(); return; }
+    if (!o.segs) { const out = [], R = (s => () => (s = (s * 9301 + 49297) % 233280) / 233280)(o.seed || 7);
+      for (let i = 0; i < 7; i++) { let a = i / 7 * Math.PI * 2 + R() * 0.6, x = 0, y = 0; const len = 40 + R() * 50;
+        for (let d = 0; d < len; d += 8) { const nx = x + Math.cos(a) * 8, ny = y + Math.sin(a) * 8 * 0.45; out.push([x, y, nx, ny, d / len]); x = nx; y = ny; a += (R() - 0.5) * 0.7; } }
+      o.segs = out; }
+    const vis = o.segs.filter(g => g[4] <= k);
+    for (const [w, col, off] of [[2.2, 'rgba(90,140,190,.95)', 0], [1, 'rgba(255,255,255,.85)', -1]]) { ctx.lineWidth = w; ctx.strokeStyle = col; ctx.beginPath(); for (const [x0, y0, x1, y1] of vis) { ctx.moveTo(sx + x0, sy + y0 + off); ctx.lineTo(sx + x1, sy + y1 + off); } ctx.stroke(); }
+    ctx.restore(); return;
+  }
   if (o.kind === 'scorch') { ctx.globalAlpha = 0.55; ctx.fillStyle = '#2a1a10'; ctx.beginPath(); ctx.ellipse(sx, sy, 18, 7, 0, 0, 7); ctx.fill(); }   // la marca quemada
   if (o.kind === 'tray') {   // la bandeja de las entregas: tabla con una carta y una manzana
     const s = 1.6; ctx.translate(sx, sy); ctx.scale(s, s);
@@ -327,6 +352,27 @@ function drawObject(ctx, o, sx, sy) {
 }
 // capa de encima: noche (con luces), narración y fundido
 export function drawSceneOverlay(ctx, W, H, cam) {
+  const cc = cut();
+  if (cc?.particles) {   // partículas de fondo: brasas que suben (sierra) o nieve que cae (gélida), con viento y modo ventisca
+    const P = cc.particles, t = now(), nieve = P.kind === 'nieve', max = nieve ? (P.heavy ? 260 : 90) : 46;
+    if (P.list.length < max && !fast()) P.list.push({ x: Math.random() * W, y: nieve ? -10 : H + 10, v: 0.4 + Math.random() * 1.2, s: 1 + Math.random() * 2.2, p: Math.random() * 6 });
+    ctx.save();
+    for (const q of P.list) {
+      if (nieve) { q.y += q.v * (1 + Math.abs(P.wind)); q.x += Math.sin(t / 700 + q.p) * 0.6 + P.wind * 2.5; ctx.fillStyle = 'rgba(255,255,255,.85)'; }
+      else { q.y -= q.v; q.x += Math.sin(t / 500 + q.p) * 0.5; ctx.fillStyle = `rgba(255,${120 + (q.p * 20 | 0)},40,${0.5 + 0.4 * Math.sin(t / 200 + q.p)})`; }
+      ctx.fillRect(q.x, q.y, q.s, q.s);
+    }
+    P.list = P.list.filter(q => q.y > -20 && q.y < H + 20 && q.x > -40 && q.x < W + 40);
+    if (P.heavy) { ctx.fillStyle = 'rgba(240,248,255,.22)'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = 'rgba(255,255,255,.55)';
+      for (let i = 0; i < 14; i++) { const y = (i * 53 + t / 7) % H, x = ((t * 1.4 + i * 211) % (W + 300)) - 150; ctx.fillRect(x, y, 90 + (i % 4) * 30, 2); } }
+    ctx.restore();
+  }
+  for (const b of cc?.bursts || []) {   // el anillo de nieve del aletazo
+    if (!b.ps) { b.ps = []; for (let i = 0; i < b.n; i++) { const a = Math.random() * Math.PI * 2, v = 1.5 + Math.random() * 3; b.ps.push({ x: b.x, y: b.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.45 - 0.6, a: 1, s: 1.5 + Math.random() * 2.5 }); } }
+    for (const q of b.ps) { q.x += q.vx; q.y += q.vy; q.vx *= 0.97; q.vy *= 0.97; q.a -= 0.012; if (q.a > 0) { ctx.fillStyle = `rgba(255,255,255,${q.a})`; ctx.fillRect(q.x - (cam?.x ?? 0), q.y - (cam?.y ?? 0), q.s, q.s); } }
+    b.ps = b.ps.filter(q => q.a > 0);
+  }
+  if (cc?.bursts) cc.bursts = cc.bursts.filter(b => !b.ps || b.ps.length);
   const c = cut(); if (!c) return;
   const p = c.actors.player;   // los efectos del jugador (él no es un actor de la escena: lo dibuja la aldea)
   if (p && !c.hidePlayer && p.emotes.length) {

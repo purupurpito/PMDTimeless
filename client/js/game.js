@@ -1198,6 +1198,8 @@ async function endRun(outcome) {
   if (outcome === 'clear' && state.dungeonDef?.id === 'cueva' && !(meta?.scenes || []).includes('scyther-cueva')) await dungeonScene('scyther-cueva', { keepDark: true });
   // al vencer a Zapdos por primera vez: te da su pluma (la Pluma Trueno), que se guarda en el gremio
   if (outcome === 'clear' && state.dungeonDef?.id === 'monte' && !(meta?.scenes || []).includes('zapdos-pluma')) await dungeonScene('zapdos-pluma', { keepDark: true });
+  if (outcome === 'clear' && state.dungeonDef?.id === 'sierra' && !(meta?.scenes || []).includes('moltres-vencido')) await dungeonScene('moltres-vencido', { keepDark: true });
+  if (outcome === 'clear' && state.dungeonDef?.id === 'gelida' && !(meta?.scenes || []).includes('articuno-vencida')) await dungeonScene('articuno-vencida', { keepDark: true });
   if (state.run) state.run.ending = true;   // ya no se autoguarda
   { const st = runStats(), top = Object.entries(st.moves).sort((a, b) => b[1] - a[1]).slice(0, 8); track('run_summary', { outcome, floor: state.floor, dealt: st.dealt, taken: st.taken, kills: st.kills, items: st.items, moves: Object.fromEntries(top), min: Math.round((state.run?.playMs || 0) / 60000) }); }
   const endBody = { playMs: Math.round(state.run?.playMs || 0), outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] };
@@ -1358,16 +1360,16 @@ function arenaCleared() {
 }
 // Lo que dicen los jefes al llegar a su sala
 const BIRD_AFTER = {   // lo que dicen Moltres y Articuno al ser vencidos
-  moltres: ['… Espera. Tú no llevas mi pluma.', 'Ese Scyther subió hasta aquí y me la quitó. Ni siquiera le dejé hablar… ni él a mí.', 'Si buscas al ladrón, busca a un Scyther. Y date prisa.'],
-  articuno: ['… No ibas con él. Lo noto.', 'Un Scyther se llevó mi pluma. Dice que con las tres abrirá un portal.', 'Si de verdad lo abre, no será solo asunto nuestro.'],
+  moltres: ['¡Grr…! … Espera. Tú no llevas mi pluma.', 'Ese Scyther subió hasta aquí y me la arrancó.', 'Si buscas al ladrón, busca a un Scyther. Y ahora, ¡largo de mi cima!'],
+  articuno: ['… No ibas con él. Lo noto.', 'Ese Scyther se llevó mi pluma. Dice que con las tres abrirá un portal.', 'Si de verdad lo abre, no será solo asunto nuestro.'],
 };
 const BOSS_LINES = {
   chatot: ['¡Alto ahí, recluta!', 'Antes de dejarte ir a mazmorras de verdad, tendrás que superar mi examen.', '¡En guardia! Y nada de llorar después, ¿eh?'],
   celebi: ['El bosque te ha visto crecer piso a piso…', 'Demuéstrame que mereces llegar hasta aquí.'],
   suicune: ['El agua de esta cueva no miente. Veamos si tu corazón es igual de claro.'],
   zapdos: ['¡Has escalado hasta la cima de la tormenta! Aquí mando yo.'],
-  moltres: ['¡¿Otra vez?! ¡Ya te llevaste mi pluma, insecto!', '… No. Tú no eres él. Pero si vienes de su parte… ¡arderás igual!'],
-  articuno: ['Otro que sube a por mi pluma. Llegas tarde: ya me la quitaron.', 'Y esta vez no me pillarán desprevenida.'],
+  moltres: ['¡¿OTRA VEZ?! ¡Ya te llevaste mi pluma, insecto! ¡¿Qué más quieres?!', '… No. Tú no eres él. Me da igual: si vienes de su parte… ¡arderás igual!'],
+  articuno: ['¿Otro más? ¿Cuántos vais a subir a mi cima?', 'Subes oliendo a ceniza, como ese Scyther. No me interesa tu respuesta: esta cima no la pisa nadie más.'],
   mew: ['Hihi… ¿Vienes a jugar? ¡Me encanta jugar!'],
   jirachi: ['Una luz suave llena la sala…', 'Si quieres mi deseo, demuestra que lo mereces.'],
 };
@@ -1467,6 +1469,8 @@ function newFloor() {
   if (built.kind === 'jirachi' || state.dungeon.arena) {
     // el jefe habla al llegar (la sala de descanso anterior ya ofrecía guardar o volver)
     if (def.id === 'entrenamiento' && built.boss?.species === 'chatot') { chatotBossIntro(built.boss); }
+    else if (def.id === 'sierra' && built.boss?.species === 'moltres' && !(meta?.scenes || []).includes('moltres-cima')) setTimeout(() => dungeonScene('moltres-cima'), 300);     // la primera vez: la escena de la cima
+    else if (def.id === 'gelida' && built.boss?.species === 'articuno' && !(meta?.scenes || []).includes('articuno-cima')) setTimeout(() => dungeonScene('articuno-cima'), 300);
     else if (def.id === 'monte' && built.boss?.species === 'zapdos' && !(meta?.scenes || []).includes('zapdos-cima')) {   // la primera vez: la escena de la cima
       built.boss.hp = Math.round(built.boss.maxHp * 0.75);   // viene de pelear con Scyther: algo cansado
       setTimeout(() => dungeonScene('zapdos-cima'), 300);
@@ -1720,7 +1724,8 @@ function defeatEnemy(e, by) {
   }
   else if (e.isBoss && !e.shopkeeper) { const move = state.rng.pick(TM_POOL); addItem(`MT: ${move}`); say(`${e.name} deja caer una MT: ${move}.`); }
   // Moltres y Articuno, vencidos: se dan cuenta de que no ibas con Scyther (el final de la mazmorra espera a que cierres el diálogo)
-  if (e.isBoss && BIRD_AFTER[e.species] && state.dungeonDef?.finalBoss === e.species) openDialog(BIRD_AFTER[e.species].map(t => ({ who: e.name, sp: e.species, mood: 'Normal', text: t })));
+  const birdScene = { moltres: 'moltres-vencido', articuno: 'articuno-vencida', zapdos: 'zapdos-pluma' }[e.species];
+  if (e.isBoss && BIRD_AFTER[e.species] && state.dungeonDef?.finalBoss === e.species && !(birdScene && !(meta?.scenes || []).includes(birdScene))) openDialog(BIRD_AFTER[e.species].map(t => ({ who: e.name, sp: e.species, mood: 'Normal', text: t })));   // (la primera vez, en su lugar, la escena)
   dropCarried(e);   // solo suelta lo que hubiera recogido, y al suelo (no a tu bolsa)
   tryRecruit(e, by);
   arenaCleared();   // ¿era el jefe de la sala?
