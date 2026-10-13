@@ -12,6 +12,7 @@ import { dialog, menu, keyboard, writeText, loadManifest, portraitOf, portraitUR
 import { initTouchControls } from './touch.js';
 import { playTrack, stopMusic } from './music.js';
 import { VERSION_LABEL } from '../../shared/version.js';
+import { applyDomText } from '../../shared/i18n.js';
 
 const $ = s => document.querySelector(s);
 const show = id => { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); $(id).classList.remove('hidden'); document.body.classList.toggle('in-game', id === '#screen-game'); if (id === '#screen-auth') playTrack('menu'); }; // música del menú (suena tras la primera pulsación, como exige el navegador)
@@ -211,6 +212,7 @@ async function enterGame() {
 }
 $('#logout').addEventListener('click', async () => { try { await api('/auth/logout', {}); } catch {} setToken(null); location.reload(); });
 
+applyDomText();   // textos de la página en el idioma guardado en este navegador
 initTouchControls();
 // ni arrastrar imágenes ni seleccionar con doble clic fuera de los campos de texto
 document.addEventListener('contextmenu', ev => { if (!ev.target.closest('input, textarea')) ev.preventDefault(); }); // el clic derecho no hace nada

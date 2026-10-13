@@ -117,9 +117,17 @@ export const HUB = {
     exits: [
       { rect: [345, 0, 425, 22], to: 'plaza', at: { x: 384, y: 468 } },
       { rect: [345, 493, 425, 515], action: 'dungeons', label: 'Salida a las mazmorras', back: { x: 384, y: 470 } },
+      { rect: [0, 262, 22, 300], to: 'barrio', at: { x: 1488, y: 394 } },   // camino de la izquierda, junto a la casa del árbol: al barrio
     ],
     npcs: [ { id: 'wobbuffet', x: 250, y: 300, facing: [0, 1], talk: 'wobbuffet', idle: true, untilScene: 'cafe-pam' } ],   // su balanceo es su gracia (cuando abre el café, se muda allí de cliente)
     wanderers: 4, // Pokémon sueltos paseando (sin función por ahora)
+  },
+  // El barrio de las casas (zona grande, 1536 × 1024): diez casas (y una en un árbol) alrededor de una plaza con pozo. Sin vecinos todavía.
+  // Colisiones provisionales. El camino de abajo queda reservado para el observatorio (aún sin salida).
+  barrio: {
+    img: 'client/assets/hub/barrio.png', mask: 'client/assets/hub/barrio_mask.png', spawn: { x: 1488, y: 394 },
+    exits: [ { rect: [1514, 350, 1536, 438], to: 'aldea', at: { x: 40, y: 283 } } ],
+    npcs: [],
   },
 };
 export const VIEW = { w: 600, h: 408 };

@@ -20,6 +20,7 @@ import { HUB_OBJECTS } from './hub-objects.js';
 import { typeIconHTML, typeIconImg } from './typeicons.js';
 import { playZone, playTrack, playOnce, stopMusic, setVolume, getVolume, preload as preloadMusic, playSfx, setSfxVolume, getSfxVolume } from './music.js';
 import { VERSION_LABEL } from '../../shared/version.js';
+import { t, getLang, setLang, onLangChange, applyDomText } from '../../shared/i18n.js';
 import { asset } from './ui.js';
 import { ITEM_ICON, MACHINE_ICON, MD_ICON, ICON_COLS } from './item-sprites.js';
 import { PORTRAIT, PORTRAIT_COLS } from './portraits.js';
@@ -263,6 +264,9 @@ export async function startGame(me) {
       state.dungeon.tiles[p.y][p.x + 2] = T.FLOOR; state.shop = { carpet, unpaid: [], keeper: { x: p.x, y: p.y - 1 }, room: roomOf(p) || { x: p.x - 1, y: p.y - 1, w: 3, h: 3 }, robbed: false };
       state.enemies = []; state.groundItems = [{ name: 'Semilla Revivir', x: p.x + 1, y: p.y, shop: true, price: 600 }]; render(); } };
   user = me.user; meta = me.user.meta; state.pausedRun = me.run;
+  // idioma: manda el de la cuenta; si la cuenta aún no tiene, se le guarda el elegido en este navegador (si no es el español)
+  if (meta.lang) setLang(meta.lang); else if (getLang() !== 'es') api('/settings/lang', { lang: getLang() }).then(() => { meta.lang = getLang(); }).catch(() => {});
+  applyDomText();
   try {   // reinicio general: el navegador olvida también lo suyo (frases de la historia oídas, avisos, copias de seguridad)
     const ek = `pmdt_epoch_${user.name}`, ep = String(meta.epoch || 0);
     if (localStorage.getItem(ek) !== ep && meta.epoch) {
@@ -319,7 +323,7 @@ const hubFree = (area, x, y) => FOOT.every(([ox, oy]) => Hub.walkable(area, x + 
 // camino por el suelo transitable (búsqueda en anchura sobre una rejilla de 6 px)
 // Coste del terreno en las zonas de exterior: los caminos de tierra cuestan poco y la hierba bastante más, para que
 // quien anda por la aldea vaya por los caminos (como lo haría cualquiera) y solo ataje si ahorra mucho.
-const PATH_AREAS = new Set(['plaza', 'mercado', 'aldea', 'fuente']), costGrids = new Map();
+const PATH_AREAS = new Set(['plaza', 'mercado', 'aldea', 'fuente', 'barrio']), costGrids = new Map();
 function costGrid(area) {
   if (!PATH_AREAS.has(area)) return null;
   if (costGrids.has(area)) return costGrids.get(area);
@@ -2915,7 +2919,7 @@ function drawStatusIcon(e, px, py, tile) {
   ctx.restore(); return true;
 }
 const STAT_NAMES_DE = { atk: 'el Ataque', def: 'la Defensa', spa: 'el At. Esp.', spd: 'la Def. Esp.' };   // «sube el Ataque de…»
-const AREA_NAMES = { plaza: 'Plaza del gremio', gremio: 'Gremio de Pidgeot', descanso: 'Zona de descanso', mercado: 'Mercado', aldea: 'Aldea', fuente: 'Fuente de la Evolución' };   // nombre de cada zona (etiqueta del mapa y cabecera)
+const AREA_NAMES = { plaza: 'Plaza del gremio', gremio: 'Gremio de Pidgeot', descanso: 'Zona de descanso', mercado: 'Mercado', aldea: 'Aldea', fuente: 'Fuente de la Evolución', barrio: 'Barrio' };   // nombre de cada zona (etiqueta del mapa y cabecera)
 function drawInfoHud() {
   if (infoMode() !== 'dentro' || state.scene !== 'dungeon' || !state.player || state.menu || state.cut) return;
   const p = state.player, s = UIS(), fs = Math.round(12 * s), font = DIALOG_FONT();
@@ -3497,9 +3501,13 @@ function setupMusicControl() {
   document.getElementById('fb-send')?.addEventListener('click', async () => {
     const where = state.scene === 'dungeon' ? `${state.dungeonDef?.name || ''} ${state.floor}F` : `aldea (${state.hub?.area || '—'})`;
     try { await api('/feedback', { kind: document.getElementById('fb-kind').value, text: fbt.value, context: { where, version: VERSION_LABEL, ua: navigator.userAgent.slice(0, 160), w: innerWidth, h: innerHeight } });
-      fbt.value = ''; fbmsg.textContent = '¡Gracias! Lo hemos recibido.'; setTimeout(fbClose, 1400); }
+      fbt.value = ''; fbmsg.textContent = t('buzon.gracias'); setTimeout(fbClose, 1400); }
     catch (e) { fbmsg.textContent = e.message || 'No se ha podido enviar. Prueba otra vez.'; }
   });
+  // idioma: se guarda en el navegador y en la cuenta; al cambiarlo se rehacen los textos de la página y la pantalla
+  const lsel = document.getElementById('opt-lang');
+  if (lsel) { lsel.value = getLang(); lsel.addEventListener('change', () => { setLang(lsel.value); api('/settings/lang', { lang: lsel.value }).then(() => { if (meta) meta.lang = lsel.value; }).catch(() => {}); lsel.blur(); }); }
+  onLangChange(lang => { if (lsel) lsel.value = lang; applyDomText(); render(); });
   const fr = document.getElementById('opt-frame');
   if (fr) { fr.value = frameColor(); fr.addEventListener('change', () => { try { localStorage.setItem('mm_frame', fr.value); } catch {} fr.blur(); render(); }); }
   const inf = document.getElementById('opt-info');

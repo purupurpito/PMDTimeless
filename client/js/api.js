@@ -1,4 +1,5 @@
 import { API_URL } from './config.js';
+import { getLang } from '../../shared/i18n.js';
 
 let token = localStorage.getItem('mm_token');
 export const setToken = t => { token = t; t ? localStorage.setItem('mm_token', t) : localStorage.removeItem('mm_token'); };
@@ -25,7 +26,7 @@ export async function api(path, body, { onWaking, rid = newRequestId(), keepaliv
     try {
       const res = await fetch(API_URL + path, {
         method: body !== undefined ? 'POST' : 'GET',
-        headers: { 'Content-Type': 'application/json', 'X-Request-Id': rid, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { 'Content-Type': 'application/json', 'X-Request-Id': rid, 'X-Lang': getLang(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: ctrl.signal, keepalive,
       });
