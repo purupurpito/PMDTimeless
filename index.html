@@ -93,8 +93,10 @@
         <label class="set-row"><span>Enviar datos de juego (beta)</span><input type="checkbox" id="opt-telemetry"></label>
         <label class="set-row"><span>Mando en pantalla</span><input type="checkbox" id="opt-touch"></label>
         <label class="set-row"><span>Vista de mazmorra</span><select id="opt-dview"><option value="near">Cercana</option><option value="wide">Amplia</option></select></label>
-        <label class="set-row"><span>Información (PS, Barriga…)</span><select id="opt-info"><option value="dentro">Dentro de la pantalla</option><option value="fuera">Fuera de la pantalla</option><option value="oculta">Oculta</option></select></label>
-        <label class="set-row"><span>Mensajes</span><select id="opt-log"><option value="inside">En la pantalla</option><option value="outside">Fuera de la pantalla</option></select></label>
+        <button id="btn-feedback" class="set-btn" type="button">Enviar un comentario o un fallo</button>
+        <label class="set-row"><span>Color del marco</span><select id="opt-frame"><option value="azul">Azul</option><option value="rojo">Rojo</option><option value="verde">Verde</option><option value="morado">Morado</option><option value="dorado">Dorado</option><option value="gris">Gris</option></select></label>
+        <label class="set-row"><span>Información</span><select id="opt-info"><option value="dentro">Dentro</option><option value="fuera">Fuera</option><option value="oculta">Oculta</option></select></label>
+        <label class="set-row set-log"><span>Mensajes</span><select id="opt-log"><option value="inside">Dentro</option><option value="outside">Fuera</option></select></label>
         <p class="set-foot" id="set-version"></p>
       </div>
     </div>
@@ -132,5 +134,14 @@
 <div id="card" class="card-overlay"><div class="card-inner"><p class="card-title"></p><p class="card-sub"></p></div></div>
 <div id="toast" class="toast hidden"></div>
 <script type="module" src="client/js/app.js"></script>
+<div id="feedback-modal" class="fb-modal hidden" role="dialog" aria-label="Comentario o fallo">
+  <div class="fb-box">
+    <p class="fb-title">Cuéntanos qué ha pasado</p>
+    <label class="fb-row">Tipo <select id="fb-kind"><option value="fallo">Un fallo</option><option value="idea">Una idea</option><option value="otro">Otra cosa</option></select></label>
+    <textarea id="fb-text" maxlength="2000" rows="6" placeholder="Qué estabas haciendo, qué esperabas que pasara y qué pasó…"></textarea>
+    <p id="fb-msg" class="fb-msg"></p>
+    <div class="fb-actions"><button id="fb-cancel" type="button">Cancelar</button><button id="fb-send" type="button">Enviar</button></div>
+  </div>
+</div>
 </body>
 </html>

@@ -407,3 +407,23 @@ body.in-game.touch-on:not(.info-fuera) #screen-game main { flex: 1 1 auto; displ
 body.in-game:not(.info-fuera) #screen-game header .settings { margin-left: auto; }
 body.in-game:not(.info-fuera) #screen-game header #logout { margin-left: 12px; }
 body.in-game.touch-on:not(.info-fuera) #screen-game { min-height: 100dvh; box-sizing: border-box; }
+
+/* Opciones: botón del buzón; la ventana para escribir (con el marco doble del juego) */
+.set-btn { width: 100%; margin: 6px 0 2px; padding: 7px 8px; border-radius: 6px; border: 1px solid #5878c8; background: #1a2a55; color: #e8eeff; cursor: pointer; font: inherit; }
+.set-btn:hover { background: #24387a; }
+.fb-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.fb-modal.hidden { display: none; }
+.fb-box { width: min(520px, 92vw); background: #14203f; color: #fff; border-radius: 10px; padding: 16px 18px; border: 3px solid #a8c8ff; outline: 1.5px solid #4878e8; outline-offset: -8px; box-sizing: border-box; }
+.fb-title { margin: 0 0 10px; color: #f8d848; font-weight: bold; }
+.fb-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.fb-box select, .fb-box textarea { background: #0d1630; color: #fff; border: 1px solid #4878e8; border-radius: 6px; padding: 6px; font: inherit; }
+.fb-box textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.fb-msg { min-height: 1.2em; margin: 6px 0; color: #f8d848; font-size: 13px; }
+.fb-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.fb-actions button { padding: 7px 14px; border-radius: 6px; border: 1px solid #5878c8; background: #1a2a55; color: #fff; cursor: pointer; font: inherit; }
+.fb-actions #fb-send { background: #3a5cc8; }
+
+/* Opciones: nada se sale del panel; la fila «Mensajes» solo tiene sentido con la información fuera */
+.settings-panel select { flex: none; width: 112px; max-width: 112px; }
+.set-btn { font-size: 13px; line-height: 1.3; }
+body:not(.info-fuera) .settings-panel .set-log { display: none; }

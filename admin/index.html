@@ -86,6 +86,10 @@
     <div class="wrap"><table><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table></div>
     <p class="dim">«Conexión» es un identificador cifrado de la IP con la que se creó la cuenta: sirve para ver cuentas creadas desde el mismo sitio, no para saber dónde está nadie.</p>
 
+  <section id="fb-sec" class="hidden">
+    <h2>Comentarios y fallos de los jugadores</h2>
+    <table><thead><tr><th>Cuándo</th><th>Quién</th><th>Tipo</th><th>Mensaje</th><th>Dónde</th></tr></thead><tbody id="fb"></tbody></table>
+  </section>
   <section class="danger">
     <h3>Zona peligrosa</h3>
     <p class="dim">Reinicia la partida de <b>todas</b> las cuentas: vuelven a como estaban recién registradas, solo con el inicial de su test (se conservan el nombre, el código y la sesión). Haz antes una copia en Neon (Branches → Create branch).</p>
@@ -129,6 +133,8 @@ async function load() {
     $('#s-hours').textContent = s.totalHours; $('#s-runs').textContent = s.runs;
     const fl = s.dungeons.reduce((a, x) => a + (x.minPerFloor ? 1 : 0), 0); $('#s-mpf').textContent = fl ? (s.dungeons.reduce((a, x) => a + (x.minPerFloor || 0), 0) / fl).toFixed(1) : '—';
     $('#dg').innerHTML = s.dungeons.sort((a, b) => b.runs - a.runs).map(x => `<tr><td>${esc(x.name)}</td><td class="num">${x.runs}</td><td class="num">${x.clears} (${x.runs ? Math.round(x.clears / x.runs * 100) : 0} %)</td><td class="num">${x.deaths}</td><td class="num">${x.avgMin || '—'}</td><td class="num">${x.minPerFloor ?? '—'}</td></tr>`).join('') || '<tr><td colspan="6" class="dim">Sin datos todavía</td></tr>';
+    const fb = await api('/admin/feedback'); $('#fb-sec').classList.remove('hidden');
+    $('#fb').innerHTML = fb.feedback.map(f => `<tr><td>${new Date(f.created_at).toLocaleString('es')}</td><td>${esc(f.name)}</td><td>${esc(f.kind)}</td><td style="white-space:pre-wrap">${esc(f.text)}</td><td class="dim">${esc([f.context?.where, f.context?.version].filter(Boolean).join(' · '))}</td></tr>`).join('') || '<tr><td colspan="5" class="dim">Ningún mensaje todavía</td></tr>';
     $('#st').innerHTML = s.starters.map(x => `<tr><td>${esc(x.starter)}</td><td class="num">${x.n}</td></tr>`).join('') || '<tr><td colspan="2" class="dim">Sin datos</td></tr>';
   }
   catch (e) { if (e.status === 401) { sessionStorage.removeItem(KEY); show(false); } $('#msg').textContent = e.message; }

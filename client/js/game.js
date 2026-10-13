@@ -564,7 +564,7 @@ const closeHub = () => { state.menu = null; render(); };
 function openHubMenu() {
   const save = state.pausedRun;
   // elegir líder se hará hablando con el Pokémon en la aldea (como en Rojo/Azul), no desde este menú
-  const base = ['Bolsa', 'Pokémon', 'Rango y progreso', 'Estadísticas', 'Registro de mensajes', 'Cerrar'];
+  const base = ['Bolsa', 'Estado', 'Pokémon', 'Misiones', 'Rango y progreso', 'Estadísticas', 'Registro de mensajes', 'Cerrar'];
   const items = save ? ['Continuar la exploración', 'Abandonar la exploración guardada', ...base] : base;
   openMenu({ title: 'Menú', items, onCancel: closeHub, onSelect: async i => {
     const key = items[i];
@@ -572,6 +572,8 @@ function openHubMenu() {
     if (key === 'Registro de mensajes') return openHistory();
     if (key.startsWith('Abandonar')) return openMenu({ title: '¿Abandonar la exploración? Perderás lo acumulado.', items: ['No', 'Sí, abandonar'], onCancel: closeHub, onSelect: async j => { if (j === 1) { const r = await call('/run/abandon', {}); if (r) { meta = r.meta; state.pausedRun = null; say('Run abandonada.'); } } closeHub(); } });
     if (key === 'Rango y progreso') return openRankMenu();
+    if (key === 'Estado') return openStatus(state.player, openHubMenu);
+    if (key === 'Misiones') return openMissionsWindow((meta.active || []).map(m => ({ ...m, done: false })), openHubMenu);
     if (key === 'Bolsa') return openHubBag();
     if (key === 'Pokémon') return openHubPokemon();
     if (key === 'Estadísticas') return openHubStats();
@@ -894,6 +896,7 @@ function openGulpinMenu() {
 function openRankMenu() {
   const r = rankOf(meta.rankPts), next = RANKS[r + 1];
   openMenu({ title: 'Progreso', items: [
+    `Explorador: ${user?.name || '—'}`,
     `Rango ${RANKS[r].name} · ${meta.rankPts} pts${next ? ` · siguiente a ${next.pts}` : ' · máximo'}`,
     `Mazmorras completadas: ${meta.cleared.length}/${DUNGEONS.length - 1}`,
     `Iniciales: ${meta.starters.map(s => SPECIES[s].name).join(', ')}`,
@@ -2641,15 +2644,29 @@ function updateVisibility() {
 // MENÚS, LOG
 // =====================================================================
 function openMenu(menu) { state.menu = { index: 0, ...menu }; render(); }
+function openStatus(p, back) {   // «Estado»: lo que antes estaba en los paneles de fuera (experiencia, estadísticas, tipos, objeto equipado)
+  if (!p) return;
+  const sp = SPECIES[p.species] || {}, nxt = expToNext(p.species, p.level);
+  const lines = [`${p.name} · Nv ${p.level} · ${(sp.types || []).join(' / ')}`,
+    `PS ${Math.max(0, Math.ceil(p.hp))}/${p.maxHp}${p.belly != null ? ` · Barriga ${Math.round(p.belly)}/${p.maxBelly || 100}` : ''}`,
+    `Experiencia ${p.exp || 0}/${nxt} · faltan ${Math.max(0, nxt - (p.exp || 0))}`,
+    `Ataque ${p.atk} · Defensa ${p.def}`, `At. Esp. ${p.spa} · Def. Esp. ${p.spd}`,
+    `Equipado: ${p.held || 'nada'}`, 'Habilidades e IQ ▸'];
+  openMenu({ title: 'Estado', items: lines, onCancel: back, onSelect: i => i === lines.length - 1 ? openSummary(p, () => openStatus(p, back)) : back && back() });
+}
+function openMissionsWindow(list, back) {
+  openMenu({ title: `Misiones (${list.length})`, items: list.length ? list.map(m => `${m.done ? '✓' : '·'} ${missionText(m)}`) : ['Sin misiones activas.'], onCancel: back, onSelect: () => back && back() });
+}
 function openDungeonMainMenu() {
-  openMenu({ title: 'Menú', items: ['Movimientos', 'Bolsa', 'Equipo', 'Suelo', 'Misiones', `Mapa: ${state.showMap === false ? 'oculto' : 'visible'}`, 'Registro de mensajes', 'Cerrar'], onSelect: i => {
+  openMenu({ title: 'Menú', items: ['Movimientos', 'Bolsa', 'Equipo', 'Estado', 'Suelo', 'Misiones', `Mapa: ${state.showMap === false ? 'oculto' : 'visible'}`, 'Registro de mensajes', 'Cerrar'], onSelect: i => {
     if (i === 0) openMenu({ title: 'Movimientos', items: state.player.moves.map(m => `${m.name}${m.permanent ? ' ★' : ''}  ${m.pp}/${MOVES[m.name].pp}`), icons: state.player.moves.map(m => MOVES[m.name].type), onSelect: j => playerAction('skill', 0, 0, j) });
     else if (i === 1) openBagMenu();
     else if (i === 2) openTeamMenu();
-    else if (i === 3) openGroundMenu();
-    else if (i === 4) say(state.missions.length ? state.missions.map(m => `${m.done ? '✓' : '·'} ${missionText(m)}`).join(' | ') : 'Sin misiones activas.');
-    else if (i === 5) { state.showMap = state.showMap === false; render(); }
-    else if (i === 6) openHistory();
+    else if (i === 3) openStatus(state.player, openDungeonMainMenu);
+    else if (i === 4) openGroundMenu();
+    else if (i === 5) openMissionsWindow(state.missions, openDungeonMainMenu);
+    else if (i === 6) { state.showMap = state.showMap === false; render(); }
+    else if (i === 7) openHistory();
   } });
 }
 const itemVerb = name => { const k = ITEMS[name]?.kind; return isMachine(name) ? 'Enseñar' : k === 'belly' || k === 'heal' || k === 'berry' || k === 'seed' ? 'Comer' : k === 'held' ? 'Equipar' : k === 'sell' ? null : 'Usar'; };
@@ -2925,9 +2942,7 @@ function renderFeed() {
   ctx.font = `${size}px ${DIALOG_FONT()}`;
   const lines = items.flatMap(f => wrapText(f.text, W - 44)).slice(-3);
   const h = lines.length * lh + 18, x = 8, y = H - h - 8, w = W - 16;
-  ctx.fillStyle = '#10204a'; roundRect(x, y, w, h, 6); ctx.fill();
-  ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 2; roundRect(x + 2, y + 2, w - 4, h - 4, 5); ctx.stroke();
-  ctx.strokeStyle = '#5070c0'; ctx.lineWidth = 1; roundRect(x + 5, y + 5, w - 10, h - 10, 4); ctx.stroke();
+  pmdBox(x, y, w, h, 6);
   ctx.fillStyle = '#f8f8f8'; ctx.textBaseline = 'top';
   lines.forEach((l, i) => ctx.fillText(l, x + 14, y + 9 + i * lh));
   ctx.textBaseline = 'alphabetic'; ctx.restore();
@@ -3200,10 +3215,15 @@ const DUNGEON_ZOOM = () => dungeonWide() ? 1 : 1.75;
 const UIS = () => document.body.classList.contains('touch-on') ? 1.4 : 1; // texto del canvas más grande con el mando (móvil)
 // Menús estilo PMD: caja azul marino con marco blanco redondeado y línea interior (como los diálogos),
 // título en su propia pestaña encima, cursor ▶ parpadeante y desplazamiento con ▲▼ si no cabe todo.
+// El marco de las ventanas: doble (una línea clara gruesa por fuera y una más oscura por dentro), del color que elija el jugador
+const FRAMES = { azul: ['#a8c8ff', '#4878e8', '#14203f'], rojo: ['#ffb4a4', '#d84838', '#2c1616'], verde: ['#bcf0a4', '#3ca850', '#132a19'],
+                 morado: ['#dcbcff', '#8850d8', '#1f1534'], dorado: ['#ffe8a0', '#d8a020', '#2b2310'], gris: ['#e4e4e4', '#808080', '#202020'] };
+const frameColor = () => { try { return FRAMES[localStorage.getItem('mm_frame')] ? localStorage.getItem('mm_frame') : 'azul'; } catch { return 'azul'; } };
 function pmdBox(x, y, w, h, r = 6) {
-  ctx.fillStyle = '#10204a'; roundRect(x, y, w, h, r); ctx.fill();
-  ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 2; roundRect(x + 1, y + 1, w - 2, h - 2, r); ctx.stroke();
-  ctx.strokeStyle = '#5070c0'; ctx.lineWidth = 1; roundRect(x + 4.5, y + 4.5, w - 9, h - 9, Math.max(2, r - 2)); ctx.stroke();
+  const [outer, inner, bg] = FRAMES[frameColor()];
+  ctx.fillStyle = bg; roundRect(x, y, w, h, r); ctx.fill();
+  ctx.strokeStyle = outer; ctx.lineWidth = 3; roundRect(x + 1.5, y + 1.5, w - 3, h - 3, r); ctx.stroke();
+  ctx.strokeStyle = inner; ctx.lineWidth = 1.5; roundRect(x + 5.25, y + 5.25, w - 10.5, h - 10.5, Math.max(2, r - 2)); ctx.stroke();
 }
 function drawMoveHints() {
   const p = state.player; if (!p) return;
@@ -3226,7 +3246,7 @@ function renderMenu() {
   ctx.font = `${fs}px ${font}`; ctx.textBaseline = 'middle';
   const title = m.title + (state.busy ? '  …' : '');
   const tabH = Math.round(24 * s), pad = Math.round(12 * s), cur = Math.round(18 * s);
-  const w = Math.min(LOG.w - 24, Math.max(200, ...m.items.map((it, i) => ctx.measureText(it).width + pad * 2 + cur + (m.icons?.[i] ? 20 * s : 0))));
+  const w = Math.min(LOG.w - 24, Math.max(200, ...m.items.map((it, i) => ctx.measureText(it).width + pad * 2 + cur + 6 * s + (m.icons?.[i] ? 20 * s : 0))));
   const x = state.scene === 'hub' ? (LOG.w - w) / 2 : 12, y = 12;
   const maxRows = Math.max(3, Math.floor((LOG.h - y - tabH - 10 - pad * 2) / rh));
   const rows = Math.min(m.items.length, maxRows);
@@ -3254,7 +3274,7 @@ function renderMenu() {
     const itemName = !ic && m.noItemIcons !== true ? itemInText(m.items[i]) : null;
     if (itemName && drawItemIcon(ctx, itemName, x + pad + cur, ty - isz / 2 - 1, isz + 2)) ic = true;
     else if (ic) { const im = typeIconImg(ic); if (im.complete) ctx.drawImage(im, x + pad + cur, ty - isz / 2, isz, isz); else im.onload = () => scheduleRender(); }
-    ctx.fillText(m.items[i], x + pad + cur + (ic ? isz + 5 : 0), ty, w - pad * 2 - cur - (ic ? isz + 5 : 0));
+    ctx.fillText(m.items[i], x + pad + cur + (ic ? isz + 5 : 0), ty, w - pad * 2 - cur - (ic ? isz + 5 : 0) - 6 * s);   // (un poco de aire antes del marco)
     if (i === m.index && blink) { ctx.fillStyle = '#f8f8f8'; ctx.beginPath(); ctx.moveTo(x + pad, ty - 5 * s); ctx.lineTo(x + pad + 8 * s, ty); ctx.lineTo(x + pad, ty + 5 * s); ctx.fill(); }
   }
   // flechas de desplazamiento
@@ -3302,9 +3322,7 @@ function renderDialog() {
   const top = d.top, y = top ? 6 : LOG.h - h - 6;
   if (d.pageStart !== d.i) { d.pageStart = d.i; d.t0 = performance.now(); }
   // caja
-  ctx.fillStyle = '#10204a'; roundRect(x, y, w, h, 6); ctx.fill();
-  ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 2; roundRect(x + 2, y + 2, w - 4, h - 4, 5); ctx.stroke();
-  ctx.strokeStyle = '#5070c0'; ctx.lineWidth = 1; roundRect(x + 5, y + 5, w - 10, h - 10, 4); ctx.stroke();
+  pmdBox(x, y, w, h, 6);
   // retrato (a la izquierda, fuera del marco, como en PMD)
   let tx = x + 14;
   // retratos con emociones (atlas de PMDCollab): quién habla y con qué cara
@@ -3312,9 +3330,7 @@ function renderDialog() {
   const PS = 80, PF = PS + 12;   // retrato al doble de su tamaño (nítido) y marco
   prs.forEach(([sp, emo], i) => {
     const px0 = page.side === 'right' ? x + w - 4 - PF - i * (PF + 6) : x + 4 + i * (PF + 6), py0 = top ? y + h + 4 : y - PF - 4;   // retrato encima del cuadro (o debajo, si el cuadro está arriba); a la derecha para el segundo interlocutor
-    ctx.fillStyle = '#10204a'; roundRect(px0, py0, PF, PF, 6); ctx.fill();
-    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 2; roundRect(px0 + 2, py0 + 2, PF - 4, PF - 4, 5); ctx.stroke();
-    ctx.strokeStyle = '#5070c0'; ctx.lineWidth = 1; roundRect(px0 + 4.5, py0 + 4.5, PF - 9, PF - 9, 4); ctx.stroke();
+    pmdBox(px0, py0, PF, PF, 6);
     let drawn;
     if (page.side === 'right') { ctx.save(); ctx.translate(px0 + 6 + PS, py0 + 6); ctx.scale(-1, 1); drawn = drawPortrait(ctx, sp, emo, 0, 0, PS); ctx.restore(); }   // volteado: mira hacia dentro, como en el original
     else drawn = drawPortrait(ctx, sp, emo, px0 + 6, py0 + 6, PS);
@@ -3394,9 +3410,9 @@ function bindInput() {
   });
   window.addEventListener('keyup', ev => { const b = BTN[ev.key.toLowerCase()]; held.delete(b); if (b === 'A' || b === 'B') stopPassing(); if (b === 'L' || b === 'Y') render(); });
   window.addEventListener('keydown', ev => {
-    if (ev.key.toLowerCase() === 'm' && state.scene === 'dungeon' && ev.target?.tagName !== 'INPUT' && !state.menu) { state.showMap = state.showMap === false; render(); return; }
-    if (ev.key.toLowerCase() === 'm' && state.scene === 'hub' && ev.target?.tagName !== 'INPUT') { state.showMask = !state.showMask; say(state.showMask ? 'Vista de colisiones: ACTIVADA (M para quitarla)' : 'Vista de colisiones: desactivada'); render(); return; }
-    if (['INPUT', 'SELECT'].includes(ev.target.tagName) || ev.target.closest?.('.settings-panel')) return; // teclas del menú de opciones: no mueven al personaje
+    if (ev.key.toLowerCase() === 'm' && state.scene === 'dungeon' && !['INPUT', 'TEXTAREA'].includes(ev.target?.tagName) && !state.menu) { state.showMap = state.showMap === false; render(); return; }
+    if (ev.key.toLowerCase() === 'm' && state.scene === 'hub' && !['INPUT', 'TEXTAREA'].includes(ev.target?.tagName)) { state.showMask = !state.showMask; say(state.showMask ? 'Vista de colisiones: ACTIVADA (M para quitarla)' : 'Vista de colisiones: desactivada'); render(); return; }
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(ev.target.tagName) || ev.target.closest?.('.settings-panel')) return; // teclas del menú de opciones: no mueven al personaje
     const btn = BTN[ev.key.toLowerCase()]; if (!btn) return;
     ev.preventDefault(); if (ev.repeat && !ARROW_VEC[btn]) return;
     held.add(btn);
@@ -3473,6 +3489,19 @@ function setupMusicControl() {
   document.getElementById('set-version').textContent = VERSION_LABEL;
   const dv = document.getElementById('opt-dview');
   if (dv) { dv.value = dungeonWide() ? 'wide' : 'near'; dv.addEventListener('change', () => { try { localStorage.setItem('mm_dview', dv.value); } catch {} dv.blur(); render(); }); }
+  // el buzón: comentarios y fallos (se manda también dónde estabas, para poder reproducirlo)
+  const fbm = document.getElementById('feedback-modal'), fbt = document.getElementById('fb-text'), fbmsg = document.getElementById('fb-msg');
+  const fbClose = () => fbm.classList.add('hidden');
+  document.getElementById('btn-feedback')?.addEventListener('click', () => { document.getElementById('settings-panel')?.classList.add('hidden'); fbm.classList.remove('hidden'); fbmsg.textContent = ''; setTimeout(() => fbt.focus(), 30); });
+  document.getElementById('fb-cancel')?.addEventListener('click', fbClose);
+  document.getElementById('fb-send')?.addEventListener('click', async () => {
+    const where = state.scene === 'dungeon' ? `${state.dungeonDef?.name || ''} ${state.floor}F` : `aldea (${state.hub?.area || '—'})`;
+    try { await api('/feedback', { kind: document.getElementById('fb-kind').value, text: fbt.value, context: { where, version: VERSION_LABEL, ua: navigator.userAgent.slice(0, 160), w: innerWidth, h: innerHeight } });
+      fbt.value = ''; fbmsg.textContent = '¡Gracias! Lo hemos recibido.'; setTimeout(fbClose, 1400); }
+    catch (e) { fbmsg.textContent = e.message || 'No se ha podido enviar. Prueba otra vez.'; }
+  });
+  const fr = document.getElementById('opt-frame');
+  if (fr) { fr.value = frameColor(); fr.addEventListener('change', () => { try { localStorage.setItem('mm_frame', fr.value); } catch {} fr.blur(); render(); }); }
   const inf = document.getElementById('opt-info');
   if (inf) { inf.value = infoMode(); applyInfoMode(); inf.addEventListener('change', () => { try { localStorage.setItem('mm_info', inf.value); } catch {} applyInfoMode(); document.body.classList.toggle('log-inside', logInside()); inf.blur(); applyScale(); }); }
   const lg = document.getElementById('opt-log');
