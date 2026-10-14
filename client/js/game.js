@@ -1404,6 +1404,35 @@ function wakeGuard(s) {
               { who: 'Slaking', sp: 'slaking', mood: 'Normal', text: 'Eso no estaba en el trato. Ni hablar.' }]);
   say('¡Slaking se une a la pelea… contra el intruso!'); render();
 }
+// La sombra del lago: el Pokémon se dibuja en un lienzo aparte y se convierte en silueta oscura (tinte morado), con huecos (pecho, una
+// pata, la cresta, un trozo del cuello: le faltan partes, como a un recuerdo a medias) y los bordes deshilachados, que se mueven
+const SHADOW_HOLES = [[0.58, 0.50, 0.07, 0.06], [0.28, 0.88, 0.07, 0.09], [0.62, 0.08, 0.07, 0.09], [0.38, 0.30, 0.04, 0.05], [0.80, 0.62, 0.05, 0.05]];   // (x, y, radio x, radio y), en fracción de su figura
+let shadowCanvas = null;
+function drawShadowMon(e, px, py, tile) {
+  const S = Math.round(tile * 7), off = Math.round(tile * 3), Z = 1.65, T2 = tile * Z;   // (un legendario: más grande)
+  if (!shadowCanvas) shadowCanvas = document.createElement('canvas');
+  if (shadowCanvas.width !== S) { shadowCanvas.width = S; shadowCanvas.height = S; }
+  const c = shadowCanvas.getContext('2d', { willReadFrequently: true }); c.clearRect(0, 0, S, S); c.imageSmoothingEnabled = false;
+  if (!Sprites.drawMon(c, e, off - (T2 - tile) / 2, off - (T2 - tile), T2)) return;   // (con los pies en el mismo sitio)
+  const img = c.getImageData(0, 0, S, S), D = img.data;
+  let x0 = S, y0 = S, x1 = 0, y1 = 0;   // la caja de su figura
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (D[(y * S + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 <= x0) return;
+  const bw = x1 - x0, bh = y1 - y0, t = Math.floor(performance.now() / 160), alphaAt = (x, y) => (x < 0 || y < 0 || x >= S || y >= S) ? 0 : D[(y * S + x) * 4 + 3];
+  const holes = SHADOW_HOLES.map(([fx, fy, rx, ry]) => [x0 + fx * bw, y0 + fy * bh, Math.max(3, rx * bw), Math.max(3, ry * bh)]);
+  const out = c.createImageData(S, S), O = out.data;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const i = (y * S + x) * 4; if (D[i + 3] <= 20) continue;
+    if (holes.some(([hx, hy, rx, ry]) => ((x - hx) / rx) ** 2 + ((y - hy) / ry) ** 2 < 1)) continue;   // le falta ese trozo
+    const edge = alphaAt(x - 2, y) <= 20 || alphaAt(x + 2, y) <= 20 || alphaAt(x, y - 2) <= 20 || alphaAt(x, y + 2) <= 20;
+    const n = Math.abs(Math.sin(x * 12.9898 + y * 78.233 + t * 3.1) * 43758.5453 % 1);
+    if (edge && n < 0.45) continue;   // bordes deshilachados (cambian con el tiempo)
+    const lum = (D[i] + D[i + 1] + D[i + 2]) / 765;   // un poco del relieve del original, muy oscurecido
+    O[i] = 16 + lum * 70; O[i + 1] = 6 + lum * 40; O[i + 2] = 34 + lum * 96; O[i + 3] = 238;   // (con relieve: se distinguen la cresta, el pecho, las placas)
+  }
+  c.putImageData(out, 0, 0);
+  ctx.save(); ctx.shadowColor = 'rgba(70, 30, 120, .55)'; ctx.shadowBlur = tile * 0.4; ctx.drawImage(shadowCanvas, px - off, py - off); ctx.restore();
+}
 function arenaCleared() {
   if (!state.dungeon?.arena || state.arenaDone || state.enemies.some(e => e.isBoss && e.hp > 0)) return;
   state.arenaDone = true;
@@ -1420,6 +1449,7 @@ const BIRD_AFTER = {   // lo que dicen Moltres y Articuno al ser vencidos
   moltres: ['¡Grr…! … Espera. Tú no llevas mi pluma.', 'Ese Scyther subió hasta aquí y me la arrancó.', 'Si buscas al ladrón, busca a un Scyther. Y ahora, ¡largo de mi cima!'],
   articuno: ['… No ibas con él. Lo noto.', 'Ese Scyther se llevó mi pluma. Dice que con las tres abrirá un portal.', 'Si de verdad lo abre, no será solo asunto nuestro.'],
 };
+const SHADOW_LINES = ['… … …', '(Del lago se alza una sombra enorme. Le faltan trozos, como a un recuerdo a medias.)', '(Y se mueve igual que tú.)'];
 const BOSS_LINES = {
   chatot: ['¡Alto ahí, recluta!', 'Antes de dejarte ir a mazmorras de verdad, tendrás que superar mi examen.', '¡En guardia! Y nada de llorar después, ¿eh?'],
   celebi: ['El bosque te ha visto crecer piso a piso…', 'Demuéstrame que mereces llegar hasta aquí.'],
@@ -1539,6 +1569,10 @@ function newFloor() {
     }
   }
   if (huertoRepeat && built.boss) placeSleepyGuard(built.boss);
+  if (floorDef.finalBossShadow && built.boss?.species === floorDef.finalBoss) {   // la sombra del lago: un recuerdo a medias de Dialga, que te copia
+    const b = built.boss; b.shadowForm = true; b.name = '???'; b.noRecruit = true;
+    b.moves = (state.player.moves || []).map(m => ({ name: m.name, pp: MOVES[m.name]?.pp ?? 20 }));
+  }
   state.seen = Array.from({ length: CFG.map.h }, () => new Array(CFG.map.w).fill(false));
   floorStartTraits(); updateVisibility(); render();
   (built.messages || []).forEach(say);
@@ -1553,8 +1587,8 @@ function newFloor() {
       setTimeout(() => dungeonScene('zapdos-cima'), 300);
     }
     else {
-    const boss = built.boss, lines = BOSS_LINES[boss?.species] || [boss?.big ? `${boss.name} te espera con sus súbditos.` : `${boss?.name} aguarda al final de la sala. Su presencia llena el aire.`];
-    openDialog(lines.map(t => ({ who: BOSS_LINES[boss?.species] ? boss.name : undefined, sp: BOSS_LINES[boss?.species] ? boss.species : undefined, mood: 'Determined', text: t })));
+    const boss = built.boss, lines = (boss?.shadowForm && SHADOW_LINES) || BOSS_LINES[boss?.species] || [boss?.big ? `${boss.name} te espera con sus súbditos.` : `${boss?.name} aguarda al final de la sala. Su presencia llena el aire.`];
+    openDialog(lines.map(t => ({ who: boss?.shadowForm ? (t.startsWith('(') ? undefined : '???') : BOSS_LINES[boss?.species] ? boss.name : undefined, sp: boss?.shadowForm ? undefined : BOSS_LINES[boss?.species] ? boss.species : undefined, mood: 'Determined', text: t })));
     }
   } else if (built.kind === 'miniboss') say(`B${state.floor}F. Un guardián bloquea las escaleras…`);
   else if (def.eras && (state.floor - 1) % def.eraEvery === 0) say(`B${state.floor}F. El tiempo se retuerce… estás en un eco de ${dungeonById(state.era).name}.`);
@@ -3211,7 +3245,8 @@ function renderDungeon() {
     if (vx < -1 || vy < -1 || vx > CFG.view.w || vy > CFG.view.h || !isVisibleNow(e.x, e.y)) return;
     const px = vx * tile, py = vy * tile, cx = px + tile / 2, cy = py + tile / 2;
     if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, tile / 2 - 2, 0, Math.PI * 2); ctx.stroke(); }
-    if (!Sprites.drawMon(ctx, e, px, py, tile)) { ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(cx, py + tile - 4, tile / 3, tile / 9, 0, 0, Math.PI * 2); ctx.fill(); animating = true; }   // aún descargando: solo su sombra
+    if (e.shadowForm) { drawShadowMon(e, px, py, tile); animating = true; }
+    else if (!Sprites.drawMon(ctx, e, px, py, tile)) { ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(cx, py + tile - 4, tile / 3, tile / 9, 0, 0, Math.PI * 2); ctx.fill(); animating = true; }   // aún descargando: solo su sombra
     else animating = true;
     if (drawStatusIcon(e, px, py, tile)) animating = true;   // iconos animados de estado sobre el Pokémon
     if (e.emotes?.length) {   // efectos sobre la cabeza (escenas en la mazmorra)
