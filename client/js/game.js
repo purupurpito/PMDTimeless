@@ -276,7 +276,7 @@ export async function startGame(me) {
   } catch {}
   sessionStart = Date.now(); track('session_start', { ...deviceInfo(), mode: 'servidor', rank: rankOf(meta.rankPts || 0), starter: meta.starters?.[0] }); flushTelemetry();
   state.waitingRescue = !!me.rescue;
-  if (me.mailNews && !me.rescue) { const news = (tries = 0) => { if (state.scene === 'hub' && !state.dialog && !state.menu) openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Tienes correo! Pásate por el buzón de la plaza.' }]); else if (tries < 10) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1200); }
+  if (me.mailNews && !me.rescue) { const news = (tries = 0) => { if (state.scene === 'hub' && state.hub.area === 'campamento') return; if (state.scene === 'hub' && !state.dialog && !state.menu) openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Tienes correo! Pásate por el buzón de la plaza.' }]); else if (tries < 10) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1200); }
   if (me.rescue) setTimeout(() => showRescueWait(me.rescue), 300);   // tu equipo sigue esperando un rescate
   if (pendingEnd()) flushPendingEnd();   // un resultado que no llegó la última vez (se envía solo)
   document.getElementById('hud-user').textContent = user.name;
@@ -284,6 +284,7 @@ export async function startGame(me) {
   await Sprites.load();
   bindInput();
   if (!meta.tutorialDone) { state.hub.area = 'plaza'; Object.assign(state.hub, { x: 404, y: 262, facing: [1, -1] }); state.hub.introChatot = true; }   // Chatot te espera en la entrada
+  else if (meta.expedition === 'bosque' && brumasOpen(meta, !!window.__mmDevExpedition)) { state.hub.area = 'campamento'; Object.assign(state.hub, HUB.campamento.spawn, { facing: [0, -1] }); }   // con la Expedición en marcha, apareces en el campamento
   enterHub({ noScenes: true });
   if (!meta.tutorialDone) tutorial(); else say(`Bienvenido de nuevo, ${user.name}.`);
   await hubAssetsReady();   // la pantalla de carga se quita cuando la aldea y los sprites de la zona están descargados
@@ -538,7 +539,9 @@ async function playPendingScenes(fromRun = false) {
   if (!user || state.tour) return;
   let usedReturn = false;   // una escena «a la vuelta» por regreso, salvo las que se encadenan (chain: true)
   const ctx = () => ({ ...meta, lastRun: state.lastRun });   // (la última exploración: para «si fallas en la cueva…»)
-  const nextOne = () => (fromRun && pendingScene(ctx(), 'return', usedReturn)) || pendingScene(meta);
+  const inCamp = () => state.hub.area === 'campamento';   // en el campamento de la Expedición, solo las escenas de la Expedición
+  const okHere = sc => sc && (!inCamp() || sc.id.startsWith('exp-')) ? sc : null;
+  const nextOne = () => okHere((fromRun && pendingScene(ctx(), 'return', usedReturn)) || pendingScene(meta));
   let next = nextOne(); if (!next) return;
   await whenIdle();   // nunca encima de un aviso o un menú abierto
   if (!user || state.tour || state.scene !== 'hub') return;
@@ -559,7 +562,7 @@ async function runScene(sc) {
 function hubExtras() {
   checkSpecialDay(); checkMyRescue();
   setTimeout(() => { if (!state.dialog && !state.menu) fountainNews(); }, 700);
-  if (state.mailArrived) { const news = (tries = 0) => { if (state.scene !== 'hub') return; if (!state.dialog && !state.menu && !document.querySelector('.penalty-report')) { state.mailArrived = false; openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Te ha llegado una carta mientras estabas fuera! Pásate por el buzón de la plaza.' }]); } else if (tries < 20) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1500); }
+  if (state.mailArrived) { const news = (tries = 0) => { if (state.scene !== 'hub' || state.hub.area === 'campamento') return; if (!state.dialog && !state.menu && !document.querySelector('.penalty-report')) { state.mailArrived = false; openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Te ha llegado una carta mientras estabas fuera! Pásate por el buzón de la plaza.' }]); } else if (tries < 20) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1500); }
   if (state.pausedRun) openMenu({ title: `Tienes una exploración a medias en ${dungeonById(state.pausedRun.dungeonId).name}`, items: ['Continuar ahora', 'Más tarde'], onSelect: i => { if (i === 0) resumeRun(); } });
 }
 
@@ -637,7 +640,7 @@ function hubLoop() {
         if (!tryMove(dx * sp, dy * sp)) { tryMove(dx * sp, 0) || tryMove(0, dy * sp); }
         h.movedAt = performance.now();
         // (when: salidas que solo están a veces, p. ej. la escalera del café)
-        for (const ex of area.exits) if ((!ex.when || ex.when(meta || {})) && inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; const sc = user && !state.tour && pendingScene(meta, 'dungeon-exit'); if (sc) runScene(sc).then(() => openDungeonMenu()); else openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); fountainNews(); const asc = user && !state.tour && pendingScene(meta, 'area:' + h.area); if (asc) setTimeout(() => runScene(asc), 350); } break; }   // al irte de la plaza, Chatot entra en el gremio
+        for (const ex of area.exits) if ((!ex.when || ex.when(meta || {})) && inExit(ex, h.x, h.y)) { held.clear(); if (ex.action === 'brumas') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; enterBrumas(); } else if (ex.action === 'dungeons') { if (ex.back) Object.assign(h, ex.back); h.facing = [0, 1]; const sc = user && !state.tour && pendingScene(meta, 'dungeon-exit'); if (sc) runScene(sc).then(() => openDungeonMenu()); else openDungeonMenu(); } else { blink(); h.area = ex.to; Object.assign(h, ex.at); h.introChatot = false; spawnWanderers(); fountainNews(); const asc = user && !state.tour && pendingScene(meta, 'area:' + h.area); if (asc) setTimeout(() => runScene(asc), 350); } break; }   // al irte de la plaza, Chatot entra en el gremio
       }
     }
     h.t++; if (h.t % 2 === 0) moveWanderers();
@@ -704,6 +707,7 @@ function hubInteract() {
   for (const s of area.signs || []) if ((!s.when || s.when(meta || {})) && inRect(fx, fy, s.rect)) return openDialog([{ who: '', text: s.text }]);   // (when: solo si se cumple, p. ej. la roca del café)
   for (const hs of area.hotspots || []) if (inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) return hotspotAction(hs);
   for (const ex of area.exits) if (ex.action === 'dungeons' && inRect(fx, fy, ex.rect)) return openDungeonMenu();
+  for (const ex of area.exits) if (ex.action === 'brumas' && inRect(fx, fy, ex.rect)) return enterBrumas();
 }
 const WANDER_LINES = ['¡Buenos días! ¿Eres nuevo en el gremio?', 'Dicen que en el Bosque Frondoso hay un Pokémon verde muy raro.', 'Kecleon sube los precios cada vez que alguien vuelve con una pepita…', 'Mi primo se unió a un equipo de exploración y ya no escribe.', 'Cuidado con las Casas Monstruo. Yo perdí ahí a mi mejor amigo. Bueno, se hizo amigo de ellos.'];
 const CHATOT_IDLE = ['Chatot: "Ser la mano derecha del maestro no es fácil, no señor."','Chatot: "El maestro Pidgeot lleva tres dias meditando. Yo creo que duerme."','Chatot: "Sabias que antes repartiamos correo? Otros tiempos."','Chatot: "No toques nada del despacho. Que no. Que no."','Chatot: "Un día me montan un número musical en condiciones."'];
@@ -755,7 +759,25 @@ function readLetter(id) {
   if (x && !x.read) { x.read = true; api('/mail/read', { id }).then(r => { if (r?.mail) meta.mail = r.mail; }).catch(() => {}); }
   openDialog(pages, openMailbox);
 }
+const CAMP_TALK = {
+  pidgeot: ['El lago está al otro lado del bosque. Con esta niebla, quédate cerca de mí.'],
+  pidgeot_back: ['La niebla engaña a cualquiera. Descansa un poco, y lo volvemos a intentar juntos.'],
+  chatot: ['¡Recluta! Las provisiones son para todos. Coge lo que necesites… ¡con moderación!'],
+  machamp: ['La leña de la hoguera la he traído yo. Cuatro brazos tienen sus ventajas.'],
+  heracross: ['¡Yo voy delante! … Bueno, después de Pidgeot. Y de ti. ¡Pero delante del resto!'],
+  ampharos: ['Con esta niebla, mi luz ayuda poco. Pero algo ayuda.'],
+  smeargle: ['Estoy dibujando el campamento. Me falta la niebla… es muy difícil de pintar.'],
+  teddiursa: ['Sentret dice que en el bosque hay fantasmas. Yo no le creo. … ¿Tú le crees?'],
+  sentret: ['¡Hay fantasmas! ¡Los he oído! … O era Heracross roncando.'],
+  mawile: ['Si vuelves con algún rasguño, aquí estaremos. Para eso montamos el campamento.'],
+  sableye: ['Je. Alguien tiene que vigilar las provisiones.'],
+};
 function talkToBase(kind) {
+  if (kind.startsWith('camp_')) {
+    let sp = kind.slice(5), lines = CAMP_TALK[sp];
+    if (sp === 'pidgeot' && state.lastRun?.dungeon === 'brumas' && state.lastRun?.outcome !== 'clear') lines = CAMP_TALK.pidgeot_back;
+    return openDialog(lines.map(t => ({ who: SPECIES[sp].name, sp, mood: 'Normal', text: t })));
+  }
   switch (kind) {
     case 'mawile':   // guarda la puerta del despacho: solo pasan los de rango Diamante o superior
       if (rankOf(meta.rankPts) < 4) return openDialog([{ who: 'Mawile', sp: 'mawile', mood: 'Worried', text: 'Lo siento, pero el jefe está ocupado. Por normas estipuladas del gremio, solamente gente de rango Diamante o superior pueden acceder de forma directa a su despacho.' }]);
@@ -817,6 +839,9 @@ function talkToBase(kind) {
 }
 function hotspotAction(hs) {
   if (hs.action === 'board') return openBoardMenu();
+}
+function enterBrumas() {   // desde el campamento: directamente al bosque
+  openMenu({ title: 'Bosque de las Brumas', items: ['Entrar en el bosque', 'Todavía no'], onSelect: i => { if (i === 0) startRun(dungeonById('brumas')); } });
 }
 function openDungeonMenu() {
   const rank = rankOf(meta.rankPts);
@@ -1240,6 +1265,10 @@ async function endRun(outcome) {
   // al volver de cualquier exploración apareces en la zona de descanso del gremio
   state.hub.area = 'descanso'; Object.assign(state.hub, HUB.descanso.spawn); state.hub.facing = [0, -1]; state.hub.inBed = null;
   if (outcome === 'death') { const bed = HUB.descanso.beds[Math.floor(Math.random() * HUB.descanso.beds.length)]; Object.assign(state.hub, { x: bed.x, y: bed.y, facing: [0, 1] }); state.hub.inBed = bed; }  // al caer, despiertas en una cama (las camas no chocan)
+  if (dungeonIdForStory === 'brumas' && meta.expedition === 'bosque' && brumasOpen(meta, !!window.__mmDevExpedition)) {   // la Expedición: vuelves al campamento (para descansar, si caíste)
+    state.hub.area = 'campamento'; Object.assign(state.hub, HUB.campamento.spawn, { facing: [0, -1] }); state.hub.inBed = null;
+    if (outcome === 'death') setTimeout(() => say('Te recuperas en el campamento. Cuando estés listo, el bosque sigue ahí.'), 400);
+  }
   enterHub({ noScenes: true }); saveLastSeen();
   if (outcome === 'death') { musicZone = 'descanso'; playTrack('sad'); }   // escena triste: despiertas tras caer (hasta que Chansey termina)
   if (outcome === 'death' && r.result?.penalty) await showPenaltyReport(r.result.penalty, fallen);   // qué llevabas, qué has perdido y qué conservas

@@ -89,6 +89,20 @@ export const HUB = {
   // solo para escenas: una sala del Monte Eléctrico con las rocas cortadas por Scyther (tools/build-monte-sala.py)
   montesala: { img: 'client/assets/hub/scene_monte_sala.png', mask: 'client/assets/hub/scene_monte_sala_mask.png', spawn: { x: 380, y: 420 }, exits: [], npcs: [], signs: [] },
   // solo para escenas (no se llega andando): la cima del Monte Eléctrico, con el cielo de tormenta (tools/build-cima.py)
+  // El campamento de la Expedición al Lago Espejo (mapa y colisiones: tools/expedicion/campamento.py). Desde aquí se entra al Bosque de las
+  // Brumas; si caes en el bosque, vuelves aquí a descansar. Se puede hablar con todos.
+  campamento: {
+    img: 'client/assets/hub/scene_campamento.png', mask: 'client/assets/hub/scene_campamento_mask.png', spawn: { x: 342, y: 426 },
+    exits: [ { rect: [236, 136, 312, 151], action: 'brumas', label: 'Al Bosque de las Brumas', back: { x: 278, y: 166 } } ],   // (el borde de arriba del claro, bajo el hueco entre los árboles)
+    npcs: [
+      { id: 'pidgeot', x: 432, y: 288, facing: [0, 1], talk: 'camp_pidgeot' },   { id: 'chatot', x: 384, y: 288, facing: [0, 1], talk: 'camp_chatot' },
+      { id: 'machamp', x: 300, y: 420, facing: [1, 0], talk: 'camp_machamp' },   { id: 'heracross', x: 270, y: 300, facing: [1, 0], talk: 'camp_heracross' },
+      { id: 'ampharos', x: 426, y: 444, facing: [-1, 0], talk: 'camp_ampharos' }, { id: 'smeargle', x: 456, y: 420, facing: [0, 1], talk: 'camp_smeargle' },
+      { id: 'teddiursa', x: 498, y: 438, facing: [-1, 0], talk: 'camp_teddiursa' }, { id: 'sentret', x: 498, y: 336, facing: [0, 1], talk: 'camp_sentret' },
+      { id: 'mawile', x: 546, y: 294, facing: [0, 1], talk: 'camp_mawile' },     { id: 'sableye', x: 642, y: 324, facing: [-1, 0], talk: 'camp_sableye' },
+    ],
+    signs: [],
+  },
   // solo para escenas: el huerto de Spinda, con Slaking tumbado (tools/escenas/huerto-mapa.py)
   huertosala: { img: 'client/assets/hub/scene_huerto.png', mask: 'client/assets/hub/scene_huerto_mask.png', spawn: { x: 384, y: 420 }, exits: [], npcs: [], signs: [] },
   // solo para escenas: las cimas de la Sierra Ígnea (el volcán, con su hueco) y de la Montaña Gélida (el estanque helado)
