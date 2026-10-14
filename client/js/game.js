@@ -1367,6 +1367,7 @@ const BOSS_LINES = {
   chatot: ['¡Alto ahí, recluta!', 'Antes de dejarte ir a mazmorras de verdad, tendrás que superar mi examen.', '¡En guardia! Y nada de llorar después, ¿eh?'],
   celebi: ['El bosque te ha visto crecer piso a piso…', 'Demuéstrame que mereces llegar hasta aquí.'],
   suicune: ['El agua de esta cueva no miente. Veamos si tu corazón es igual de claro.'],
+  slaking: ['Uaaah… ¿Quién viene a molestar?', 'Este huerto es mío. Y la siesta, también.'],
   zapdos: ['¡Has escalado hasta la cima de la tormenta! Aquí mando yo.'],
   moltres: ['¡¿OTRA VEZ?! ¡Ya te llevaste mi pluma, insecto! ¡¿Qué más quieres?!', '… No. Tú no eres él. Me da igual: si vienes de su parte… ¡arderás igual!'],
   articuno: ['¿Otro más? ¿Cuántos vais a subir a mi cima?', 'Subes oliendo a ceniza, como ese Scyther. No me interesa tu respuesta: esta cima no la pisa nadie más.'],
@@ -2543,6 +2544,10 @@ function enemyTurn(e) {
   if (e.bowedOut) return;   // Chatot, derrotado, está en su escena
   if (e.delay > 0) { e.delay--; return; }   // tarda en reaccionar (Kecleon tras un robo)
   const st = preTurn(e); if (st.skip || e.hp <= 0) return;
+  if (e.dozes && !e.status) {   // Slaking: cada pocos turnos le puede la pereza, bosteza y se queda dormido un par de turnos (los golpes no lo despiertan)
+    e.dozeIn = (e.dozeIn ?? state.rng.int(3, 4)) - 1;
+    if (e.dozeIn <= 0) { e.status = { kind: 'sleep', turns: 2 }; e.dozeIn = state.rng.int(3, 5); say(`${e.name} bosteza… y se queda dormido.`); render(); return; }
+  }
   if (fleeTurn(e)) return;   // asustado, con Fuga o forajido que huye
   if (e.mega && MEGA_DIALOG[e.species]) {
     const dlg = MEGA_DIALOG[e.species], dist = cheb(state.player, e), room = roomOf(e), playerInRoom = room && roomOf(state.player) === room;

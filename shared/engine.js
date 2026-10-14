@@ -324,6 +324,8 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     const md = isFinal ? def.md : rng.pick(big && rng.random() < 0.7 ? MD_RARE_POOL : MD_POOL);
     boss = createMon(species, isFinal && def.finalBossLevel ? def.finalBossLevel : wildLevel() + (big ? 8 : 5), { x: stairs.x, y: stairs.y + 1, asleep: false, isBoss: true, isLegendary: !!SPECIES[species]?.legendary, md, big, noRecruit: isFinal && !!def.finalBossNoRecruit });
     if (isFinal && def.finalBossMoves) boss.moves = def.finalBossMoves.map(n => ({ name: n, pp: MOVES[n]?.pp ?? 20 }));   // p. ej. Chatot del entrenamiento: solo Placaje
+    if (isFinal && def.finalBossHp) { boss.maxHp = Math.round(boss.maxHp * def.finalBossHp); boss.hp = boss.maxHp; }   // más vida (p. ej. Slaking)
+    if (isFinal && def.finalBossDozes) boss.dozes = true;   // se queda dormido a ratos (Slaking)
     enemies.push(boss);
     if (big) for (let i = 0; i < 4; i++) { const p = randomFloorIn(rng, rooms[0], tiles); if (!occupied(p.x, p.y)) enemies.push(createMon(rng.pick(MINIBOSS_POOL), wildLevel() + 1, { ...p, asleep: false, minion: true })); }
     return { dungeon, enemies, groundItems, npcs, monsterHouse, kind, boss, messages, weather };

@@ -198,7 +198,7 @@ export const DUNGEONS = [
   { id: 'bosque', name: 'Bosque Frondoso', floors: 10, rank: 0, lvl: 1, pool: wildPool(['Planta', 'Bicho', 'Normal', 'Volador'], 330), finalBoss: 'celebi', md: 'Psíquico', terrain: ['water'] },
   { id: 'cueva',  name: 'Cueva Húmeda', requires: 'bosque', floors: 20, rank: 1, lvl: 4, pool: wildPool(['Roca', 'Tierra', 'Veneno', 'Agua'], 400), finalBoss: 'suicune', md: 'Surf', terrain: ['water'] },
   // Huerto de Spinda: el huerto de donde Spinda saca la fruta para sus zumos; un Snorlax enorme se lo está comiendo todo. Tras la Cueva Húmeda.
-  { id: 'huerto', name: 'Huerto de Spinda', requires: 'cueva', floors: 8, rank: 1, lvl: 6, pool: wildPool(['Planta', 'Hada', 'Normal', 'Bicho'], 420), finalBoss: 'snorlax', finalBossNoRecruit: true, md: 'Descanso', terrain: ['water'] },
+  { id: 'huerto', name: 'Huerto de Spinda', requires: 'cueva', floors: 8, rank: 1, lvl: 6, pool: wildPool(['Planta', 'Hada', 'Normal', 'Bicho'], 420), finalBoss: 'slaking', finalBossNoRecruit: true, finalBossHp: 2.6, finalBossDozes: true,   /* Slaking: mucha vida, y se queda dormido a ratos en mitad de la pelea */ md: 'Descanso', terrain: ['water'] },
   // Las montañas de los tres pájaros legendarios (cada uno guarda una Pluma Sagrada; Scyther se las está llevando).
   // Sierra Ígnea (Moltres): en los últimos 5 pisos la Barriga baja al doble. Montaña Gélida (Articuno): el frío te deja a la mitad de velocidad.
   { id: 'sierra', name: 'Sierra Ígnea', requires: 'huerto', floors: 20, rank: 1, lvl: 7, pool: wildPool(['Fuego', 'Roca', 'Tierra', 'Lucha'], 440), finalBoss: 'moltres', md: 'Lanzallamas', terrain: ['lava'], hungerLastFloors: 5 },
