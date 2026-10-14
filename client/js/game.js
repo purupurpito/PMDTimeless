@@ -1348,6 +1348,24 @@ async function chatotBowsOut(e, by) {
 // =====================================================================
 // Sala del jefe despejada: si era el jefe final, la mazmorra se completa sola; en las mazmorras sin fin aparece la escalera.
 // Espera a que se cierren los mensajes (entrega de la MD, reclutamiento…).
+// Slaking, el guardián dormido del huerto: no ataca ni le atacan; si le golpeas, se despierta de mal humor y la toma con el jefe
+function placeSleepyGuard(boss) {
+  const T = state.dungeon.tiles, free = (x, y) => T[y]?.[x] === 1 && !state.enemies.some(e => e.x === x && e.y === y) && !(state.player.x === x && state.player.y === y);
+  let best = null;
+  for (let dy = -7; dy <= 7; dy++) for (let dx = -9; dx <= 9; dx++) { const x = boss.x + dx, y = boss.y + dy; if (!free(x, y)) continue;
+    const corner = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => T[y + b]?.[x + a] !== 1).length;   // pegado a dos paredes: una esquina
+    const sc = corner * 10 + Math.abs(dx) + Math.abs(dy); if (!best || sc > best.sc) best = { x, y, sc }; }
+  if (!best) return;
+  const s = createMon('slaking', Math.max(5, boss.level - 2), { x: best.x, y: best.y, asleep: true, noRecruit: true });
+  s.neutral = true; s.dozes = true; s.status = { kind: 'sleep', turns: 9999 }; state.enemies.push(s);
+}
+function wakeGuard(s) {
+  state.enemies = state.enemies.filter(e => e !== s);
+  s.neutral = false; s.status = null; s.asleep = false; s.guest = true; s.noRecruit = true; s.runStartLevel = s.level; s.dozeIn = 3; state.team.push(s);
+  openDialog([{ who: 'Slaking', sp: 'slaking', mood: 'Normal', text: '¡¿Uaaah?! ¿Quién me…? … Un momento. ¿Ese está comiéndose MI huerto?' },
+              { who: 'Slaking', sp: 'slaking', mood: 'Normal', text: 'Eso no estaba en el trato. Ni hablar.' }]);
+  say('¡Slaking se une a la pelea… contra el intruso!'); render();
+}
 function arenaCleared() {
   if (!state.dungeon?.arena || state.arenaDone || state.enemies.some(e => e.isBoss && e.hp > 0)) return;
   state.arenaDone = true;
@@ -1369,6 +1387,7 @@ const BOSS_LINES = {
   celebi: ['El bosque te ha visto crecer piso a piso…', 'Demuéstrame que mereces llegar hasta aquí.'],
   suicune: ['El agua de esta cueva no miente. Veamos si tu corazón es igual de claro.'],
   slaking: ['Uaaah… ¿Quién viene a molestar?', 'Este huerto es mío. Y la siesta, también.'],
+  snorlax: ['Ñam… ñam… ¿Esta fruta es tuya? Ya no.', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
   zapdos: ['¡Has escalado hasta la cima de la tormenta! Aquí mando yo.'],
   moltres: ['¡¿OTRA VEZ?! ¡Ya te llevaste mi pluma, insecto! ¡¿Qué más quieres?!', '… No. Tú no eres él. Me da igual: si vienes de su parte… ¡arderás igual!'],
   articuno: ['¿Otro más? ¿Cuántos vais a subir a mi cima?', 'Subes oliendo a ceniza, como ese Scyther. No me interesa tu respuesta: esta cima no la pisa nadie más.'],
@@ -1455,7 +1474,10 @@ function newFloor() {
   state.freeActs = 0;
   showCard(def0.name, `B${state.floor}F`); setTimeout(() => dungeonTips(), 1200);   // consejos del Campo de Entrenamiento (tras el cartel)
   state.rng = makeRng(floorSeed(state.run.seed, state.floor));
-  const built = buildFloor(state.rng, state.dungeonDef, state.floor, state.missions, state.flags, state.run.seed);
+  // El Huerto, las veces siguientes (tras el trato con Slaking): otro glotón se cuela, y Slaking, el «guardián», duerme en una esquina
+  const huertoRepeat = state.dungeonDef?.id === 'huerto' && (meta?.scenes || []).includes('huerto-slaking');
+  const floorDef = huertoRepeat ? { ...state.dungeonDef, finalBoss: 'snorlax', finalBossHp: 2.2, finalBossDozes: false } : state.dungeonDef;
+  const built = buildFloor(state.rng, floorDef, state.floor, state.missions, state.flags, state.run.seed);
   state.era = built.dungeon.eraId || state.dungeonDef.id; state.weather = built.weather || 'none';
   for (const e of [...built.enemies, ...(built.npcs || [])]) { const m = Sprites.mons[e.species]; if (m && !m.requested) Sprites.ensure(m); }   // se descargan ya, antes de que se vean
   Object.assign(state, { dungeon: built.dungeon, enemies: built.enemies, groundItems: built.groundItems, npcs: built.npcs, monsterHouse: built.monsterHouse, shop: built.shop ? { ...built.shop, unpaid: [], robbed: false } : null });
@@ -1464,6 +1486,7 @@ function newFloor() {
   // el equipo aparece alrededor del líder
   for (const a of state.team) { const spot = DIRS8.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).find(s => walkableFor(a, s.x, s.y) && !occupied(s.x, s.y)); Object.assign(a, spot || { x: p.x, y: p.y }); a.facing = [0, -1]; }
   floorEvent(def);   // ¿piso especial? (dorado, huerto, tranquilo o multitud)
+  if (huertoRepeat && built.boss) placeSleepyGuard(built.boss);
   state.seen = Array.from({ length: CFG.map.h }, () => new Array(CFG.map.w).fill(false));
   floorStartTraits(); updateVisibility(); render();
   (built.messages || []).forEach(say);
@@ -1603,6 +1626,7 @@ function useMove(userMon, move) {
   const ownSide = move.range === 'self' || move.range === 'team';
   if (ownSide) say(`${who} usa ${move.name}.`);
   for (const target of targets) {
+    if (target.neutral) { if (ally) wakeGuard(target); continue; }   // Slaking, el guardián dormido del huerto
     if (ownSide) {                                                     // movimientos sobre uno mismo o el equipo: no fallan
       if (move.heal) { const h = Math.min(target.maxHp - target.hp, Math.floor(target.maxHp * move.heal / 100)); target.hp += h; say(`${target.name} recupera ${h} PS.`); }
       if (move.statFx) applyStages(target, move.statFx.changes).forEach(say);
@@ -2505,10 +2529,11 @@ function pickMove(mon, target, dist) {
   return dist === 1 && aligned ? 'basic' : null;
 }
 function allyTurn(a) {
+  if (a.dozes && !a.status) { a.dozeIn = (a.dozeIn ?? 3) - 1; if (a.dozeIn <= 0) { a.status = { kind: 'sleep', turns: 2 }; a.dozeIn = state.rng.int(3, 5); say(`${a.name} bosteza… y se queda dormido. ¡Ahora no, Slaking!`); return; } }
   const st = preTurn(a); if (st.skip || a.hp <= 0) return;
   const p = state.player;
   if (st.randomMove) { const [dx, dy] = state.rng.pick(DIRS8); if (canMove(a, dx, dy)) { a.x += dx; a.y += dy; } return; }
-  const visible = state.enemies.filter(e => cheb(e, a) <= CFG.sightRadius).sort((x, y) => cheb(x, a) - cheb(y, a));
+  const visible = state.enemies.filter(e => !e.neutral && cheb(e, a) <= CFG.sightRadius).sort((x, y) => cheb(x, a) - cheb(y, a));
   const nearest = visible[0];
   if (a.tactic !== 'evitar' && nearest) {
     const dist = cheb(nearest, a);
@@ -2542,7 +2567,7 @@ function dropCarried(e) {   // lo que llevaba, al suelo: en su casilla o en la m
   e.carried = [];
 }
 function enemyTurn(e) {
-  if (e.bowedOut) return;   // Chatot, derrotado, está en su escena
+  if (e.bowedOut || e.neutral) return;   // Chatot, derrotado, está en su escena · Slaking, dormido en su esquina
   if (e.delay > 0) { e.delay--; return; }   // tarda en reaccionar (Kecleon tras un robo)
   const st = preTurn(e); if (st.skip || e.hp <= 0) return;
   if (e.dozes && !e.status) {   // Slaking: cada pocos turnos le puede la pereza, bosteza y se queda dormido un par de turnos (los golpes no lo despiertan)
