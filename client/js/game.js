@@ -1393,7 +1393,7 @@ const BOSS_LINES = {
   munchlax: ['¡Ñam! ¡Ñam! ¡Todo esto es para nosotros!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
   swalot: ['Glup… ¡Un huerto entero para mí solito!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
   greedent: ['¡Mías! ¡Todas las bayas son mías! ¡Ni una para ti!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
-  skwovet: ['¡Ni se te ocurra! Tenemos los mofletes llenos… ¡y aún caben más!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
+  skwovet: ['¡Ni se te ocurra, hasta que no tengamos los mofletes llenos no nos vamos!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
   lickilicky: ['Slurp… Esta fruta sabe a gloria. Y tú… ¿a qué sabes?', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
   zapdos: ['¡Has escalado hasta la cima de la tormenta! Aquí mando yo.'],
   moltres: ['¡¿OTRA VEZ?! ¡Ya te llevaste mi pluma, insecto! ¡¿Qué más quieres?!', '… No. Tú no eres él. Me da igual: si vienes de su parte… ¡arderás igual!'],
