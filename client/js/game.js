@@ -1348,6 +1348,8 @@ async function chatotBowsOut(e, by) {
 // =====================================================================
 // Sala del jefe despejada: si era el jefe final, la mazmorra se completa sola; en las mazmorras sin fin aparece la escalera.
 // Espera a que se cierren los mensajes (entrega de la MD, reclutamiento…).
+// Los glotones que se cuelan en el Huerto mientras Slaking duerme (los pequeños, con más vida para que la pelea no sea un paseo)
+const HUERTO_GLUTTONS = [{ sp: 'snorlax', hp: 2.2 }, { sp: 'munchlax', hp: 3.2 }, { sp: 'swalot', hp: 2.4 }, { sp: 'greedent', hp: 2.4 }, { sp: 'skwovet', hp: 3.4 }, { sp: 'lickilicky', hp: 2.3 }];
 // Slaking, el guardián dormido del huerto: no ataca ni le atacan; si le golpeas, se despierta de mal humor y la toma con el jefe
 function placeSleepyGuard(boss) {
   const T = state.dungeon.tiles, free = (x, y) => T[y]?.[x] === 1 && !state.enemies.some(e => e.x === x && e.y === y) && !(state.player.x === x && state.player.y === y);
@@ -1388,6 +1390,11 @@ const BOSS_LINES = {
   suicune: ['El agua de esta cueva no miente. Veamos si tu corazón es igual de claro.'],
   slaking: ['Uaaah… ¿Quién viene a molestar?', 'Este huerto es mío. Y la siesta, también.'],
   snorlax: ['Ñam… ñam… ¿Esta fruta es tuya? Ya no.', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
+  munchlax: ['¡Ñam! ¡Ñam! ¡Todo esto es para mí!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
+  swalot: ['Glup… Me lo trago todo. Manzanas, bayas… ¿y tú?', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
+  greedent: ['¡Mías! ¡Todas las bayas son mías! ¡Ni una para ti!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
+  skwovet: ['¡Ni se te ocurra! Ya tengo los mofletes llenos… ¡y aún caben más!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
+  lickilicky: ['Slurp… Esta fruta sabe a gloria. Y tú… ¿a qué sabes?', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
   zapdos: ['¡Has escalado hasta la cima de la tormenta! Aquí mando yo.'],
   moltres: ['¡¿OTRA VEZ?! ¡Ya te llevaste mi pluma, insecto! ¡¿Qué más quieres?!', '… No. Tú no eres él. Me da igual: si vienes de su parte… ¡arderás igual!'],
   articuno: ['¿Otro más? ¿Cuántos vais a subir a mi cima?', 'Subes oliendo a ceniza, como ese Scyther. No me interesa tu respuesta: esta cima no la pisa nadie más.'],
@@ -1476,7 +1483,8 @@ function newFloor() {
   state.rng = makeRng(floorSeed(state.run.seed, state.floor));
   // El Huerto, las veces siguientes (tras el trato con Slaking): otro glotón se cuela, y Slaking, el «guardián», duerme en una esquina
   const huertoRepeat = state.dungeonDef?.id === 'huerto' && (meta?.scenes || []).includes('huerto-slaking');
-  const floorDef = huertoRepeat ? { ...state.dungeonDef, finalBoss: 'snorlax', finalBossHp: 2.2, finalBossDozes: false } : state.dungeonDef;
+  const glutton = huertoRepeat ? HUERTO_GLUTTONS[(state.run.seed + state.floor) % HUERTO_GLUTTONS.length] : null;   // un glotón al azar (fijo para esta exploración)
+  const floorDef = huertoRepeat ? { ...state.dungeonDef, finalBoss: glutton.sp, finalBossHp: glutton.hp, finalBossDozes: false } : state.dungeonDef;
   const built = buildFloor(state.rng, floorDef, state.floor, state.missions, state.flags, state.run.seed);
   state.era = built.dungeon.eraId || state.dungeonDef.id; state.weather = built.weather || 'none';
   for (const e of [...built.enemies, ...(built.npcs || [])]) { const m = Sprites.mons[e.species]; if (m && !m.requested) Sprites.ensure(m); }   // se descargan ya, antes de que se vean
