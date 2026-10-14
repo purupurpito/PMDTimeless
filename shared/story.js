@@ -1130,6 +1130,62 @@ export const SCENES = [
     ],
   },
   {
+    // La primera vez que bajas al café con el Huerto ya abierto (tras la Cueva Húmeda): Spinda, preocupada, salta la barra y te pide ayuda.
+    id: 'huerto-huesped', trigger: 'area:cafe', when: m => (m.cleared || []).includes('cueva') && (m.scenes || []).includes('cafe-inauguracion'),
+    area: 'cafe', player: { x: 300, y: 196, dir: 'down' }, hideNpcs: true, cam: { x: 84, y: 40 },
+    actors: { spinda: { sp: 'spinda', x: 588, y: 262, dir: 'down-left', noLook: true } },
+    steps: [
+      { do: 'narration', text: 'En el Café de Spinda…' }, { do: 'fade', to: 'in', ms: 900 },
+      // Spinda, inquieta tras la barra: mira a un lado y a otro
+      { do: 'turn', who: 'spinda', dir: 'left' }, { do: 'wait', ms: 450 }, { do: 'turn', who: 'spinda', dir: 'down' }, { do: 'wait', ms: 350 },
+      { do: 'turn', who: 'spinda', dir: 'right' }, { do: 'wait', ms: 450 }, { do: 'turn', who: 'spinda', dir: 'down-left' }, { do: 'emote', who: 'spinda', fx: 'sweat' }, { do: 'wait', ms: 600 },
+      { do: 'move', who: 'player', to: [[322, 236], [340, 258]], speed: 1.2 }, { do: 'turn', who: 'player', dir: 'right' }, { do: 'wait', ms: 300 },
+      { do: 'turn', who: 'spinda', toward: 'player' }, { do: 'emote', who: 'spinda', fx: 'exclaim' }, { do: 'wait', ms: 500 },
+      // salta por encima de la barra (mientras está en el aire, la barra no la tapa) y viene a saltitos hasta ti
+      { do: 'set', fg: false }, { do: 'jump', who: 'spinda', to: [484, 308], ms: 520, h: 34 }, { do: 'set', fg: true }, { do: 'wait', ms: 120 },
+      { do: 'jump', who: 'spinda', to: [428, 299], ms: 300, h: 12 }, { do: 'jump', who: 'spinda', to: [372, 290], ms: 300, h: 12 },
+      { do: 'turn', who: 'spinda', dir: 'up-left' }, { do: 'turn', who: 'player', dir: 'down-right' }, { do: 'wait', ms: 250 },
+      { do: 'say', who: 'spinda', mood: 'Worried', text: '¡Ay, novato! ¡Menos mal que llegas!' },
+      { do: 'say', who: 'spinda', mood: 'Worried', text: 'Algo ENORME se ha metido en mi huerto. Se pasa el día tumbado… comiéndose mi fruta.', multi: true },
+      { do: 'say', who: 'spinda', mood: 'Teary-Eyed', text: '¡Ya casi no me queda nada para los zumos!' },
+      { do: 'emote', who: 'player', fx: 'exclaim' }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'spinda', mood: 'Worried', text: 'Yo no me atrevo a acercarme… ¿Podrías ir tú a echarle un vistazo?' },
+      { do: 'jump', who: 'player', to: [340, 258], ms: 240, h: 8 }, { do: 'wait', ms: 320 }, { do: 'jump', who: 'player', to: [340, 258], ms: 240, h: 8 }, { do: 'wait', ms: 600 },   // asiente
+      { do: 'anim', who: 'spinda', anim: 'Hop', ms: 700 }, { do: 'wait', ms: 700 },
+      { do: 'say', who: 'spinda', mood: 'Joyous', text: '¡Gracias! Mi huerto está pasada la Cueva Húmeda. ¡Ve con cuidado!' },
+      { do: 'wait', ms: 800 }, { do: 'fade', to: 'out', ms: 1000 },
+    ],
+  },
+  {
+    // Al vencer a Slaking, la primera vez (desde endRun): no se mueve; Spinda llega, y hacen un trato. Y se queda dormido.
+    id: 'huerto-slaking', trigger: 'huerto', when: () => false,
+    area: 'huertosala', player: { x: 384, y: 420, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 60 }, boxBottom: false,
+    actors: { slaking: { sp: 'slaking', x: 384, y: 300, dir: 'down', noLook: true }, spinda: { sp: 'spinda', x: 384, y: 560, dir: 'up', hidden: true } },
+    steps: [
+      { do: 'anim', who: 'slaking', anim: 'Sleep', hold: true },
+      { do: 'fade', to: 'in', ms: 800 }, { do: 'wait', ms: 1000 }, { do: 'emote', who: 'slaking', fx: 'dots' }, { do: 'wait', ms: 900 },
+      { do: 'say', who: 'slaking', mood: 'Normal', text: 'Uaaah… ¿Ya está? Bueno. Yo de aquí no me muevo.' },
+      { do: 'emote', who: 'player', fx: 'sweat' }, { do: 'wait', ms: 600 },
+      { do: 'show', who: 'spinda' }, { do: 'turn', who: 'player', toward: 'spinda' },
+      { do: 'move', who: 'spinda', to: [[384, 470], [330, 400]], speed: 2.4 }, { do: 'turn', who: 'spinda', toward: 'slaking' }, { do: 'wait', ms: 300 },
+      { do: 'turn', who: 'spinda', dir: 'up-left' }, { do: 'wait', ms: 500 }, { do: 'turn', who: 'spinda', dir: 'up-right' }, { do: 'wait', ms: 500 }, { do: 'turn', who: 'spinda', toward: 'slaking' },   // los árboles pelados
+      { do: 'emote', who: 'spinda', fx: 'shock' }, { do: 'jump', who: 'spinda', to: [330, 400], ms: 280, h: 12 }, { do: 'wait', ms: 300 },
+      { do: 'say', who: 'spinda', mood: 'Shouting', text: '¡Mi huerto! ¡Te has comido casi toda la fruta!' },
+      { do: 'say', who: 'slaking', mood: 'Normal', text: 'Estaba buenísima.' },
+      { do: 'anim', who: 'spinda', anim: 'Twirl', ms: 1100 }, { do: 'wait', ms: 1100 }, { do: 'emote', who: 'spinda', fx: 'exclaim' }, { do: 'anim', who: 'spinda', anim: 'Nod', ms: 600 }, { do: 'wait', ms: 600 },
+      { do: 'say', who: 'spinda', mood: 'Determined', text: '… Vale. Si no te vas a mover, por lo menos no dejes que entre nadie más a comerse mi fruta.' },
+      { do: 'wait', ms: 400 },
+      { do: 'say', who: 'slaking', mood: 'Normal', text: '… Eso puedo hacerlo tumbado.' },
+      { do: 'jump', who: 'spinda', to: [330, 400], ms: 260, h: 12 },
+      { do: 'say', who: 'spinda', mood: 'Joyous', text: '¡Trato hecho! Pero no te comas mi fruta… Y a cambio te traeré zumos.' },
+      { do: 'wait', ms: 500 },
+      { do: 'say', who: 'slaking', mood: 'Joyous', text: '… Me gusta este huerto.' },
+      { do: 'emote', who: 'slaking', fx: 'sleep' }, { do: 'wait', ms: 1300 }, { do: 'emote', who: 'slaking', fx: 'sleep' }, { do: 'wait', ms: 400 },   // y se queda dormido ahí mismo: zZZ…
+      { do: 'turn', who: 'spinda', toward: 'slaking' }, { do: 'emote', who: 'spinda', fx: 'sweat' }, { do: 'wait', ms: 1500 },   // a Spinda le cae una gota
+      { do: 'emote', who: 'slaking', fx: 'sleep' }, { do: 'wait', ms: 1300 }, { do: 'fade', to: 'out', ms: 1100 },
+    ],
+  },
+  {
     // Sierra Ígnea, la cima, la primera vez (desde newFloor, en la sala del jefe): Moltres baja entre humo y te confunde con el ladrón.
     id: 'moltres-cima', trigger: 'sierra', when: () => false,
     area: 'cimasierra', player: { x: 384, y: 560, dir: 'up' }, hideNpcs: true, cam: { x: 84, y: 60 }, music: 'tension', boxBottom: true,

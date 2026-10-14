@@ -1198,6 +1198,7 @@ async function endRun(outcome) {
   if (outcome === 'clear' && state.dungeonDef?.id === 'cueva' && !(meta?.scenes || []).includes('scyther-cueva')) await dungeonScene('scyther-cueva', { keepDark: true });
   // al vencer a Zapdos por primera vez: te da su pluma (la Pluma Trueno), que se guarda en el gremio
   if (outcome === 'clear' && state.dungeonDef?.id === 'monte' && !(meta?.scenes || []).includes('zapdos-pluma')) await dungeonScene('zapdos-pluma', { keepDark: true });
+  if (outcome === 'clear' && state.dungeonDef?.id === 'huerto' && !(meta?.scenes || []).includes('huerto-slaking')) await dungeonScene('huerto-slaking', { keepDark: true });
   if (outcome === 'clear' && state.dungeonDef?.id === 'sierra' && !(meta?.scenes || []).includes('moltres-vencido')) await dungeonScene('moltres-vencido', { keepDark: true });
   if (outcome === 'clear' && state.dungeonDef?.id === 'gelida' && !(meta?.scenes || []).includes('articuno-vencida')) await dungeonScene('articuno-vencida', { keepDark: true });
   if (state.run) state.run.ending = true;   // ya no se autoguarda

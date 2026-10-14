@@ -89,6 +89,8 @@ export const HUB = {
   // solo para escenas: una sala del Monte Eléctrico con las rocas cortadas por Scyther (tools/build-monte-sala.py)
   montesala: { img: 'client/assets/hub/scene_monte_sala.png', mask: 'client/assets/hub/scene_monte_sala_mask.png', spawn: { x: 380, y: 420 }, exits: [], npcs: [], signs: [] },
   // solo para escenas (no se llega andando): la cima del Monte Eléctrico, con el cielo de tormenta (tools/build-cima.py)
+  // solo para escenas: el huerto de Spinda, con Slaking tumbado (tools/escenas/huerto-mapa.py)
+  huertosala: { img: 'client/assets/hub/scene_huerto.png', mask: 'client/assets/hub/scene_huerto_mask.png', spawn: { x: 384, y: 420 }, exits: [], npcs: [], signs: [] },
   // solo para escenas: las cimas de la Sierra Ígnea (el volcán, con su hueco) y de la Montaña Gélida (el estanque helado)
   cimasierra: { img: 'client/assets/hub/scene_cima_sierra.png', mask: 'client/assets/hub/scene_cima_sierra_mask.png', spawn: { x: 384, y: 340 }, h: 640, exits: [], npcs: [], signs: [] },
   cimagelida: { img: 'client/assets/hub/scene_cima_gelida.png', mask: 'client/assets/hub/scene_cima_gelida_mask.png', spawn: { x: 384, y: 340 }, h: 640, exits: [], npcs: [], signs: [] },

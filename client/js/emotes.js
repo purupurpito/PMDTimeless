@@ -3,7 +3,7 @@
 // drawEmote(ctx, tipo, x, y, t, s): x, y = encima de la cabeza; t = segundos desde que empezó; s = tamaño del píxel.
 // Devuelve false cuando ha terminado. Los que «se mantienen» (anger, joyous) se repiten mientras el guion no los apague.
 // =====================================================================
-export const EMOTE_LEN = { shock: 0.9, question: 1.4, notice: 0.55, sweat: 1.2, anger: 1.2, exclaim: 1.0, dots: 1.6, heart: 1.3 };
+export const EMOTE_LEN = { shock: 0.9, question: 1.4, notice: 0.55, sweat: 1.2, anger: 1.2, exclaim: 1.0, dots: 1.6, heart: 1.3, sleep: 2.4 };
 export const EMOTE_HOLD = new Set(['anger', 'joyous', 'laughing']);   // se mantienen hasta apagarlos
 function pxl(c, x, y, s, col) { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), s, s); }
 export function drawEmote(c, type, x, y, t, s = 2) {
@@ -31,6 +31,13 @@ export function drawEmote(c, type, x, y, t, s = 2) {
     const cx = x, cy = y + 6 * s, R = 9 * s, a0 = -Math.PI / 2 - 0.95, a1 = a0 + 1.9 * sweep;   // centrado sobre la cabeza
     c.strokeStyle = '#f8e030'; c.lineWidth = 4 * s; c.beginPath(); c.arc(cx, cy, R, a0, a1); c.stroke();
     c.strokeStyle = '#ffffff'; c.lineWidth = 2 * s; c.beginPath(); c.arc(cx, cy, R, a0, a1); c.stroke();
+  } else if (type === 'sleep') {   // «zZZ»: tres letras que salen una tras otra, suben en diagonal y se desvanecen
+    c.font = `bold ${7 * s}px system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = s + 1;
+    ['z', 'Z', 'Z'].forEach((ch, i) => {
+      const k = t - i * 0.35; if (k < 0) return; const life = Math.min(1, k / 1.3), a = Math.max(0, 1 - Math.max(0, k - 0.9) / 0.7);
+      c.save(); c.globalAlpha = a; c.translate(x + (6 + i * 5 + life * 4) * s, y - (2 + i * 4 + life * 5) * s); c.scale(0.7 + i * 0.2, 0.7 + i * 0.2);
+      c.strokeStyle = '#1a3c80'; c.strokeText(ch, 0, 0); c.fillStyle = '#d8ecff'; c.fillText(ch, 0, 0); c.restore();
+    });
   } else if (type === 'sweat') {   // gota de sudor que resbala por un lado de la cabeza
     const fall = Math.min(1, t / 0.9) * 6 * s, a = Math.min(1, (EMOTE_LEN.sweat - t) / 0.25);
     c.globalAlpha = a; const dx = x + 9 * s, dy = y + 2 * s + fall;
