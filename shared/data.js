@@ -44,6 +44,7 @@ export const WEATHER_BY_DUNGEON = {
 export const WEATHER_START_FLOOR = 4;  // los primeros pisos siempre despejados
 // Clima determinista por piso (mismo en cliente y servidor). Probabilidad: 0 % hasta el piso 3, luego 8 % y +1 % por piso, máx. 25 %.
 export function weatherFor(runSeed, floor, dungeonId = 'bosque') {
+  if (dungeonId === 'brumas') return 'fog';   // el Bosque de las Brumas: niebla espesa en todos los pisos
   const opts = WEATHER_BY_DUNGEON[dungeonId]; if (!opts || floor < WEATHER_START_FLOOR) return 'none';
   let v = (Math.imul(runSeed ^ 0x7f4a, 0x9E3779B1) + Math.imul(floor + 1, 0xC2B2AE35)) >>> 0; v = Math.imul(v ^ (v >>> 13), 0x85EBCA6B) >>> 0; v = (v ^ (v >>> 16)) >>> 0;
   const chance = Math.min(25, 8 + (floor - WEATHER_START_FLOOR));
@@ -174,6 +175,14 @@ export function rollLoot(rng, floor, { noSell = false } = {}) {
 }
 // Catálogo de Kecleon: fijo (consumibles básicos) + rotación por run (el servidor elige)
 export const SHOP_FIXED = ['Baya Aranja', 'Manzana', 'Baya Zidra'];
+// La Expedición al Lago Espejo: apagada hasta que esté entera (mazmorra, campamento, jefe, escenas). Mientras tanto, solo en pruebas.
+export const EXPEDITION_LIVE = false;
+const BIRDS = ['sierra', 'gelida', 'monte'];
+// ¿Se puede entrar al Bosque de las Brumas? Durante la Expedición (meta.expedition === 'bosque'), o como mazmorra normal tras los tres pájaros.
+export function brumasOpen(m, dev = false) {
+  if (!EXPEDITION_LIVE && !dev) return false;
+  return m?.expedition === 'bosque' || BIRDS.every(b => (m?.cleared || []).includes(b));
+}
 export const SHOP_ROTATING = ['Semilla Revivir', 'Semilla Dormir', 'Orbe Cura', 'Orbe Sueño', 'Orbe Reinicio', 'Orbe Escape', 'Orbe Luminoso', 'Elixir Máximo', 'Semilla Cura', 'Semilla Explosiva', 'Manzana Grande', 'Púa Hierro', 'Guijarro Geo', 'Baya Meloc', 'Baya Zreza', 'Baya Atania', 'Baya Safre', 'Semilla Teletransporte', 'Orbe Red', 'Orbe Radar', 'Orbe Escáner', 'Gominola Blanca', 'Gominola Roja', 'Gominola Azul', 'Gominola Hierba'];
 export const SHOP_HELD = ['Lazo Amigo', 'Pañuelo Poder', 'Bufanda Defensa', 'Pañuelo Especial', 'Bufanda Zen', 'Periscopio', 'Banda Aguante', 'Pañuelo Meloc', 'Banda Caquic', 'Insomnioscopio', 'Lazo Cura', 'Banda Giro', 'Gafas Blanco', 'Banda Detector', 'Gafas Protectoras', 'Cinto Glotón'];
 export const MISSION_TYPES = {
@@ -198,6 +207,7 @@ export const DUNGEONS = [
   { id: 'bosque', name: 'Bosque Frondoso', floors: 10, rank: 0, lvl: 1, pool: wildPool(['Planta', 'Bicho', 'Normal', 'Volador'], 330), finalBoss: 'celebi', md: 'Psíquico', terrain: ['water'] },
   { id: 'cueva',  name: 'Cueva Húmeda', requires: 'bosque', floors: 20, rank: 1, lvl: 4, pool: wildPool(['Roca', 'Tierra', 'Veneno', 'Agua'], 400), finalBoss: 'suicune', md: 'Surf', terrain: ['water'] },
   // Huerto de Spinda: el huerto de donde Spinda saca la fruta para sus zumos; un Snorlax enorme se lo está comiendo todo. Tras la Cueva Húmeda.
+  { id: 'brumas', name: 'Bosque de las Brumas', requires: 'huerto', floors: 12, rank: 1, lvl: 6, pool: wildPool(['Fantasma', 'Psíquico', 'Bicho', 'Planta', 'Normal'], 430), expedition: true, md: 'Niebla' },
   { id: 'huerto', name: 'Huerto de Spinda', requires: 'cueva', floors: 8, rank: 1, lvl: 6, pool: wildPool(['Planta', 'Hada', 'Normal', 'Bicho'], 420), finalBoss: 'slaking', finalBossNoRecruit: true, finalBossHp: 2.6, finalBossDozes: true,   /* Slaking: mucha vida, y se queda dormido a ratos en mitad de la pelea */ md: 'Descanso', terrain: ['water'] },
   // Las montañas de los tres pájaros legendarios (cada uno guarda una Pluma Sagrada; Scyther se las está llevando).
   // Sierra Ígnea (Moltres): en los últimos 5 pisos la Barriga baja al doble. Montaña Gélida (Articuno): el frío te deja a la mitad de velocidad.

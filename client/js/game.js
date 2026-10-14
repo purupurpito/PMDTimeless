@@ -2,7 +2,7 @@ import { setTouchVisible } from './touch.js';
 // =====================================================================
 // JUEGO — escenas Base y Mazmorra. Lo persistente pasa por la API; la mazmorra se juega en local con RNG sembrado.
 // =====================================================================
-import { rollLoot, WEATHER as WEATHER_ALL, CFG, SPECIES, MOVES, BASIC, TM_POOL, ITEMS, STATUS, TACTICS, RANKS, DUNGEONS, MISSION_TYPES, SHOP_IN_DUNGEON, KECLEON_DISCOUNT, RECRUIT_MIN_RANK, dungeonById, rankOf, expForLevel, expToNext, expGained, learnEntries, canLearnMachine, pokesFor, floorKind, recruitChance, canCrossTerrain, eraFor, shopPrice, bagSizeFor, fixItemName, fixMoveName } from '../../shared/data.js';
+import { rollLoot, brumasOpen, WEATHER as WEATHER_ALL, CFG, SPECIES, MOVES, BASIC, TM_POOL, ITEMS, STATUS, TACTICS, RANKS, DUNGEONS, MISSION_TYPES, SHOP_IN_DUNGEON, KECLEON_DISCOUNT, RECRUIT_MIN_RANK, dungeonById, rankOf, expForLevel, expToNext, expGained, learnEntries, canLearnMachine, pokesFor, floorKind, recruitChance, canCrossTerrain, eraFor, shopPrice, bagSizeFor, fixItemName, fixMoveName } from '../../shared/data.js';
 import { hooks as engineHooks, T, createMon, computeStats, damage, hitCheck, applyStages, applyStatus, tickStatus, wakeOnHit, buildFloor, spawnMonsterHouse, JIRACHI_PHASES, speedOf } from '../../shared/engine.js';
 import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/data.js';
 import { makeRng, floorSeed } from '../../shared/rng.js';
@@ -821,7 +821,7 @@ function hotspotAction(hs) {
 function openDungeonMenu() {
   const rank = rankOf(meta.rankPts);
   // solo las mazmorras desbloqueadas por rango; las demás aparecen al subir de rango
-  const list = DUNGEONS.filter(d => d.rank <= rank && (!d.requires || (meta.cleared || []).includes(d.requires))); if (meta.dreamUnlocked) list.push(DREAM_DUNGEON);   // (requires: la historia pide superar otra antes)
+  const list = DUNGEONS.filter(d => d.rank <= rank && (!d.requires || (meta.cleared || []).includes(d.requires)) && (!d.expedition || brumasOpen(meta, !!window.__mmDevExpedition))); if (meta.dreamUnlocked) list.push(DREAM_DUNGEON);   // (requires: la historia pide superar otra antes)
   const items = list.map(d => d.id === 'suenos' ? `${d.name} — ∞ (solo legendarios)` : `${d.name} — ${d.floors === Infinity ? '∞' : d.floors} pisos${meta.cleared.includes(d.id) ? ' ✓' : ''}`);
   openMenu({ title: 'Mazmorras', items, onCancel: closeHub, onSelect: i => {
     const d = list[i]; if (!d) return closeHub();
@@ -921,6 +921,12 @@ function addCaveGuests(def) {
   }
   say('Machamp, Heracross y Ampharos te acompañan en la Cueva Húmeda.');
 }
+const expeditionGuests = def => def?.id === 'brumas' && meta?.expedition === 'bosque';   // en la Expedición, Pidgeot va contigo
+function addExpeditionGuests(def) {
+  const gst = createMon('pidgeot', Math.max(state.player.level + 4, def.lvl + 8), { x: state.player.x, y: state.player.y, tactic: 'seguir', floors: 0, held: null });
+  gst.guest = true; gst.noRecruit = true; gst.runStartLevel = gst.level; state.team.push(gst);
+  say('Pidgeot va contigo por el Bosque de las Brumas.');
+}
 async function startRun(def) {
   // la primera vez que vas a la cueva con los veteranos: te recogen antes de salir
   const intro = caveGuests(def) && !(meta.scenes || []).includes('cueva-salida') && SCENES.find(x => x.id === 'cueva-salida');
@@ -937,6 +943,7 @@ async function startRun(def) {
   state.player = createPlayer(r.run.starter); state.player.moves = moves;
   Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: def, inventory: [...r.bag], runPokes: 0, missions: r.missions.map(m => ({ ...m, done: false })), earnedMD: [], recruitedLegendaries: [], lostRecruits: [], bondedLost: [], team: [], floor: 1, turn: 0, dead: false, log: [], scene: 'dungeon', diary: { monsterHouses: 0, recruited: 0, kecleonRobs: 0, itemsSold: 0 }, stonesFound: [] });
   if (caveGuests(def)) addCaveGuests(def);
+  if (expeditionGuests(def)) addExpeditionGuests(def);
   // el zumo de Spinda: Barriga y PS extra solo para esta exploración
   const juice = r.run?.juice;
   if (juice) { const p = state.player; if (juice.hp) { p.juiceHp = juice.hp; computeStats(p); p.hp = p.maxHp; } if (juice.belly) { p.maxBelly = Math.min(200, (p.maxBelly || 100) + juice.belly); p.belly = p.maxBelly; } }
@@ -1688,7 +1695,7 @@ function useMove(userMon, move) {
 }
 
 // ---------- música de la mazmorra: tema de la mazmorra (según la era), jefe, guardián Mega, Casa Monstruo o tienda ----------
-const DUNGEON_TRACK = { entrenamiento: 'bosque', bosque: 'bosque', cueva: 'cueva', monte: 'monte', sierra: 'monte', gelida: 'monte', ruinas: 'ruinas', tiempo: 'tiempo', suenos: 'suenos', huerto: 'shop' };   // (el huerto, con el bazar de swing: fruta y buen humor)
+const DUNGEON_TRACK = { entrenamiento: 'bosque', bosque: 'bosque', cueva: 'cueva', monte: 'monte', sierra: 'monte', gelida: 'monte', ruinas: 'ruinas', tiempo: 'tiempo', suenos: 'suenos', huerto: 'shop', brumas: 'bosque' };   // (el huerto, con el bazar de swing: fruta y buen humor)
 function updateDungeonMusic() {
   if (state.scene !== 'dungeon' || !state.player) return;
   if (state.dungeon?.restArea) return playTrack('rest');
