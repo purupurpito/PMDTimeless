@@ -1349,7 +1349,7 @@ async function chatotBowsOut(e, by) {
 // Sala del jefe despejada: si era el jefe final, la mazmorra se completa sola; en las mazmorras sin fin aparece la escalera.
 // Espera a que se cierren los mensajes (entrega de la MD, reclutamiento…).
 // Los glotones que se cuelan en el Huerto mientras Slaking duerme (los pequeños, con más vida para que la pelea no sea un paseo)
-const HUERTO_GLUTTONS = [{ sp: 'snorlax', hp: 2.2 }, { sp: 'munchlax', hp: 3.2 }, { sp: 'swalot', hp: 2.4 }, { sp: 'greedent', hp: 2.4 }, { sp: 'skwovet', hp: 3.4 }, { sp: 'lickilicky', hp: 2.3 }];
+const HUERTO_GLUTTONS = [{ sp: 'snorlax', hp: 2.2 }, { sp: 'munchlax', hp: 1.6, group: 3 }, { sp: 'swalot', hp: 2.4 }, { sp: 'greedent', hp: 2.4 }, { sp: 'skwovet', hp: 1.7, group: 3 }, { sp: 'lickilicky', hp: 2.3 }];   // los flojos vienen en grupo de tres (los tres cuentan como jefes)
 // Slaking, el guardián dormido del huerto: no ataca ni le atacan; si le golpeas, se despierta de mal humor y la toma con el jefe
 function placeSleepyGuard(boss) {
   const T = state.dungeon.tiles, free = (x, y) => T[y]?.[x] === 1 && !state.enemies.some(e => e.x === x && e.y === y) && !(state.player.x === x && state.player.y === y);
@@ -1390,10 +1390,10 @@ const BOSS_LINES = {
   suicune: ['El agua de esta cueva no miente. Veamos si tu corazón es igual de claro.'],
   slaking: ['Uaaah… ¿Quién viene a molestar?', 'Este huerto es mío. Y la siesta, también.'],
   snorlax: ['Ñam… ñam… ¿Esta fruta es tuya? Ya no.', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
-  munchlax: ['¡Ñam! ¡Ñam! ¡Todo esto es para mí!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
-  swalot: ['Glup… Me lo trago todo. Manzanas, bayas… ¿y tú?', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
+  munchlax: ['¡Ñam! ¡Ñam! ¡Todo esto es para nosotros!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
+  swalot: ['Glup… ¡Un huerto entero para mí solito!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
   greedent: ['¡Mías! ¡Todas las bayas son mías! ¡Ni una para ti!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
-  skwovet: ['¡Ni se te ocurra! Ya tengo los mofletes llenos… ¡y aún caben más!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
+  skwovet: ['¡Ni se te ocurra! Tenemos los mofletes llenos… ¡y aún caben más!', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
   lickilicky: ['Slurp… Esta fruta sabe a gloria. Y tú… ¿a qué sabes?', '(Al fondo, en una esquina, Slaking ronca como si nada.)'],
   zapdos: ['¡Has escalado hasta la cima de la tormenta! Aquí mando yo.'],
   moltres: ['¡¿OTRA VEZ?! ¡Ya te llevaste mi pluma, insecto! ¡¿Qué más quieres?!', '… No. Tú no eres él. Me da igual: si vienes de su parte… ¡arderás igual!'],
@@ -1483,7 +1483,7 @@ function newFloor() {
   state.rng = makeRng(floorSeed(state.run.seed, state.floor));
   // El Huerto, las veces siguientes (tras el trato con Slaking): otro glotón se cuela, y Slaking, el «guardián», duerme en una esquina
   const huertoRepeat = state.dungeonDef?.id === 'huerto' && (meta?.scenes || []).includes('huerto-slaking');
-  const glutton = huertoRepeat ? HUERTO_GLUTTONS[(state.run.seed + state.floor) % HUERTO_GLUTTONS.length] : null;   // un glotón al azar (fijo para esta exploración)
+  const glutton = huertoRepeat ? (HUERTO_GLUTTONS.find(x => x.sp === window.__mmForceGlutton) || HUERTO_GLUTTONS[(state.run.seed + state.floor) % HUERTO_GLUTTONS.length]) : null;   // (__mmForceGlutton: para las pruebas)   // un glotón al azar (fijo para esta exploración)
   const floorDef = huertoRepeat ? { ...state.dungeonDef, finalBoss: glutton.sp, finalBossHp: glutton.hp, finalBossDozes: false } : state.dungeonDef;
   const built = buildFloor(state.rng, floorDef, state.floor, state.missions, state.flags, state.run.seed);
   state.era = built.dungeon.eraId || state.dungeonDef.id; state.weather = built.weather || 'none';
@@ -1494,6 +1494,14 @@ function newFloor() {
   // el equipo aparece alrededor del líder
   for (const a of state.team) { const spot = DIRS8.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).find(s => walkableFor(a, s.x, s.y) && !occupied(s.x, s.y)); Object.assign(a, spot || { x: p.x, y: p.y }); a.facing = [0, -1]; }
   floorEvent(def);   // ¿piso especial? (dorado, huerto, tranquilo o multitud)
+  if (huertoRepeat && built.boss && glutton.group > 1) {   // los flojos, en grupo: dos más como él, junto al primero
+    const T = state.dungeon.tiles, b = built.boss; let n = glutton.group - 1;
+    for (const [dx, dy] of [[-1, 0], [1, 0], [-1, 1], [1, 1], [0, 1], [-2, 0], [2, 0], [0, -1]]) {
+      if (n <= 0) break; const x = b.x + dx, y = b.y + dy;
+      if (T[y]?.[x] !== 1 || state.enemies.some(e => e.x === x && e.y === y) || (state.player.x === x && state.player.y === y)) continue;
+      const m = createMon(b.species, b.level, { x, y, asleep: false, isBoss: true, noRecruit: true }); m.maxHp = b.maxHp; m.hp = b.maxHp; state.enemies.push(m); n--;
+    }
+  }
   if (huertoRepeat && built.boss) placeSleepyGuard(built.boss);
   state.seen = Array.from({ length: CFG.map.h }, () => new Array(CFG.map.w).fill(false));
   floorStartTraits(); updateVisibility(); render();
