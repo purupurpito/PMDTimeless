@@ -153,10 +153,12 @@ export const HUB = {
   observatorio: {
     img: 'client/assets/hub/observatorio.png', mask: 'client/assets/hub/observatorio_mask.png', spawn: { x: 391, y: 478 },
     exits: [ { rect: [352, 493, 432, 515], to: 'barrio', at: { x: 779, y: 978 } } ],
-    npcs: [],
+    npcs: [
+      { id: 'clefable', x: 467, y: 238, facing: [-1, 1], talk: 'clefable' },   // la astrónoma de la aldea: avisa de las lluvias de estrellas
+    ],
     signs: [
       { rect: [360, 180, 410, 212], text: 'La puerta del observatorio está cerrada.' },
-      { rect: [476, 150, 568, 210], text: 'Un telescopio enorme apunta al cielo. Ya asoman las primeras estrellas.' },
+      { rect: [476, 150, 568, 210], text: 'Un telescopio enorme apunta al cielo. Ya asoman las primeras estrellas.', action: 'telescope' },
     ],
   },
 };

@@ -160,6 +160,9 @@ export const ITEMS = {
   'Perla':        { kind: 'sell', sell: 200,  minFloor: 1 },
   'Perla Grande': { kind: 'sell', sell: 800,  minFloor: 10 },
   'Pepita':       { kind: 'sell', sell: 2000, minFloor: 20 },
+  // Solo caen del cielo en las lluvias de estrellas (sin «weight»: nunca salen en el botín normal)
+  'Polvo Estelar':  { kind: 'sell', sell: 300,  minFloor: 1, desc: 'Polvo brillante caído del cielo en una lluvia de estrellas. Se vende bien.' },
+  'Trozo Estrella': { kind: 'sell', sell: 1500, minFloor: 1, desc: 'Un trozo de estrella fugaz. Raro y muy valioso.' },
   'Diamante':     { kind: 'sell', sell: 6000, minFloor: 999 },
 };
 // Catálogo completo de Exploradores del Cielo (tools/import-items.py): se une a los objetos existentes sin cambiar estos
@@ -344,3 +347,33 @@ if (ITEMS['Orbe Pavor']) Object.assign(ITEMS['Orbe Pavor'], { fx: 'terrify', des
 if (ITEMS['Semilla Rápida']) ITEMS['Semilla Rápida'].desc = 'Te mueves más rápido durante un rato.';
 if (ITEMS['Orbe Rápido']) Object.assign(ITEMS['Orbe Rápido'], { stat: 'spe', n: 1, desc: 'Tu equipo se mueve más rápido durante un rato.' });
 if (ITEMS['Orbe Lento']) Object.assign(ITEMS['Orbe Lento'], { stat: 'spe', n: -1, desc: 'Los enemigos de la sala se vuelven más lentos durante un rato.' });
+
+// ── El observatorio: lluvias de estrellas (fechas reales; un día de margen a cada lado) y constelaciones del telescopio ──
+export const METEOR_SHOWERS = [
+  { name: 'Cuadrántidas', m: 1, d: 3 }, { name: 'Líridas', m: 4, d: 22 }, { name: 'Eta Acuáridas', m: 5, d: 6 }, { name: 'Perseidas', m: 8, d: 12 },
+  { name: 'Oriónidas', m: 10, d: 21 }, { name: 'Leónidas', m: 11, d: 17 }, { name: 'Gemínidas', m: 12, d: 14 },
+];
+const dayOfYear = dt => Math.floor((Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()) - Date.UTC(dt.getFullYear(), 0, 0)) / 86400000);
+export function meteorShowerOn(dt = new Date()) {   // ¿hay lluvia de estrellas hoy (o ayer, o mañana)?
+  for (const s of METEOR_SHOWERS) for (const off of [-1, 0, 1]) { const x = new Date(dt.getFullYear(), s.m - 1, s.d + off); if (x.getMonth() === dt.getMonth() && x.getDate() === dt.getDate()) return s; }
+  return null;
+}
+export function nextMeteorShower(dt = new Date()) {   // la próxima (a partir de mañana)
+  const t = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+  return METEOR_SHOWERS.map(s => { let x = new Date(dt.getFullYear(), s.m - 1, s.d); if (x.getTime() <= t) x = new Date(dt.getFullYear() + 1, s.m - 1, s.d); return { ...s, date: x }; }).sort((a, b) => a.date - b.date)[0];
+}
+// Constelaciones con formas de Pokémon (estrellas en un cuadro de 0 a 1, y las líneas que las unen). Las raras dan un premio, una vez al día.
+export const CONSTELLATIONS = [
+  { name: 'El Gran Ursaring', stars: [[.15,.6],[.25,.45],[.4,.4],[.55,.45],[.62,.62],[.48,.72],[.3,.72],[.7,.3],[.8,.22]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0],[3,7],[7,8]] },
+  { name: 'Las Alas de Pidgeot', stars: [[.5,.5],[.35,.4],[.2,.28],[.08,.35],[.65,.4],[.8,.28],[.92,.35],[.5,.32],[.5,.7]], lines: [[0,1],[1,2],[2,3],[0,4],[4,5],[5,6],[0,7],[0,8]] },
+  { name: 'La Cola de Mareep', stars: [[.2,.5],[.35,.42],[.5,.45],[.62,.55],[.72,.48],[.8,.35],[.88,.25]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },
+  { name: 'El Caparazón de Lapras', stars: [[.2,.65],[.35,.5],[.55,.45],[.75,.52],[.82,.68],[.5,.75],[.25,.35],[.22,.2]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[1,6],[6,7]] },
+  { name: 'La Corona de Slowking', stars: [[.3,.6],[.35,.4],[.45,.55],[.5,.32],[.55,.55],[.65,.4],[.7,.6]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0]] },
+  { name: 'La Llama de Ponyta', stars: [[.3,.7],[.4,.55],[.55,.5],[.7,.55],[.75,.7],[.45,.35],[.55,.22],[.62,.32]], lines: [[0,1],[1,2],[2,3],[3,4],[2,5],[5,6],[6,7],[7,2]] },
+  { name: 'El Danzarín Clefairy', rare: true, stars: [[.5,.25],[.42,.4],[.58,.4],[.3,.48],[.7,.48],[.45,.62],[.55,.62],[.4,.8],[.6,.8]], lines: [[0,1],[0,2],[1,3],[2,4],[1,5],[2,6],[5,6],[5,7],[6,8]] },
+  { name: 'La Estrella de los Deseos', rare: true, stars: [[.5,.15],[.6,.4],[.88,.42],[.66,.58],[.75,.85],[.5,.7],[.25,.85],[.34,.58],[.12,.42],[.4,.4]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,0]] },
+];
+export function constellationOn(dt = new Date()) {   // la de esta noche (fija para cada día; las raras, uno de cada ~8 días)
+  const n = dayOfYear(dt) + dt.getFullYear() * 7, h = Math.imul(n ^ 0x5bd1e995, 0x9E3779B1) >>> 0, common = CONSTELLATIONS.filter(c => !c.rare), rare = CONSTELLATIONS.filter(c => c.rare);
+  return h % 8 === 0 ? rare[(h >>> 4) % rare.length] : common[(h >>> 4) % common.length];
+}

@@ -2,7 +2,7 @@ import { setTouchVisible } from './touch.js';
 // =====================================================================
 // JUEGO — escenas Base y Mazmorra. Lo persistente pasa por la API; la mazmorra se juega en local con RNG sembrado.
 // =====================================================================
-import { rollLoot, brumasOpen, WEATHER as WEATHER_ALL, CFG, SPECIES, MOVES, BASIC, TM_POOL, ITEMS, STATUS, TACTICS, RANKS, DUNGEONS, MISSION_TYPES, SHOP_IN_DUNGEON, KECLEON_DISCOUNT, RECRUIT_MIN_RANK, dungeonById, rankOf, expForLevel, expToNext, expGained, learnEntries, canLearnMachine, pokesFor, floorKind, recruitChance, canCrossTerrain, eraFor, shopPrice, bagSizeFor, fixItemName, fixMoveName } from '../../shared/data.js';
+import { rollLoot, brumasOpen, meteorShowerOn, nextMeteorShower, WEATHER as WEATHER_ALL, CFG, SPECIES, MOVES, BASIC, TM_POOL, ITEMS, STATUS, TACTICS, RANKS, DUNGEONS, MISSION_TYPES, SHOP_IN_DUNGEON, KECLEON_DISCOUNT, RECRUIT_MIN_RANK, dungeonById, rankOf, expForLevel, expToNext, expGained, learnEntries, canLearnMachine, pokesFor, floorKind, recruitChance, canCrossTerrain, eraFor, shopPrice, bagSizeFor, fixItemName, fixMoveName } from '../../shared/data.js';
 import { hooks as engineHooks, T, createMon, computeStats, damage, hitCheck, applyStages, applyStatus, tickStatus, wakeOnHit, buildFloor, spawnMonsterHouse, JIRACHI_PHASES, speedOf } from '../../shared/engine.js';
 import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/data.js';
 import { makeRng, floorSeed } from '../../shared/rng.js';
@@ -704,7 +704,7 @@ function hubInteract() {
   const npc = [...area.npcs].filter(npcShown).filter(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))).sort((a, b) => talkScore(a) - talkScore(b))[0];
   if (npc) { if (!npc.fixedFacing) npc.facing = [-Math.sign(h.facing[0]), -Math.sign(h.facing[1])]; state.talkNpc = { x: npc.x, y: npc.y, area: h.area }; return talkTo(npc.talk); }
   const w = h.wanderers.find(n => Math.hypot(n.x - fx, n.y - fy) < 20); if (w) return openDialog([{ who: spNm(w.species), text: WANDER_LINES[(Math.random() * WANDER_LINES.length) | 0] }]);
-  for (const s of area.signs || []) if ((!s.when || s.when(meta || {})) && inRect(fx, fy, s.rect)) return openDialog([{ who: '', text: s.text }]);   // (when: solo si se cumple, p. ej. la roca del café)
+  for (const s of area.signs || []) if ((!s.when || s.when(meta || {})) && inRect(fx, fy, s.rect)) return s.action === 'telescope' ? lookTelescope() : openDialog([{ who: '', text: s.text }]);   // (when: solo si se cumple, p. ej. la roca del café)
   for (const hs of area.hotspots || []) if (inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) return hotspotAction(hs);
   for (const ex of area.exits) if (ex.action === 'dungeons' && inRect(fx, fy, ex.rect)) return openDungeonMenu();
   for (const ex of area.exits) if (ex.action === 'brumas' && inRect(fx, fy, ex.rect)) return enterBrumas();
@@ -773,6 +773,12 @@ const CAMP_TALK = {
   sableye: ['Je. Alguien tiene que vigilar las provisiones.'],
 };
 function talkToBase(kind) {
+  if (kind === 'clefable') {   // la astrónoma: la lluvia de estrellas de hoy, o la próxima
+    const sh = meteorShowerOn(), nx = nextMeteorShower(), MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const pages = sh ? ['¡Esta noche hay lluvia de estrellas! Son las ' + sh.name + '.', 'Dicen que, en noches así, en las mazmorras caen trocitos del cielo. ¡Mira bien por el suelo!']
+      : ['Hola. Soy Clefable, la astrónoma de la aldea. Desde aquí se ve todo el cielo.', `La próxima lluvia de estrellas será la de las ${nx.name}, el ${nx.date.getDate()} de ${MES[nx.date.getMonth()]}. ¡No te la pierdas!`, 'Mientras tanto, mira por el telescopio. Cada noche se ve una constelación distinta.'];
+    return openDialog(pages.map((t, i) => ({ who: 'Clefable', sp: 'clefable', mood: sh || i === 1 ? 'Joyous' : 'Happy', text: t })));
+  }
   if (kind.startsWith('camp_')) {
     let sp = kind.slice(5), lines = CAMP_TALK[sp];
     if (sp === 'pidgeot' && state.lastRun?.dungeon === 'brumas' && state.lastRun?.outcome !== 'clear') lines = CAMP_TALK.pidgeot_back;
@@ -1491,6 +1497,31 @@ function drawShadowMon(e, px, py, tile) {
   c.putImageData(out, 0, 0);
   ctx.save(); ctx.shadowColor = 'rgba(140, 120, 255, .8)'; ctx.shadowBlur = tile * 0.35; ctx.drawImage(shadowCanvas, px - off, py - off); ctx.restore();
 }
+async function lookTelescope() {
+  let r; try { r = await call('/observatorio/telescope', {}); } catch { return openDialog([{ who: '', text: 'Un telescopio enorme apunta al cielo. Ya asoman las primeras estrellas.' }]); }
+  if (r.meta) meta = r.meta;
+  state.telescope = { ...r, t0: performance.now() }; render();
+}
+function drawTelescope(W, H) {   // el cielo por el telescopio: un círculo de cielo nocturno, estrellas de fondo y la constelación de esta noche
+  const T = state.telescope; if (!T) return; const t = performance.now() - T.t0, k = Math.min(1, t / 900);
+  ctx.save(); ctx.fillStyle = `rgba(0,0,0,${0.85 * k})`; ctx.fillRect(0, 0, W, H);
+  const R = Math.min(W, H) * 0.34, cx = W / 2, cy = H * 0.41;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+  const g = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R); g.addColorStop(0, '#1a2650'); g.addColorStop(1, '#070a1c'); ctx.fillStyle = g; ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+  for (let i = 0; i < 110; i++) { const a = Math.sin(i * 127.1) * 43758.5453 % 1, b = Math.sin(i * 311.7) * 43758.5453 % 1, x = cx - R + Math.abs(a) * R * 2, y = cy - R + Math.abs(b) * R * 2, tw = 0.4 + 0.6 * Math.abs(Math.sin(t / 600 + i)); ctx.fillStyle = `rgba(255,255,255,${0.5 * tw * k})`; ctx.fillRect(x, y, 1.5, 1.5); }
+  const P = T.stars.map(([x, y]) => [cx - R * 0.75 + x * R * 1.5, cy - R * 0.75 + y * R * 1.5]), lk = Math.max(0, Math.min(1, (t - 700) / 1400));
+  ctx.strokeStyle = T.rare ? `rgba(255,220,120,${0.75 * lk})` : `rgba(160,200,255,${0.6 * lk})`; ctx.lineWidth = 1.5;
+  for (const [a, b] of T.lines) { ctx.beginPath(); ctx.moveTo(...P[a]); ctx.lineTo(...P[b]); ctx.stroke(); }
+  for (const [x, y] of P) { ctx.fillStyle = T.rare ? '#ffe9a8' : '#ffffff'; ctx.shadowColor = T.rare ? '#ffd27a' : '#9cc4ff'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(x, y, 3.2 * k, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  ctx.save(); ctx.strokeStyle = 'rgba(180,160,120,.9)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke(); ctx.restore();   // el borde del telescopio
+  ctx.save(); ctx.textAlign = 'center'; ctx.globalAlpha = lk; ctx.fillStyle = T.rare ? '#ffe08a' : '#e8eeff'; ctx.font = `bold ${Math.round(R * 0.11)}px ${DIALOG_FONT()}`;
+  ctx.fillText(T.name, cx, cy + R + R * 0.16);
+  ctx.font = `${Math.round(R * 0.075)}px ${DIALOG_FONT()}`; ctx.fillStyle = '#c8d2ee';
+  ctx.fillText(T.rare ? (T.reward ? `¡Una constelación rara! Clefable te regala: ${T.reward}${T.reward.endsWith('P') ? '' : ' (al almacén)'}.` : '¡Una constelación rara! (Ya te llevaste el regalo de hoy.)') : 'Cada noche se ve una constelación distinta.', cx, cy + R + R * 0.28);
+  ctx.globalAlpha = lk * 0.7; ctx.fillText('(Pulsa cualquier tecla o toca para dejar de mirar)', cx, cy + R + R * 0.38); ctx.restore();
+  if (t < 2400) requestAnimationFrame(() => render());
+}
 function arenaCleared() {
   if (!state.dungeon?.arena || state.arenaDone || state.enemies.some(e => e.isBoss && e.hp > 0)) return;
   state.arenaDone = true;
@@ -1619,6 +1650,12 @@ function newFloor() {
   // el equipo aparece alrededor del líder
   for (const a of state.team) { const spot = DIRS8.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).find(s => walkableFor(a, s.x, s.y) && !occupied(s.x, s.y)); Object.assign(a, spot || { x: p.x, y: p.y }); a.facing = [0, -1]; }
   floorEvent(def);   // ¿piso especial? (dorado, huerto, tranquilo o multitud)
+  const shower = window.__mmForceShower ? { name: 'de prueba' } : meteorShowerOn();   // en noches de lluvia de estrellas (__mmForceShower: para las pruebas), caen trocitos del cielo en las mazmorras
+  if (shower && !state.dungeon.arena && !state.dungeon.restArea) {
+    const n = 1 + (state.rng.random() < 0.5 ? 1 : 0) + (state.rng.random() < 0.2 ? 1 : 0);
+    for (let i = 0; i < n; i++) { const p = randomFreeTile(); if (p) state.groundItems.push({ name: state.rng.random() < 0.15 ? 'Trozo Estrella' : 'Polvo Estelar', x: p.x, y: p.y }); }
+    if (state.floor === 1) say(`Esta noche hay lluvia de estrellas (${shower.name}): algo brilla por el suelo…`);
+  }
   if (huertoRepeat && built.boss && glutton.group > 1) {   // los flojos, en grupo: dos más como él, junto al primero
     const T = state.dungeon.tiles, b = built.boss; let n = glutton.group - 1;
     for (const [dx, dy] of [[-1, 0], [1, 0], [-1, 1], [1, 1], [0, 1], [-2, 0], [2, 0], [0, -1]]) {
@@ -3066,7 +3103,7 @@ const isVisibleNow = (x, y) => {
 };
 // radio de luz en los pasillos (en las salas se ve la sala entera)
 function corridorSight() { return WEATHER[state.weather]?.sight ?? CFG.corridorSight; }
-function render() { if (!state.player && state.scene === 'dungeon') return; ctx.setTransform(RK, 0, 0, RK, 0, 0); state.scene === 'hub' ? renderHub() : renderDungeon(); drawInfoHud(); drawFlash(); renderFeed(); renderMenu(); renderDialog(); renderHud(); }
+function render() { if (!state.player && state.scene === 'dungeon') return; ctx.setTransform(RK, 0, 0, RK, 0, 0); state.scene === 'hub' ? renderHub() : renderDungeon(); drawInfoHud(); drawFlash(); renderFeed(); renderMenu(); renderDialog(); renderHud(); if (state.telescope) drawTelescope(canvas.width / RK, canvas.height / RK); }
 // ---- mensajes dentro de la pantalla (como en Mundo Misterioso): recuadro abajo que se desvanece a los pocos segundos ----
 const FEED_MS = 4200, FEED_FADE = 600;
 // dónde va la información (PS, Barriga, mensajes…): dentro de la pantalla del juego (por defecto, como en el original), fuera u oculta
@@ -3608,11 +3645,12 @@ function bindInput() {
   document.getElementById('game')?.addEventListener('click', () => { if (state.dialog) dialogAdvance(); });
   // tocar la mazmorra para moverse (con el dedo; con ratón también funciona)
   document.getElementById('game')?.addEventListener('pointerdown', ev => {
+    if (state.telescope) { state.telescope = null; render(); return; }   // (dejar de mirar por el telescopio)
     if (state.scene !== 'dungeon' || state.dialog || state.menu || state.busy || state.resolving || state.dead || !state.player) return;
     const t = tileAtScreen(ev.clientX, ev.clientY); if (t) { ev.preventDefault(); tapTo(t); }
   });
   window.addEventListener('keyup', ev => { const b = BTN[ev.key.toLowerCase()]; held.delete(b); if (b === 'A' || b === 'B') stopPassing(); if (b === 'L' || b === 'Y') render(); });
-  window.addEventListener('keydown', ev => {
+  window.addEventListener('keydown', ev => { if (state.telescope) { state.telescope = null; render(); ev.preventDefault(); return; }
     if (ev.key.toLowerCase() === 'm' && state.scene === 'dungeon' && !['INPUT', 'TEXTAREA'].includes(ev.target?.tagName) && !state.menu) { state.showMap = state.showMap === false; render(); return; }
     if (ev.key.toLowerCase() === 'm' && state.scene === 'hub' && !['INPUT', 'TEXTAREA'].includes(ev.target?.tagName)) { state.showMask = !state.showMask; say(state.showMask ? 'Vista de colisiones: ACTIVADA (M para quitarla)' : 'Vista de colisiones: desactivada'); render(); return; }
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(ev.target.tagName) || ev.target.closest?.('.settings-panel')) return; // teclas del menú de opciones: no mueven al personaje
