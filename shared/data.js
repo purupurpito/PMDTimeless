@@ -179,7 +179,7 @@ export function rollLoot(rng, floor, { noSell = false } = {}) {
 // Catálogo de Kecleon: fijo (consumibles básicos) + rotación por run (el servidor elige)
 export const SHOP_FIXED = ['Baya Aranja', 'Manzana', 'Baya Zidra'];
 // La Expedición al Lago Espejo: apagada hasta que esté entera (mazmorra, campamento, jefe, escenas). Mientras tanto, solo en pruebas.
-export const EXPEDITION_LIVE = false;
+export const EXPEDITION_LIVE = true;   // (encendida el 15 de octubre: la Expedición, entera)
 const BIRDS = ['sierra', 'gelida', 'monte'];
 // ¿Se puede entrar al Bosque de las Brumas? Durante la Expedición (meta.expedition === 'bosque'), o como mazmorra normal tras los tres pájaros.
 export function brumasOpen(m, dev = false) {
@@ -214,7 +214,7 @@ export const DUNGEONS = [
   { id: 'huerto', name: 'Huerto de Spinda', requires: 'cueva', floors: 8, rank: 1, lvl: 6, pool: wildPool(['Planta', 'Hada', 'Normal', 'Bicho'], 420), finalBoss: 'slaking', finalBossNoRecruit: true, finalBossHp: 2.6, finalBossDozes: true,   /* Slaking: mucha vida, y se queda dormido a ratos en mitad de la pelea */ md: 'Descanso', terrain: ['water'] },
   // Las montañas de los tres pájaros legendarios (cada uno guarda una Pluma Sagrada; Scyther se las está llevando).
   // Sierra Ígnea (Moltres): en los últimos 5 pisos la Barriga baja al doble. Montaña Gélida (Articuno): el frío te deja a la mitad de velocidad.
-  { id: 'sierra', name: 'Sierra Ígnea', requires: 'huerto', floors: 20, rank: 1, lvl: 7, pool: wildPool(['Fuego', 'Roca', 'Tierra', 'Lucha'], 440), finalBoss: 'moltres', md: 'Lanzallamas', terrain: ['lava'], hungerLastFloors: 5 },
+  { id: 'sierra', name: 'Sierra Ígnea', requires: 'brumas', floors: 20, rank: 1, lvl: 7, pool: wildPool(['Fuego', 'Roca', 'Tierra', 'Lucha'], 440), finalBoss: 'moltres', md: 'Lanzallamas', terrain: ['lava'], hungerLastFloors: 5 },
   { id: 'gelida', name: 'Montaña Gélida', requires: 'sierra', floors: 20, rank: 2, lvl: 8, pool: wildPool(['Hielo', 'Agua', 'Volador', 'Normal'], 450), finalBoss: 'articuno', md: 'Rayo Hielo', terrain: ['water'], coldSlow: true },
   // Monte Eléctrico (Zapdos): rayos ocultos en el suelo (como trampas). Más adelante habrá otras mazmorras entre la Montaña Gélida y él.
   { id: 'monte',  name: 'Monte Eléctrico', requires: 'gelida', thunderTraps: true, floors: 30, rank: 2, lvl: 9, pool: wildPool(['Fuego', 'Lucha', 'Acero', 'Roca', 'Eléctrico'], 460, 280), finalBoss: 'zapdos', md: 'Rayo', terrain: ['water'] },

@@ -47,14 +47,14 @@ export async function playScene(scene) {
     actors: {}, objects: {}, moving: [], lastSpeaker: null, seq: 0, music: scene.music || null, tint: scene.tint || null,
   };
   if (dark) S.screenFade = null;   // el fundido de la propia escena (que empieza en negro) toma el relevo
-  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra', ...Object.fromEntries(['scale', 'alpha', 'hover', 'flyAnim', 'item', 'itemScale', 'idle', 'noShadow', 'name', 'pensive', 'noLook', 'track'].filter(k => k in a).map(k => [k, a[k]])) };
+  for (const [id, a] of Object.entries(scene.actors || {})) c.actors[id] = { id, sp: a.sp, x: a.x, y: a.y, facing: DIRS[a.dir || 'down'], hidden: !!a.hidden, anim: null, still: !!a.still, fixedStill: !!a.still, emotes: [], form: a.sp === 'sombra', ...Object.fromEntries(['scale', 'alpha', 'hover', 'flyAnim', 'item', 'itemScale', 'idle', 'noShadow', 'name', 'pensive', 'noLook', 'track', 'shadowForm', 'shadowZoom'].filter(k => k in a).map(k => [k, a[k]])) };
   for (const [id, o] of Object.entries(scene.objects || {})) c.objects[id] = { id, ...o, alpha: 1 };
   c.actors.player = { id: 'player', isPlayer: true, emotes: [], get x() { return D.state.hub.x; }, get y() { return D.state.hub.y; }, get facing() { return D.state.hub.facing; }, set facing(v) { D.state.hub.facing = v; }, set x(v) { D.state.hub.x = v; }, set y(v) { D.state.hub.y = v; }, set movedAt(v) { D.state.hub.movedAt = v; } };
   if (scene.music) D.music?.(scene.music);
   D.render();
   // las frases que van seguidas del mismo Pokémon: se le mira desde la primera
   { const S = scene.steps; for (let i = 0; i < S.length; i++) { const s = S[i]; if (s.do !== 'say' || !s.who) continue; for (let j = i + 1; j < S.length; j++) if (S[j].do === 'say') { if (S[j].who === s.who) s.multi = true; break; } } }
-  try { for (const step of scene.steps) { if (c.skip) break; await runStep(step, c); } }
+  try { for (const step of scene.steps) { if (c.skip) { if (step.do === 'flag') D.flag?.(step); continue; } c.step = step; await runStep(step, c); } }   // (al saltar la escena, los pasos «flag» se cumplen igual: p. ej. empezar la Expedición)
   catch (e) { console.error('escena', scene.id, e); }
   const skipped = c.skip, endedDark = c.fade >= 0.99;
   // al acabar: se apaga todo lo que se mantenía y se vuelve a la aldea
@@ -80,7 +80,7 @@ async function runStep(step, c) {
     case 'show': if (who) who.hidden = false; return;
     case 'hide': if (who) who.hidden = true; return;
     case 'turn': if (who) { who.facing = step.toward ? dirToward(who, c.actors[step.toward]) : DIRS[step.dir] || who.facing; D.render(); } return;
-    case 'move': return move(c, who, step);
+    case 'move': { const p = move(c, who, step); if (!step.nowait) await p; return; }   // (nowait: echa a andar y la escena sigue)
     case 'anim': return anim(who, step);
     case 'emote': return emote(c, who, step);
     case 'say': return say(c, who, step);
@@ -89,7 +89,7 @@ async function runStep(step, c) {
     case 'bird': c.bird = { t0: now(), ms: step.ms || 1100, from: step.from || [824, 190], to: step.to || [-96, 400] }; if (!step.nowait) await delay(step.ms || 1100); return;
     case 'poster': return poster(c, step.kind || 'wanted');
     case 'prop': if (who) Object.assign(who, step.set || {}); D.render(); return;   // cambiar algo de un actor (volar, tamaño, objeto en las manos…)
-    case 'tween': { const p = tween(who, step.set || {}, step.ms || 600, step.ease); if (!step.nowait) await p; return; }
+    case 'tween': { const p = tween(step.obj ? c.objects[step.obj] : who, step.set || {}, step.ms || 600, step.ease); if (!step.nowait) await p; return; }   // (obj: un objeto de la escena, p. ej. la niebla)
     case 'jump': { const p = jumpTo(who, step.to || [who.x, who.y], step.ms || 420, step.h ?? 14); if (!step.nowait) await p; return; }
     case 'area': {   // cambiar de zona a mitad de escena (un recuerdo en otro sitio), con la cámara que se indique
       if (step.area) D.state.hub.area = step.area; if (step.cam) c.cam = { ...step.cam };
@@ -128,7 +128,7 @@ async function runStep(step, c) {
     case 'particulas': { c.particles = step.kind ? { kind: step.kind, wind: step.wind || 0, heavy: !!step.heavy, list: c.particles?.kind === step.kind ? c.particles.list : [] } : null; return; }
     case 'se': D.sfx?.(step.name); return;
     case 'music': D.music?.(step.track || null); return;
-    case 'flag': D.flag?.(step); return;
+    case 'flag': await D.flag?.(step); return;   // (espera a que se cumpla: p. ej. que el servidor ponga en marcha la Expedición antes de buscar la siguiente escena)
     case 'end': c.skip = true; return;
     default: console.warn('paso desconocido', step);
   }
@@ -273,7 +273,8 @@ export function drawSceneActor(ctx, e, sx, sy, scale, drawMon) {
     // al volar, su animación de vuelo (más tranquila); si no, la pose que tenga; quieto salvo que esté haciendo algo (idle)
     const anim = a.hover && a.flyAnim ? (a._fly ||= { name: a.flyAnim, t0: now(), dur: Infinity, loop: true, slow: 3 }) : a.anim;
     const size = scale * 24 * sc;
-    drawMon(ctx, { species: a.sp, facing: a.facing, movedAt: a.movedAt, anim, still: a.still || (!a.idle && !anim) }, sx - size / 2, sy - size - lift, size);
+    if (a.shadowForm && D.shadow) D.shadow(ctx, { species: a.sp, facing: a.facing, movedAt: a.movedAt, anim, still: true }, sx - size / 2, sy - size - lift, size, a.shadowZoom ?? 4);   // (la sombra del lago)
+    else drawMon(ctx, { species: a.sp, facing: a.facing, movedAt: a.movedAt, anim, still: a.still || (!a.idle && !anim) }, sx - size / 2, sy - size - lift, size);
     if (a.item && D.drawItem) { const is = 26 * (a.itemScale ?? 1), right = (a.facing?.[0] ?? 0) >= 0; D.drawItem(ctx, a.item, Math.round(sx + (right ? 8 : -8 - is)), Math.round(sy - 34 - lift), Math.round(is)); }
   }
   ctx.restore();
@@ -323,6 +324,41 @@ function drawObject(ctx, o, sx, sy) {
   if (o.kind === 'mark') {   // la señal de que va a caer un rayo ahí (parpadea)
     const k = 0.5 + 0.5 * Math.sin(now() / 45); ctx.globalAlpha = 0.35 + 0.45 * k; ctx.strokeStyle = '#fff6a8'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.ellipse(sx, sy, 20 + 4 * k, 8 + 1.5 * k, 0, 0, 7); ctx.stroke();
+  }
+  if (o.kind === 'reflejos') {   // o.pairs: [[quién, especie del reflejo, tamaño]]; o.shore: la orilla (y del mapa); se ven al otro lado, en el agua
+    const c = cut(), S = D.hubScale?.() || 1.25; if (!c || !D.sprites) { ctx.restore(); return; }
+    for (const [who, sp, z] of o.pairs) {
+      const a = c.actors[who]; if (!a || a.hidden) continue;
+      const rx = sx + (a.x - o.x) * (o.squeeze ?? 0.75), ry = sy + ((2 * o.shore - a.y) - o.y), size = S * 24 * (z || 1);   // (posiciones a escala del mapa; el tamaño, el de los sprites; juntos hacia el centro: dentro del agua)
+      ctx.save(); ctx.globalAlpha = 0.78 * (o.vis ?? 1); ctx.translate(rx, ry); ctx.scale(1, -1);
+      ctx.filter = 'brightness(1.08) saturate(0.85)';
+      D.sprites.drawMon(ctx, { species: sp, facing: [0, 1], movedAt: 0, still: true }, -size / 2, -size, size);
+      ctx.restore();
+    }
+    ctx.restore(); return;
+  }
+  if (o.kind === 'cascada') {   // la cascada del muro de niebla: franjas que caen (más o menos densas según el caudal), espuma y bruma en la base
+    const t = now() / 1000, flow = o.flow ?? 1, top = sy - (o.h || 150);
+    ctx.globalAlpha = o.vis ?? 1;
+    for (let i = 0; i < 26; i++) { const x = sx - 38 + i * 3, ph = (t * 3.2 + i * 0.37) % 1, a = (0.35 + 0.45 * ((i * 7) % 5) / 4) * flow;
+      const g = ctx.createLinearGradient(0, top, 0, sy); g.addColorStop(0, `rgba(210,235,255,${a * 0.6})`); g.addColorStop(ph, `rgba(255,255,255,${a})`); g.addColorStop(1, `rgba(190,225,250,${a * 0.8})`);
+      ctx.fillStyle = g; ctx.fillRect(x, top, 2.4, sy - top); }
+    for (let i = 0; i < 14; i++) { const a = flow * (0.5 + 0.3 * Math.sin(t * 6 + i)); ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.beginPath(); ctx.ellipse(sx - 44 + (i * 29 % 88), sy - 4 + Math.sin(t * 5 + i * 2) * 3, 7 + (i % 3) * 3, 4, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = `rgba(230,240,250,${0.18 * flow})`; ctx.fillRect(sx - 70, sy - 26, 140, 30);
+    ctx.restore(); return;
+  }
+  if (o.kind === 'muro-niebla') {   // el muro de niebla: tapa el fondo de la escena (y la cascada) hasta que se abre; o.a: cuánto tapa
+    const a = o.a ?? 1; if (a <= 0) { ctx.restore(); return; }
+    const W = ctx.canvas.width, bottom = sy;   // (sy: la línea hasta donde llega, en pantalla)
+    ctx.globalAlpha = a; const g = ctx.createLinearGradient(0, 0, 0, bottom); g.addColorStop(0, 'rgba(236,232,245,1)'); g.addColorStop(0.75, 'rgba(236,232,245,0.96)'); g.addColorStop(1, 'rgba(236,232,245,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, bottom);
+    for (let i = 0; i < 6; i++) { const t = now() / 900 + i, x = ((i * 137 + Math.sin(t) * 40) % (W + 120)) - 60, y = bottom * 0.3 + Math.cos(t * 0.7) * 25 + i * 14; ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(x, y, 70, 22, 0, 0, 7); ctx.fill(); }
+    ctx.restore(); return;
+  }
+  if (o.kind === 'fuego') {   // la hoguera del campamento: llamas que suben y se apagan, anaranjadas y rojas
+    const t = now() / 90;
+    for (let i = 0; i < 5; i++) { const k = (t + i * 1.7) % 1; ctx.globalAlpha = 1 - k; ctx.fillStyle = i % 2 ? '#ffb347' : '#ff6a2a'; ctx.beginPath(); ctx.ellipse(sx + Math.sin(t * 1.3 + i) * 5, sy - k * 26, 6 - k * 3, 9 - k * 4, 0, 0, 7); ctx.fill(); }
+    ctx.restore(); return;
   }
   if (o.kind === 'humo') {   // bocanadas grises que crecen, suben y se deshacen; o.on: si sigue saliendo; o.k: cuánto (0-1)
     const ps = (o.puffs ||= []); if (o.on && Math.random() < (o.k ?? 0.55) && !fast()) ps.push({ dx: (Math.random() - 0.5) * 70, dy: 4, r: 14 + Math.random() * 10, vy: 0.9 + Math.random() * 1.2, vx: (Math.random() - 0.5) * 0.7, a: 0.85, g: 80 + Math.random() * 40 });

@@ -247,7 +247,9 @@ const canLeaderChoice = () => rankOf(meta.rankPts) >= CFG.leaderChoiceRank;
 // =====================================================================
 export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
-  initScenes({ state, render, openDialog, playerName: () => user?.name || 'Novato', beds: () => HUB.descanso.beds, drawItem: (c, name, x, y, size) => drawItemIcon(c, name, x, y, size), music: key => key ? playTrack(key) : playZone(state.hub.area), sprites: Sprites, speciesName: sp => nm('species', sp, SPECIES[sp]?.name) || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} } });
+  initScenes({ state, render, openDialog, playerName: () => user?.name || 'Novato', beds: () => HUB.descanso.beds, drawItem: (c, name, x, y, size) => drawItemIcon(c, name, x, y, size), music: key => key ? playTrack(key) : playZone(state.hub.area), sprites: Sprites, speciesName: sp => nm('species', sp, SPECIES[sp]?.name) || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} },
+    shadow: (c, m, x, y, size, zoom) => drawShadowMon({ ...m, ecoGlow: false }, x, y, size, c, zoom), hubScale: () => HUB_SCALE,
+    flag: async step => { if (step.name === 'expedition-start') { try { const r = await call('/expedition/start', {}); if (r?.meta) meta = r.meta; } catch {} } } });   // (pasos «flag» de las escenas: p. ej. empezar la Expedición)
   window.__mmPlayScene = id => { const sc = SCENES_ALL().find(s => s.id === id); return sc ? playScene(sc) : Promise.resolve(); };
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
@@ -1236,6 +1238,7 @@ async function endRun(outcome) {
   if (outcome === 'clear' && state.dungeonDef?.id === 'cueva' && !(meta?.scenes || []).includes('scyther-cueva')) await dungeonScene('scyther-cueva', { keepDark: true });
   // al vencer a Zapdos por primera vez: te da su pluma (la Pluma Trueno), que se guarda en el gremio
   if (outcome === 'clear' && state.dungeonDef?.id === 'monte' && !(meta?.scenes || []).includes('zapdos-pluma')) await dungeonScene('zapdos-pluma', { keepDark: true });
+  if (outcome === 'clear' && state.dungeonDef?.id === 'brumas' && !(meta?.scenes || []).includes('exp-mesprit') && (meta?.scenes || []).includes('exp-lago')) await dungeonScene('exp-mesprit', { keepDark: true });   // la Expedición: Mesprit
   if (outcome === 'clear' && state.dungeonDef?.id === 'huerto' && !(meta?.scenes || []).includes('huerto-slaking')) await dungeonScene('huerto-slaking', { keepDark: true });
   if (outcome === 'clear' && state.dungeonDef?.id === 'sierra' && !(meta?.scenes || []).includes('moltres-vencido')) await dungeonScene('moltres-vencido', { keepDark: true });
   if (outcome === 'clear' && state.dungeonDef?.id === 'gelida' && !(meta?.scenes || []).includes('articuno-vencida')) await dungeonScene('articuno-vencida', { keepDark: true });
@@ -1472,8 +1475,8 @@ function drawGiantShadow(ox, oy, tile) {
 // pata, la cresta, un trozo del cuello: le faltan partes, como a un recuerdo a medias) y los bordes deshilachados, que se mueven
 const SHADOW_HOLES = [[0.58, 0.50, 0.07, 0.06], [0.28, 0.88, 0.07, 0.09], [0.62, 0.08, 0.07, 0.09], [0.38, 0.30, 0.04, 0.05], [0.80, 0.62, 0.05, 0.05]];   // (x, y, radio x, radio y), en fracción de su figura
 let shadowCanvas = null;
-function drawShadowMon(e, px, py, tile) {
-  const S = Math.round(tile * 7), off = Math.round(tile * 3), Z = 1.65, T2 = tile * Z;   // (un legendario: más grande)
+function drawShadowMon(e, px, py, tile, target = ctx, zoom = 1.65) {
+  const S = Math.round(tile * (zoom + 5.4)), off = Math.round(tile * (zoom + 1.4)), Z = zoom, T2 = tile * Z;   // (un legendario: más grande; en las escenas, más aún)
   if (!shadowCanvas) shadowCanvas = document.createElement('canvas');
   if (shadowCanvas.width !== S) { shadowCanvas.width = S; shadowCanvas.height = S; }
   const c = shadowCanvas.getContext('2d', { willReadFrequently: true }); c.clearRect(0, 0, S, S); c.imageSmoothingEnabled = false;
@@ -1492,10 +1495,11 @@ function drawShadowMon(e, px, py, tile) {
     const n = Math.abs(Math.sin(x * 12.9898 + y * 78.233 + t * 3.1) * 43758.5453 % 1);
     if (edge && n < 0.45) continue;   // bordes deshilachados (cambian con el tiempo)
     const lum = (D[i] + D[i + 1] + D[i + 2]) / 765;   // un poco del relieve del original, muy oscurecido
-    O[i] = 40 + lum * 90; O[i + 1] = 30 + lum * 70; O[i + 2] = 90 + lum * 130; O[i + 3] = 240;   // (los ecos: algo más claros y azulados que la sombra grande, para distinguirlos)
+    if (e.ecoGlow === false) { O[i] = 16 + lum * 70; O[i + 1] = 6 + lum * 40; O[i + 2] = 34 + lum * 96; O[i + 3] = 238; }   // (la sombra grande, en las escenas: oscura)
+    else { O[i] = 40 + lum * 90; O[i + 1] = 30 + lum * 70; O[i + 2] = 90 + lum * 130; O[i + 3] = 240; }   // (los ecos: algo más claros y azulados que la sombra grande, para distinguirlos)
   }
   c.putImageData(out, 0, 0);
-  ctx.save(); ctx.shadowColor = 'rgba(140, 120, 255, .8)'; ctx.shadowBlur = tile * 0.35; ctx.drawImage(shadowCanvas, px - off, py - off); ctx.restore();
+  target.save(); target.shadowColor = e.ecoGlow === false ? 'rgba(70, 30, 120, .6)' : 'rgba(140, 120, 255, .8)'; target.shadowBlur = tile * 0.35; target.drawImage(shadowCanvas, px - off, py - off); target.restore();
 }
 async function lookTelescope() {
   let r; try { r = await call('/observatorio/telescope', {}); } catch { return openDialog([{ who: '', text: 'Un telescopio enorme apunta al cielo. Ya asoman las primeras estrellas.' }]); }
@@ -1673,6 +1677,7 @@ function newFloor() {
   if (built.kind === 'jirachi' || state.dungeon.arena) {
     // el jefe habla al llegar (la sala de descanso anterior ya ofrecía guardar o volver)
     if (def.id === 'entrenamiento' && built.boss?.species === 'chatot') { chatotBossIntro(built.boss); }
+    else if (def.id === 'brumas' && meta?.expedition === 'bosque' && built.boss && !(meta?.scenes || []).includes('exp-niebla')) setTimeout(async () => { await dungeonScene('exp-niebla'); await dungeonScene('exp-lago'); }, 300);   // la Expedición: el muro de niebla y el lago, antes de la pelea
     else if (def.id === 'sierra' && built.boss?.species === 'moltres' && !(meta?.scenes || []).includes('moltres-cima')) setTimeout(() => dungeonScene('moltres-cima'), 300);     // la primera vez: la escena de la cima
     else if (def.id === 'gelida' && built.boss?.species === 'articuno' && !(meta?.scenes || []).includes('articuno-cima')) setTimeout(() => dungeonScene('articuno-cima'), 300);
     else if (def.id === 'monte' && built.boss?.species === 'zapdos' && !(meta?.scenes || []).includes('zapdos-cima')) {   // la primera vez: la escena de la cima
@@ -1680,8 +1685,8 @@ function newFloor() {
       setTimeout(() => dungeonScene('zapdos-cima'), 300);
     }
     else {
-    const boss = built.boss, lines = (boss?.shadowForm && SHADOW_LINES) || BOSS_LINES[boss?.species] || [boss?.big ? `${monNm(boss)} te espera con sus súbditos.` : `${monNm(boss)} aguarda al final de la sala. Su presencia llena el aire.`];
-    openDialog(lines.map(t => ({ who: boss?.shadowForm ? (t.startsWith('(') ? undefined : '???') : BOSS_LINES[boss?.species] ? monNm(boss) : undefined, sp: boss?.shadowForm ? undefined : BOSS_LINES[boss?.species] ? boss.species : undefined, mood: 'Determined', text: t })));
+    const boss = built.boss, lines = (boss?.shadowForm && meta?.expedition === 'bosque' && !(meta?.scenes || []).includes('exp-lago')) ? [] : (boss?.shadowForm && SHADOW_LINES) || BOSS_LINES[boss?.species] || [boss?.big ? `${monNm(boss)} te espera con sus súbditos.` : `${monNm(boss)} aguarda al final de la sala. Su presencia llena el aire.`];
+    if (lines.length) openDialog(lines.map(t => ({ who: boss?.shadowForm ? (t.startsWith('(') ? undefined : '???') : BOSS_LINES[boss?.species] ? monNm(boss) : undefined, sp: boss?.shadowForm ? undefined : BOSS_LINES[boss?.species] ? boss.species : undefined, mood: 'Determined', text: t })));
     }
   } else if (built.kind === 'miniboss') say(`B${state.floor}F. Un guardián bloquea las escaleras…`);
   else if (def.eras && (state.floor - 1) % def.eraEvery === 0) say(`B${state.floor}F. El tiempo se retuerce… estás en un eco de ${dnNmId(state.era)}.`);

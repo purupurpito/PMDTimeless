@@ -103,6 +103,9 @@ export const HUB = {
     ],
     signs: [],
   },
+  // solo para escenas: el muro de niebla y el Lago Espejo (la Expedición)
+  nieblasala: { img: 'client/assets/hub/scene_niebla.png', mask: 'client/assets/hub/scene_niebla_mask.png', spawn: { x: 384, y: 330 }, exits: [], npcs: [], signs: [] },
+  lagosala: { img: 'client/assets/hub/scene_lago.png', mask: 'client/assets/hub/scene_lago_mask.png', spawn: { x: 384, y: 330 }, exits: [], npcs: [], signs: [] },
   // solo para escenas: el huerto de Spinda, con Slaking tumbado (tools/escenas/huerto-mapa.py)
   huertosala: { img: 'client/assets/hub/scene_huerto.png', mask: 'client/assets/hub/scene_huerto_mask.png', spawn: { x: 384, y: 420 }, exits: [], npcs: [], signs: [] },
   // solo para escenas: las cimas de la Sierra Ígnea (el volcán, con su hueco) y de la Montaña Gélida (el estanque helado)
