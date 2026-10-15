@@ -75,42 +75,42 @@
 <section id="screen-game" class="screen game hidden">
   <header>
     <h1 class="brand"><img id="hdr-logo" class="hdr-logo hidden" alt="PMD: Timeless"><span id="hdr-title">PMD: Timeless</span></h1>
-    <div class="stat"><span>Explorador</span><b id="hud-user"></b></div>
-    <div class="stat"><span>Lugar</span><b id="floor">Gremio</b></div>
+    <div class="stat"><span data-i18n="hud.explorador">Explorador</span><b id="hud-user"></b></div>
+    <div class="stat"><span data-i18n="hud.lugar">Lugar</span><b id="floor">Gremio</b></div>
     <div class="stat"><span id="nameLv">—</span><div class="bar hp"><i id="hpBar"></i></div><b id="hpText"></b></div>
-    <div class="stat"><span>Barriga</span><div class="bar belly"><i id="bellyBar"></i></div><b id="bellyText"></b></div>
-    <div class="stat"><span>Experiencia</span><b id="exp"></b></div>
-    <div class="stat"><span>Pokés</span><b id="runPokes">—</b></div>
-    <div class="stat"><span>Pokés (banco)</span><b id="pokes">0</b></div>
-    <div class="stat"><span>Rango</span><b id="rank"></b></div>
+    <div class="stat"><span data-i18n="hud.barriga">Barriga</span><div class="bar belly"><i id="bellyBar"></i></div><b id="bellyText"></b></div>
+    <div class="stat"><span data-i18n="hud.experiencia">Experiencia</span><b id="exp"></b></div>
+    <div class="stat"><span data-i18n="hud.pokes">Pokés</span><b id="runPokes">—</b></div>
+    <div class="stat"><span data-i18n="hud.banco">Pokés (banco)</span><b id="pokes">0</b></div>
+    <div class="stat"><span data-i18n="hud.rango">Rango</span><b id="rank"></b></div>
     <div class="settings">
-      <button id="settings-btn" class="hamb" type="button" aria-label="Opciones" aria-expanded="false"><span></span><span></span><span></span></button>
-      <div id="settings-panel" class="settings-panel hidden" role="dialog" aria-label="Opciones">
-        <p class="set-title">Opciones</p>
-        <div class="set-row"><span>Música</span><input type="range" id="music-vol" min="0" max="100" step="1"><output id="music-val"></output></div>
-        <div class="set-row"><span>Efectos</span><input type="range" id="sfx-vol" min="0" max="100" step="1"><output id="sfx-val"></output></div>
-        <label class="set-row set-scale"><span>Tamaño de pantalla</span><select id="scale"></select></label>
-        <label class="set-row"><span>Enviar datos de juego (beta)</span><input type="checkbox" id="opt-telemetry"></label>
-        <label class="set-row"><span>Mando en pantalla</span><input type="checkbox" id="opt-touch"></label>
-        <label class="set-row"><span>Vista de mazmorra</span><select id="opt-dview"><option value="near">Cercana</option><option value="wide">Amplia</option></select></label>
-        <button id="btn-feedback" class="set-btn" type="button">Enviar un comentario o un fallo</button>
-        <label class="set-row"><span data-i18n="opciones.marco">Color del marco</span><select id="opt-frame"><option value="azul">Azul</option><option value="rojo">Rojo</option><option value="verde">Verde</option><option value="morado">Morado</option><option value="dorado">Dorado</option><option value="gris">Gris</option></select></label>
-        <label class="set-row"><span>Información</span><select id="opt-info"><option value="dentro">Dentro</option><option value="fuera">Fuera</option><option value="oculta">Oculta</option></select></label>
-        <label class="set-row set-log"><span>Mensajes</span><select id="opt-log"><option value="inside">Dentro</option><option value="outside">Fuera</option></select></label>
+      <button id="settings-btn" class="hamb" type="button" aria-label="Opciones" data-i18n-aria="opciones.titulo" aria-expanded="false"><span></span><span></span><span></span></button>
+      <div id="settings-panel" class="settings-panel hidden" role="dialog" aria-label="Opciones" data-i18n-aria="opciones.titulo">
+        <p class="set-title" data-i18n="opciones.titulo">Opciones</p>
+        <div class="set-row"><span data-i18n="opciones.musica">Música</span><input type="range" id="music-vol" min="0" max="100" step="1"><output id="music-val"></output></div>
+        <div class="set-row"><span data-i18n="opciones.efectos">Efectos</span><input type="range" id="sfx-vol" min="0" max="100" step="1"><output id="sfx-val"></output></div>
+        <label class="set-row set-scale"><span data-i18n="opciones.tamano">Tamaño de pantalla</span><select id="scale"></select></label>
+        <label class="set-row"><span data-i18n="opciones.datos">Enviar datos de juego (beta)</span><input type="checkbox" id="opt-telemetry"></label>
+        <label class="set-row"><span data-i18n="opciones.mando">Mando en pantalla</span><input type="checkbox" id="opt-touch"></label>
+        <label class="set-row"><span data-i18n="opciones.vista">Vista de mazmorra</span><select id="opt-dview"><option value="near" data-i18n="opciones.vista.cercana">Cercana</option><option value="wide" data-i18n="opciones.vista.amplia">Amplia</option></select></label>
+        <button id="btn-feedback" class="set-btn" type="button" data-i18n="opciones.buzon">Enviar un comentario o un fallo</button>
+        <label class="set-row"><span data-i18n="opciones.marco">Color del marco</span><select id="opt-frame"><option value="azul" data-i18n="opciones.color.azul">Azul</option><option value="rojo" data-i18n="opciones.color.rojo">Rojo</option><option value="verde" data-i18n="opciones.color.verde">Verde</option><option value="morado" data-i18n="opciones.color.morado">Morado</option><option value="dorado" data-i18n="opciones.color.dorado">Dorado</option><option value="gris" data-i18n="opciones.color.gris">Gris</option></select></label>
+        <label class="set-row"><span data-i18n="opciones.info">Información</span><select id="opt-info"><option value="dentro" data-i18n="opciones.dentro">Dentro</option><option value="fuera" data-i18n="opciones.fuera">Fuera</option><option value="oculta" data-i18n="opciones.oculta">Oculta</option></select></label>
+        <label class="set-row set-log"><span data-i18n="opciones.mensajes">Mensajes</span><select id="opt-log"><option value="inside" data-i18n="opciones.dentro">Dentro</option><option value="outside" data-i18n="opciones.fuera">Fuera</option></select></label>
         <label class="set-row"><span data-i18n="opciones.idioma">Idioma</span><select id="opt-lang"><option value="es">Español</option><option value="en">English</option></select></label>
         <p class="set-foot" id="set-version"></p>
       </div>
     </div>
-    <button id="logout" class="btn link small">Salir</button>
+    <button id="logout" class="btn link small" data-i18n="hud.salir">Salir</button>
   </header>
   <main>
     <canvas id="game"></canvas>
     <aside>
-      <div><h2>Movimientos</h2><div id="moves"></div></div>
-      <div><h2>Estadísticas</h2><div id="stats"></div></div>
-      <div><h2>Equipo</h2><div id="team" class="dim"></div></div>
-      <div><h2>Misiones activas</h2><div id="missions" class="dim"></div></div>
-      <div><h2>Bolsa</h2><div id="items" class="items"></div></div>
+      <div><h2 data-i18n="panel.movimientos">Movimientos</h2><div id="moves"></div></div>
+      <div><h2 data-i18n="panel.estadisticas">Estadísticas</h2><div id="stats"></div></div>
+      <div><h2 data-i18n="panel.equipo">Equipo</h2><div id="team" class="dim"></div></div>
+      <div><h2 data-i18n="panel.misiones">Misiones activas</h2><div id="missions" class="dim"></div></div>
+      <div><h2 data-i18n="panel.bolsa">Bolsa</h2><div id="items" class="items"></div></div>
     </aside>
   </main>
   <footer>
@@ -135,13 +135,13 @@
 <div id="card" class="card-overlay"><div class="card-inner"><p class="card-title"></p><p class="card-sub"></p></div></div>
 <div id="toast" class="toast hidden"></div>
 <script type="module" src="client/js/app.js"></script>
-<div id="feedback-modal" class="fb-modal hidden" role="dialog" aria-label="Comentario o fallo">
+<div id="feedback-modal" class="fb-modal hidden" role="dialog" aria-label="Comentario o fallo" data-i18n-aria="buzon.aria">
   <div class="fb-box">
-    <p class="fb-title">Cuéntanos qué ha pasado</p>
-    <label class="fb-row">Tipo <select id="fb-kind"><option value="fallo">Un fallo</option><option value="idea">Una idea</option><option value="otro">Otra cosa</option></select></label>
-    <textarea id="fb-text" maxlength="2000" rows="6" placeholder="Qué estabas haciendo, qué esperabas que pasara y qué pasó…"></textarea>
+    <p class="fb-title" data-i18n="buzon.titulo">Cuéntanos qué ha pasado</p>
+    <label class="fb-row"><span data-i18n="buzon.tipo">Tipo</span> <select id="fb-kind"><option value="fallo" data-i18n="buzon.fallo">Un fallo</option><option value="idea" data-i18n="buzon.idea">Una idea</option><option value="otro" data-i18n="buzon.otro">Otra cosa</option></select></label>
+    <textarea id="fb-text" maxlength="2000" rows="6" placeholder="Qué estabas haciendo, qué esperabas que pasara y qué pasó…" data-i18n-ph="buzon.ph"></textarea>
     <p id="fb-msg" class="fb-msg"></p>
-    <div class="fb-actions"><button id="fb-cancel" type="button">Cancelar</button><button id="fb-send" type="button">Enviar</button></div>
+    <div class="fb-actions"><button id="fb-cancel" type="button" data-i18n="buzon.cancelar">Cancelar</button><button id="fb-send" type="button" data-i18n="buzon.enviar">Enviar</button></div>
   </div>
 </div>
 </body>

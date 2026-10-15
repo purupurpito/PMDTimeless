@@ -20,7 +20,7 @@ import { HUB_OBJECTS } from './hub-objects.js';
 import { typeIconHTML, typeIconImg } from './typeicons.js';
 import { playZone, playTrack, playOnce, stopMusic, setVolume, getVolume, preload as preloadMusic, playSfx, setSfxVolume, getSfxVolume } from './music.js';
 import { VERSION_LABEL } from '../../shared/version.js';
-import { t, getLang, setLang, onLangChange, applyDomText } from '../../shared/i18n.js';
+import { t, nm, nameKey, getLang, setLang, onLangChange, applyDomText } from '../../shared/i18n.js';
 import { asset } from './ui.js';
 import { ITEM_ICON, MACHINE_ICON, MD_ICON, ICON_COLS } from './item-sprites.js';
 import { PORTRAIT, PORTRAIT_COLS } from './portraits.js';
@@ -229,8 +229,8 @@ function createPlayer(species) {
   return mon;
 }
 const missionText = m => {
-  const d = dungeonById(m.dungeonId).name, t = MISSION_TYPES[m.type || 'derrotar'].label;
-  const who = m.target ? `${SPECIES[m.target].name} ` : '';
+  const d = dnNmId(m.dungeonId), t = MISSION_TYPES[m.type || 'derrotar'].label;
+  const who = m.target ? `${spNm(m.target)} ` : '';
   if (m.type === 'entregar') return `${t} ${m.item} a ${who}en B${m.floor}F de ${d}  (${m.pokes} P · +${m.rankPts} rango)`;
   return `${t} ${who}${m.type === 'explorar' || m.type === 'encontrar' ? '' : 'en '}B${m.floor}F de ${d}  (${m.pokes} P · +${m.rankPts} rango)`;
 };
@@ -247,15 +247,15 @@ const canLeaderChoice = () => rankOf(meta.rankPts) >= CFG.leaderChoiceRank;
 // =====================================================================
 export async function startGame(me) {
   window.__mmState = state; // referencia de depuración (pruebas automáticas)
-  initScenes({ state, render, openDialog, playerName: () => user?.name || 'Novato', beds: () => HUB.descanso.beds, drawItem: (c, name, x, y, size) => drawItemIcon(c, name, x, y, size), music: key => key ? playTrack(key) : playZone(state.hub.area), sprites: Sprites, speciesName: sp => SPECIES[sp]?.name || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} } });
+  initScenes({ state, render, openDialog, playerName: () => user?.name || 'Novato', beds: () => HUB.descanso.beds, drawItem: (c, name, x, y, size) => drawItemIcon(c, name, x, y, size), music: key => key ? playTrack(key) : playZone(state.hub.area), sprites: Sprites, speciesName: sp => nm('species', sp, SPECIES[sp]?.name) || (sp ? sp[0].toUpperCase() + sp.slice(1) : sp), uis: UIS, sfx: n => { try { playSfx(n); } catch {} } });
   window.__mmPlayScene = id => { const sc = SCENES_ALL().find(s => s.id === id); return sc ? playScene(sc) : Promise.resolve(); };
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
   window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmOpenMain = () => openDungeonMainMenu(); window.__mmTalk = k => talkTo(k); window.__mmSees = (e, t) => enemySees(e, t); window.__mmEnemyTurn = e => enemyTurn(e); window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
   window.__mmGainExp = (m, n) => gainExp(m, n); window.__mmExpToNext = expToNext; window.__mmBag = () => openBagMenu(); window.__mmIconOf = t => itemInText(t);
-  window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
-  window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l);
-  window.__mmDefeat = (e, by) => defeatEnemy(e, by); window.__mmMoves = MOVES; window.__mmSlot = i => useMoveSlot(i); window.__mmAct = (k, dx, dy) => playerAction(k, dx, dy); window.__mmPath = (to) => dungeonPath(state.player, to); window.__mmUseItem = i => useItem(i); window.__mmDescend = () => descend(); window.__mmPassing = () => !!passTimer; window.__mmEndTurn = () => endTurn(false);
+  window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmAreaName = a => areaNm(a); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
+  window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l); window.__mmUseMove = (m, mv) => useMove(m, { ...MOVES[mv], name: mv });
+  window.__mmDefeat = (e, by) => defeatEnemy(e, by); window.__mmMoves = MOVES; window.__mmSlot = i => useMoveSlot(i); window.__mmAct = (k, dx, dy) => playerAction(k, dx, dy); window.__mmPath = (to) => dungeonPath(state.player, to); window.__mmUseItem = i => useItem(i); window.__mmPlace = j => placeItem(j); window.__mmDescend = () => descend(); window.__mmPassing = () => !!passTimer; window.__mmEndTurn = () => endTurn(false);
   window.__mmVisibleNpcs = () => HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden).map(n => n.id); window.__mmHubPath = hubPath; window.__mmHubFree = hubFree; window.__mmGetMeta = () => meta; window.__mmEndRun = o => endRun(o); // pruebas automáticas
   window.__mmPending = t => pendingScene(meta, t)?.id || null;   // (pruebas: qué escena toca)
   window.__mmDebug = { defeat: () => downed(state.player), dungeons: () => openDungeonMenu(),
@@ -313,7 +313,7 @@ function openDialog(pages, onDone) { state.feed = []; state.dialog = { pages, i:
 function megaEncounter(e) {
   if (e.megaMet) return; e.megaMet = true;
   const dlg = MEGA_DIALOG[e.species]; if (!dlg) return;
-  openDialog(dlg.intro.map(t => ({ who: e.name, text: t, font: dlg.font, color: dlg.color })), () => { if (dlg.behavior !== 'flee') e.megaHostile = true; });
+  openDialog(dlg.intro.map(t => ({ who: monNm(e), text: t, font: dlg.font, color: dlg.color })), () => { if (dlg.behavior !== 'flee') e.megaHostile = true; });
 }
 // =====================================================================
 // TUTORIAL: Chatot te lleva andando por el gremio y la aldea, parando en cada sitio, y acaba en la
@@ -324,7 +324,7 @@ const hubFree = (area, x, y) => FOOT.every(([ox, oy]) => Hub.walkable(area, x + 
 // camino por el suelo transitable (búsqueda en anchura sobre una rejilla de 6 px)
 // Coste del terreno en las zonas de exterior: los caminos de tierra cuestan poco y la hierba bastante más, para que
 // quien anda por la aldea vaya por los caminos (como lo haría cualquiera) y solo ataje si ahorra mucho.
-const PATH_AREAS = new Set(['plaza', 'mercado', 'aldea', 'fuente', 'barrio']), costGrids = new Map();
+const PATH_AREAS = new Set(['plaza', 'mercado', 'aldea', 'fuente', 'barrio', 'observatorio']), costGrids = new Map();
 function costGrid(area) {
   if (!PATH_AREAS.has(area)) return null;
   if (costGrids.has(area)) return costGrids.get(area);
@@ -563,7 +563,7 @@ function hubExtras() {
   checkSpecialDay(); checkMyRescue();
   setTimeout(() => { if (!state.dialog && !state.menu) fountainNews(); }, 700);
   if (state.mailArrived) { const news = (tries = 0) => { if (state.scene !== 'hub' || state.hub.area === 'campamento') return; if (!state.dialog && !state.menu && !document.querySelector('.penalty-report')) { state.mailArrived = false; openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Te ha llegado una carta mientras estabas fuera! Pásate por el buzón de la plaza.' }]); } else if (tries < 20) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1500); }
-  if (state.pausedRun) openMenu({ title: `Tienes una exploración a medias en ${dungeonById(state.pausedRun.dungeonId).name}`, items: ['Continuar ahora', 'Más tarde'], onSelect: i => { if (i === 0) resumeRun(); } });
+  if (state.pausedRun) openMenu({ title: `Tienes una exploración a medias en ${dnNmId(state.pausedRun.dungeonId)}`, items: ['Continuar ahora', 'Más tarde'], onSelect: i => { if (i === 0) resumeRun(); } });
 }
 
 const closeHub = () => { state.menu = null; render(); };
@@ -592,7 +592,7 @@ function openHubMenu() {
 function openHubBag() {
   const bag = meta.bag || [];
   if (!bag.length) return openDialog([{ who: '', text: 'Tu bolsa está vacía. Lo que lleves en ella te acompaña a la próxima exploración.' }], openHubMenu);
-  openMenu({ title: `Bolsa ${bag.length}/${bagSizeFor(meta?.rankPts)}`, money: meta?.pokes || 0, items: bag.map(n => isMachine(n) ? `${n.slice(0, 2)}: ${n.slice(4)}` : n), onCancel: openHubMenu,
+  openMenu({ title: `Bolsa ${bag.length}/${bagSizeFor(meta?.rankPts)}`, money: meta?.pokes || 0, items: bag.map(itemNm), onCancel: openHubMenu,
     onSelect: i => openDialog([{ who: '', text: itemInfo(bag[i]) }], openHubBag) });
 }
 function openHubPokemon() {
@@ -601,14 +601,14 @@ function openHubPokemon() {
     const k = items[i];
     if (k === 'Iniciales') {
       const st = meta.starters || [];
-      return openMenu({ title: `Iniciales (${st.length})`, items: st.map((s, j) => `${SPECIES[s]?.name || s}${j === 0 ? '  ★ líder' : ''}`), icons: st.map(s => SPECIES[s]?.types?.[0]), onCancel: openHubPokemon,
-        onSelect: j => { const sp = SPECIES[st[j]] || {}; openDialog([{ who: sp.name || st[j], sp: st[j], text: `${(sp.types || []).join(' / ')}. ${j === 0 ? 'Es tu líder: con él empiezas cada exploración.' : 'Para que sea tu líder, háblale en la aldea.'}` }], openHubPokemon); } });
+      return openMenu({ title: `Iniciales (${st.length})`, items: st.map((s, j) => `${nm('species', s, SPECIES[s]?.name || s)}${j === 0 ? '  ★ líder' : ''}`), icons: st.map(s => SPECIES[s]?.types?.[0]), onCancel: openHubPokemon,
+        onSelect: j => { const sp = SPECIES[st[j]] || {}; openDialog([{ who: nm('species', st[j], sp.name || st[j]), sp: st[j], text: `${(sp.types || []).map(x => nm('type', x)).join(' / ')}. ${j === 0 ? 'Es tu líder: con él empiezas cada exploración.' : 'Para que sea tu líder, háblale en la aldea.'}` }], openHubPokemon); } });
     }
     if (k === 'Movimientos aprendidos') {
       const lead = meta.starters?.[0], mv = permanentMoves(lead);
-      return openDialog([{ who: SPECIES[lead]?.name || '', sp: lead, text: mv.length ? `Movimientos que ya sabe para siempre: ${mv.join(', ')}.` : 'Aún no ha aprendido ningún movimiento para siempre. Las Máquinas Definitivas (MD) se lo enseñan.' }], openHubPokemon);
+      return openDialog([{ who: nm('species', lead, SPECIES[lead]?.name || ''), sp: lead, text: mv.length ? `Movimientos que ya sabe para siempre: ${mv.map(m => nm('move', m)).join(', ')}.` : 'Aún no ha aprendido ningún movimiento para siempre. Las Máquinas Definitivas (MD) se lo enseñan.' }], openHubPokemon);
     }
-    if (k === 'Compañeros') return openMenu({ title: `Compañeros (${bonds.length})`, items: bonds.map(s => meta.bonds[s]?.nick || SPECIES[s].name), icons: bonds.map(s => SPECIES[s]?.types?.[0]), onCancel: openHubPokemon,
+    if (k === 'Compañeros') return openMenu({ title: `Compañeros (${bonds.length})`, items: bonds.map(s => meta.bonds[s]?.nick || spNm(s)), icons: bonds.map(s => SPECIES[s]?.types?.[0]), onCancel: openHubPokemon,
       onSelect: j => openDialog([{ who: SPECIES[bonds[j]].name, sp: bonds[j], text: 'Os une un vínculo: puede volver a acompañarte en las exploraciones.' }], openHubPokemon) });
     openHubMenu();
   } });
@@ -703,7 +703,7 @@ function hubInteract() {
   const talkScore = n => Math.hypot(n.x - fx, n.y - fy) + (((n.x - h.x) * h.facing[0] + (n.y - h.y) * h.facing[1]) < 0 ? 1000 : 0);   // los que tienes a la espalda, al final
   const npc = [...area.npcs].filter(npcShown).filter(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))).sort((a, b) => talkScore(a) - talkScore(b))[0];
   if (npc) { if (!npc.fixedFacing) npc.facing = [-Math.sign(h.facing[0]), -Math.sign(h.facing[1])]; state.talkNpc = { x: npc.x, y: npc.y, area: h.area }; return talkTo(npc.talk); }
-  const w = h.wanderers.find(n => Math.hypot(n.x - fx, n.y - fy) < 20); if (w) return openDialog([{ who: SPECIES[w.species].name, text: WANDER_LINES[(Math.random() * WANDER_LINES.length) | 0] }]);
+  const w = h.wanderers.find(n => Math.hypot(n.x - fx, n.y - fy) < 20); if (w) return openDialog([{ who: spNm(w.species), text: WANDER_LINES[(Math.random() * WANDER_LINES.length) | 0] }]);
   for (const s of area.signs || []) if ((!s.when || s.when(meta || {})) && inRect(fx, fy, s.rect)) return openDialog([{ who: '', text: s.text }]);   // (when: solo si se cumple, p. ej. la roca del café)
   for (const hs of area.hotspots || []) if (inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) return hotspotAction(hs);
   for (const ex of area.exits) if (ex.action === 'dungeons' && inRect(fx, fy, ex.rect)) return openDungeonMenu();
@@ -809,7 +809,7 @@ function talkToBase(kind) {
       const fruits = [...new Set((meta.bag || []).filter(x => JUICES[x]))];
       return openDialog([S('Joyous', '¡Bienvenido al Café de Spinda! ¿Te preparo un zumo? Lo que te tomes aquí te dará fuerzas en tu próxima exploración.')], () => {
         if (!fruits.length) return openDialog([S('Normal', 'Vaya… no llevas ninguna fruta. ¡Tráeme una manzana o una baya y te preparo algo rico!')]);
-        openMenu({ title: '¿Qué fruta le das a Spinda?', items: [...fruits.map(f => `${f} → ${JUICES[f].name}`), 'Nada, gracias'], onCancel: () => { state.menu = null; render(); }, onSelect: async i => {
+        openMenu({ title: '¿Qué fruta le das a Spinda?', items: [...fruits.map(f => `${itemNm(f)} → ${JUICES[f].name}`), 'Nada, gracias'], onCancel: () => { state.menu = null; render(); }, onSelect: async i => {
           state.menu = null; if (i >= fruits.length) return openDialog([S('Normal', '¡Cuando quieras! El café no cierra nunca… bueno, casi nunca.')]);
           try { const r = await api('/cafe/juice', { item: fruits[i] }); meta = r.meta; playSfx('eat');
             openDialog([S('Joyous', `¡Marchando! Un ${r.juice.name}, recién hecho.`), { who: '', text: `(${r.juice.text})` }]); }
@@ -847,16 +847,16 @@ function openDungeonMenu() {
   const rank = rankOf(meta.rankPts);
   // solo las mazmorras desbloqueadas por rango; las demás aparecen al subir de rango
   const list = DUNGEONS.filter(d => d.rank <= rank && (!d.requires || (meta.cleared || []).includes(d.requires)) && (!d.expedition || brumasOpen(meta, !!window.__mmDevExpedition))); if (meta.dreamUnlocked) list.push(DREAM_DUNGEON);   // (requires: la historia pide superar otra antes)
-  const items = list.map(d => d.id === 'suenos' ? `${d.name} — ∞ (solo legendarios)` : `${d.name} — ${d.floors === Infinity ? '∞' : d.floors} pisos${meta.cleared.includes(d.id) ? ' ✓' : ''}`);
+  const items = list.map(d => d.id === 'suenos' ? `${dnNm(d)} — ∞ (solo legendarios)` : `${dnNm(d)} — ${d.floors === Infinity ? '∞' : d.floors} pisos${meta.cleared.includes(d.id) ? ' ✓' : ''}`);
   openMenu({ title: 'Mazmorras', items, onCancel: closeHub, onSelect: i => {
     const d = list[i]; if (!d) return closeHub();
     if (d.id === 'suenos') {
       const legends = meta.legendaries || [];
       if (!legends.length) { say('Necesitas un legendario para entrar en la Mazmorra de los Suenos.'); return openDungeonMenu(); }
-      return openMenu({ title: 'Líder legendario', items: [...legends.map(s => SPECIES[s].name), 'Volver'], onCancel: openDungeonMenu, onSelect: j => { if (j >= legends.length) return openDungeonMenu(); state.player = createPlayer(legends[j]); startRun(d); } });
+      return openMenu({ title: 'Líder legendario', items: [...legends.map(s => spNm(s)), 'Volver'], onCancel: openDungeonMenu, onSelect: j => { if (j >= legends.length) return openDungeonMenu(); state.player = createPlayer(legends[j]); startRun(d); } });
     }
-    if (d.rank > rank) { say(`Necesitas rango ${RANKS[d.rank].name} para entrar en ${d.name}.`); return openDungeonMenu(); }
-    openMenu({ title: `${d.name} con ${state.player.name} (${SPECIES[state.player.species].name})`, items: ['Entrar', 'Volver'], onCancel: openDungeonMenu, onSelect: j => j === 0 ? startRun(d) : openDungeonMenu() });
+    if (d.rank > rank) { say(`Necesitas rango ${RANKS[d.rank].name} para entrar en ${dnNm(d)}.`); return openDungeonMenu(); }
+    openMenu({ title: `${dnNm(d)} con ${monNm(state.player)} (${spNm(state.player.species)})`, items: ['Entrar', 'Volver'], onCancel: openDungeonMenu, onSelect: j => j === 0 ? startRun(d) : openDungeonMenu() });
   } });
 }
 function openBoardMenu() {
@@ -879,9 +879,9 @@ function openShopMenu() {
   const kec = state.player?.species === 'kecleon', mult = kec ? KECLEON_DISCOUNT : 1;
   say(kec ? 'Kecleon verde: "¡Hermano! Para ti, todo un 20 % más barato."' : 'Kecleon verde: "¡Bienvenido! Hoy tengo esto."');
   const stock = meta.shop || [];
-  const items = [...stock.map(n => `${n} — ${Math.round(ITEMS[n].buy * mult)} P${ITEMS[n].kind === 'held' ? ' (equipable)' : ''}`), `Bolsa: ${meta.bag.length}/${bagSizeFor(meta?.rankPts)}`];
+  const items = [...stock.map(n => `${itemNm(n)} — ${Math.round(ITEMS[n].buy * mult)} P${ITEMS[n].kind === 'held' ? ' (equipable)' : ''}`), `Bolsa: ${meta.bag.length}/${bagSizeFor(meta?.rankPts)}`];
   openMenu({ title: `Comprar (tienes ${meta.pokes} P)${kec ? ' · descuento Kecleon' : ''}`, items, onCancel: closeHub, onSelect: async i => {
-    if (i < stock.length) { const r = await call('/shop/buy', { item: stock[i], leader: state.player.species }); if (r) { meta = r.meta; say(`Compras ${stock[i]} por ${r.price} P.`); } }
+    if (i < stock.length) { const r = await call('/shop/buy', { item: stock[i], leader: state.player.species }); if (r) { meta = r.meta; say(`Compras ${itemNm(stock[i])} por ${r.price} P.`); } }
     openShopMenu();
   } });
 }
@@ -889,7 +889,7 @@ function openSellMenu() {
   say('Kecleon morado: "¿Qué me traes hoy?"');
   const sellables = meta.bag.map((n, i) => ({ n, i })).filter(x => ITEMS[x.n]?.sell);
   if (!sellables.length) { say('Kecleon morado: "Vaya, nada que me interese."'); return closeHub(); }
-  openMenu({ title: `Vender (tienes ${meta.pokes} P)`, items: [...sellables.map(x => `${x.n} — ${ITEMS[x.n].sell} P`), 'Vender todo lo vendible'], onCancel: closeHub, onSelect: async i => {
+  openMenu({ title: `Vender (tienes ${meta.pokes} P)`, items: [...sellables.map(x => `${itemNm(x.n)} — ${ITEMS[x.n].sell} P`), 'Vender todo lo vendible'], onCancel: closeHub, onSelect: async i => {
     const r = await call('/shop/sell', i >= sellables.length ? { all: true } : { index: sellables[i].i });
     if (r) { meta = r.meta; say(`Kecleon morado: "¡Trato hecho! ${r.gained} Pokés."`); }
     openSellMenu();
@@ -901,23 +901,23 @@ function openStorageMenu() {
     if (i === 2) return closeHub();
     const from = i === 0 ? meta.bag : meta.storage;
     if (!from.length) { say(i === 0 ? 'La bolsa está vacía.' : 'El almacén está vacío.'); return openStorageMenu(); }
-    openMenu({ title: i === 0 ? 'Guardar' : 'Sacar', items: from, onCancel: openStorageMenu, onSelect: async j => { const r = await call(i === 0 ? '/storage/deposit' : '/storage/withdraw', { index: j }); if (r) meta = r.meta; openStorageMenu(); } });
+    openMenu({ title: i === 0 ? 'Guardar' : 'Sacar', items: from.map(itemNm), onCancel: openStorageMenu, onSelect: async j => { const r = await call(i === 0 ? '/storage/deposit' : '/storage/withdraw', { index: j }); if (r) meta = r.meta; openStorageMenu(); } });
   } });
 }
 function openStarterMenu() {
   if (!canLeaderChoice()) { say(`Chatot: "Hasta rango ${RANKS[CFG.leaderChoiceRank].name} sales con tu Pokémon. Tienes ${meta.starters.length} iniciales desbloqueados, guárdalos."`); return closeHub(); }
-  openMenu({ title: 'Líder de la exploración', items: meta.starters.map(s => SPECIES[s].name), onCancel: closeHub, onSelect: i => { state.player = createPlayer(meta.starters[i]); say(`${SPECIES[state.player.species].name} será tu líder.`); closeHub(); } });
+  openMenu({ title: 'Líder de la exploración', items: meta.starters.map(s => spNm(s)), onCancel: closeHub, onSelect: i => { state.player = createPlayer(meta.starters[i]); say(`${spNm(state.player.species)} será tu líder.`); closeHub(); } });
 }
 function openGulpinMenu() {
   const p = state.player, pool = knownPool(p);
   say('Gulpin: "¿Quieres recordar u olvidar algún movimiento?"');
-  const slots = [0, 1, 2, 3].map(i => p.moves[i] ? `${i + 1}. ${p.moves[i].name}${p.moves[i].permanent ? ' ★' : ''}` : `${i + 1}. —`);
-  openMenu({ title: `Movimientos de ${p.name}`, items: [...slots, 'Volver'], icons: [0, 1, 2, 3].map(i => p.moves[i] && MOVES[p.moves[i].name].type), onCancel: closeHub, onSelect: i => {
+  const slots = [0, 1, 2, 3].map(i => p.moves[i] ? `${i + 1}. ${nm('move', p.moves[i].name)}${p.moves[i].permanent ? ' ★' : ''}` : `${i + 1}. —`);
+  openMenu({ title: `Movimientos de ${monNm(p)}`, items: [...slots, 'Volver'], icons: [0, 1, 2, 3].map(i => p.moves[i] && MOVES[p.moves[i].name].type), onCancel: closeHub, onSelect: i => {
     if (i >= 4) return closeHub();
     const options = pool.filter(m => !p.moves.some((x, j) => x.name === m && j !== i));
-    openMenu({ title: `Ranura ${i + 1}`, items: [...options.map(m => `${m}${permanentMoves(p.species).includes(m) ? ' ★' : ''}`), p.moves[i] ? 'Olvidar' : 'Dejar vacía'], icons: options.map(m => MOVES[m].type), onCancel: openGulpinMenu, onSelect: j => {
-      if (j >= options.length) { if (p.moves[i]) { say(`${p.name} olvida ${p.moves[i].name}.`); p.moves.splice(i, 1); } }
-      else { const m = options[j], entry = { name: m, pp: MOVES[m].pp, permanent: permanentMoves(p.species).includes(m) }; p.moves[i] ? p.moves[i] = entry : p.moves.push(entry); say(`${p.name} recuerda ${m}.`); }
+    openMenu({ title: `Ranura ${i + 1}`, items: [...options.map(m => `${nm('move', m)}${permanentMoves(p.species).includes(m) ? ' ★' : ''}`), p.moves[i] ? 'Olvidar' : 'Dejar vacía'], icons: options.map(m => MOVES[m].type), onCancel: openGulpinMenu, onSelect: j => {
+      if (j >= options.length) { if (p.moves[i]) { say(`${monNm(p)} olvida ${nm('move', p.moves[i].name)}.`); p.moves.splice(i, 1); } }
+      else { const m = options[j], entry = { name: m, pp: MOVES[m].pp, permanent: permanentMoves(p.species).includes(m) }; p.moves[i] ? p.moves[i] = entry : p.moves.push(entry); say(`${monNm(p)} recuerda ${nm('move', m)}.`); }
       openGulpinMenu();
     } });
   } });
@@ -928,8 +928,8 @@ function openRankMenu() {
     `Explorador: ${user?.name || '—'}`,
     `Rango ${RANKS[r].name} · ${meta.rankPts} pts${next ? ` · siguiente a ${next.pts}` : ' · máximo'}`,
     `Mazmorras completadas: ${meta.cleared.length}/${DUNGEONS.length - 1}`,
-    `Iniciales: ${meta.starters.map(s => SPECIES[s].name).join(', ')}`,
-    `Legendarios: ${meta.legendaries?.length ? meta.legendaries.map(s => SPECIES[s].name).join(', ') : 'ninguno'}`,
+    `Iniciales: ${meta.starters.map(s => spNm(s)).join(', ')}`,
+    `Legendarios: ${meta.legendaries?.length ? meta.legendaries.map(s => spNm(s)).join(', ') : 'ninguno'}`,
     `MD en movepools: ${Object.values(meta.movepool || {}).flat().length}`,
     'Volver'], onCancel: closeHub, onSelect: closeHub });
 }
@@ -982,7 +982,7 @@ async function blockedStart(e) {
     let me = null; try { me = await api('/me'); meta = me.user.meta; state.pausedRun = me.run; } catch {}
     if (me?.rescue) return showRescueWait(me.rescue);
     if (me?.run) {
-      const name = dungeonById(me.run.dungeonId)?.name || 'una mazmorra';
+      const name = dnNmId(me.run.dungeonId) || 'una mazmorra';
       return openMenu({ title: `Tienes una exploración a medias en ${name}. Antes de empezar otra, hay que terminarla.`, items: ['Continuarla ahora', 'Abandonarla', 'Cerrar'], onCancel: closeHub, onSelect: async i => {
         if (i === 0) return resumeRun();
         if (i === 1) return openMenu({ title: '¿Abandonar la exploración? Perderás lo acumulado.', items: ['No', 'Sí, abandonar'], onCancel: closeHub, onSelect: async j => {
@@ -1025,7 +1025,7 @@ function restoreFloor(w) {
   state.dungeon = { ...w.dungeon, tiles: w.dungeon.tiles.map(r => [...r].map(c => c.charCodeAt(0) - 48)) };
   Object.assign(state, { enemies: w.enemies || [], groundItems: w.groundItems || [], npcs: w.npcs || [], monsterHouse: w.monsterHouse, shop: w.shop, weather: w.weather || 'none', era: w.era || def.id });
   state.seen = (w.seen || []).map(r => [...r].map(c => c === '1'));
-  showCard(def.name, `B${state.floor}F`); setTimeout(updateDungeonMusic, 0); setTimeout(() => dungeonTips(), 1200);   // (tras el cartel del piso)
+  showCard(dnNm(def), `B${state.floor}F`); setTimeout(updateDungeonMusic, 0); setTimeout(() => dungeonTips(), 1200);   // (tras el cartel del piso)
   updateVisibility(); render(); say('Continúas la exploración donde la dejaste.');
 }
 const runSnapshot = () => ({ where: floorSnapshot(), playMs: state.run?.playMs || 0, floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, turn: state.turn });
@@ -1087,7 +1087,7 @@ const RESCUE_RANK = 3;   // Oro: antes de ese rango no hay rescates (no hay sufi
 async function deathChoice() {
   if (state.dungeonDef?.id === 'entrenamiento') return endRun('death');   // el tutorial no tiene rescates
   if (rankOf(meta?.rankPts || 0) < RESCUE_RANK) return endRun('death');   // los rescates se desbloquean en el rango Oro
-  const where = `${state.dungeonDef.name}, piso B${state.floor}F`;
+  const where = `${dnNm(state.dungeonDef)}, piso B${state.floor}F`;
   openMenu({ title: `Tu equipo ha caído en ${where}`, items: ['Esperar un rescate', 'Rendirse y volver al gremio'], sticky: true, onSelect: async i => {
     if (i === 1) return endRun('death');
     const snap = runSnapshot(); snap.player = { ...snap.player, hp: snap.player.maxHp, status: null };   // si te rescatan, vuelves con fuerzas
@@ -1158,7 +1158,7 @@ async function openPidgeotOffice() {
     ], async () => { const a = await call('/pidgeot/advance', {}); if (a) { meta = a.meta; say('Nueva misión del maestro: buscar las cuatro megapiedras.'); } });
   }
   if (r.story === 'quest' && !r.dreamUnlocked) {
-    const lines = r.allStones.map(s => `${r.stones.includes(s.id) ? '✔' : '✖'} ${s.name} — ${dungeonById(s.dungeonId).name} B${s.floor}F`);
+    const lines = r.allStones.map(s => `${r.stones.includes(s.id) ? '✔' : '✖'} ${itemNm(s.name)} — ${dnNmId(s.dungeonId)} B${s.floor}F`);
     return openMenu({ title: `Megapiedras: ${done}/${total}`, items: [...lines, 'Volver'], onCancel: closeHub, onSelect: closeHub });
   }
   return openDialog([{ who: 'Pidgeot', text: 'Las cuatro piedras juntas abren una grieta en el tiempo: la Mazmorra de los Sueños. Solo un legendario puede cruzarla. Ve cuando estés listo.' }], () => say('La Mazmorra de los Sueños está disponible al elegir mazmorra (con un legendario de líder).'));
@@ -1167,9 +1167,9 @@ async function openPidgeotOffice() {
 // Pantalla de mazmorra completada: botín, equipo y logros (mismo estilo que el informe al caer)
 function showClearReport(s) {
   const esc = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const group = list => { const c = {}; for (const n of list) c[n] = (c[n] || 0) + 1; return Object.entries(c).map(([n, k]) => `<li>${esc(n)}${k > 1 ? ` <b>×${k}</b>` : ''}</li>`).join('') || '<li class="none">—</li>'; };
+  const group = list => { const c = {}; for (const n of list) c[n] = (c[n] || 0) + 1; return Object.entries(c).map(([n, k]) => `<li>${esc(itemNm(n))}${k > 1 ? ` <b>×${k}</b>` : ''}</li>`).join('') || '<li class="none">—</li>'; };
   return reportScreen(`¡Mazmorra completada!`, `Has superado ${esc(s.dungeon)} (${s.floors} pisos).`, `
-    <section class="rep-col kept"><h3>Botín</h3><p class="rep-pokes">${s.pokes} P</p><ul>${group(s.items)}</ul><p class="rep-held">Equipado: ${s.held ? esc(s.held) : '—'}</p></section>
+    <section class="rep-col kept"><h3>Botín</h3><p class="rep-pokes">${s.pokes} P</p><ul>${group(s.items)}</ul><p class="rep-held">Equipado: ${s.held ? esc(itemNm(s.held)) : '—'}</p></section>
     <section class="rep-col carried"><h3>Equipo</h3><p class="rep-pokes">${esc(s.leader)}</p><ul><li>Nivel ${s.lv0}${s.lv1 > s.lv0 ? ` → <b>${s.lv1}</b>` : ''}</li>${s.team.map(t => `<li>${esc(t)}</li>`).join('')}</ul></section>
     <section class="rep-col clear"><h3>Logros</h3><ul><li>${s.floors} pisos recorridos</li><li>${s.recruited} recluta${s.recruited === 1 ? '' : 's'}</li><li>${s.missions} misi${s.missions === 1 ? 'ón cumplida' : 'ones cumplidas'}</li></ul></section>`, 'report-clear');
 }
@@ -1195,8 +1195,8 @@ function reportScreen(tab, where, cols, extraClass = '') {
 function showPenaltyReport(p, where) {
   return new Promise(resolve => {
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const group = list => { const c = {}; for (const n of list) c[n] = (c[n] || 0) + 1; return Object.entries(c).map(([n, k]) => `<li>${esc(n)}${k > 1 ? ` <b>×${k}</b>` : ''}</li>`).join('') || '<li class="none">—</li>'; };
-    const col = (title, cls, d) => `<section class="rep-col ${cls}"><h3>${title}</h3><p class="rep-pokes">${d.pokes} P</p><ul>${group(d.items)}</ul><p class="rep-held">Equipado: ${d.held ? esc(d.held) : '—'}</p></section>`;
+    const group = list => { const c = {}; for (const n of list) c[n] = (c[n] || 0) + 1; return Object.entries(c).map(([n, k]) => `<li>${esc(itemNm(n))}${k > 1 ? ` <b>×${k}</b>` : ''}</li>`).join('') || '<li class="none">—</li>'; };
+    const col = (title, cls, d) => `<section class="rep-col ${cls}"><h3>${title}</h3><p class="rep-pokes">${d.pokes} P</p><ul>${group(d.items)}</ul><p class="rep-held">Equipado: ${d.held ? esc(itemNm(d.held)) : '—'}</p></section>`;
     const box = document.createElement('div'); box.className = 'penalty-report';
     box.innerHTML = `<div class="rep-inner"><span class="pmd-tab">Informe de la expedición</span>
       <p class="rep-where">Caíste en ${esc(where)}.</p>
@@ -1220,10 +1220,10 @@ const RESCUER = { name: 'Bruno', art: 'el', sp: 'Ursaring' };
 async function endRun(outcome) {
   const bonds = [...state.team.filter(a => !a.guest).map(a => ({ species: a.species, floors: a.floors, nick: a.nick })), ...state.bondedLost];   // (los invitados no)
   const fell = { x: state.player.x, y: state.player.y };
-  const fallen = `${state.dungeonDef.name}, piso B${state.floor}F`;   // para el mensaje de Chansey
+  const fallen = `${dnNm(state.dungeonDef)}, piso B${state.floor}F`;   // para el mensaje de Chansey
   const dungeonIdForStory = state.dungeonDef?.id;   // (para las escenas «a la vuelta»: ¿de qué mazmorra se vuelve?)
   // resumen para la pantalla de «mazmorra completada» (antes de que se reinicie el estado)
-  const summary = outcome === 'clear' ? { dungeon: state.dungeonDef.name, floors: state.floor, pokes: state.runPokes, items: [...state.inventory], held: state.player.held,
+  const summary = outcome === 'clear' ? { dungeon: dnNm(state.dungeonDef), floors: state.floor, pokes: state.runPokes, items: [...state.inventory], held: state.player.held,
     leader: state.player.name, lv0: state.player.runStartLevel ?? state.player.level, lv1: state.player.level,
     team: state.team.map(a => `${a.name} Nv${a.level}`), recruited: state.diary?.recruited || 0, missions: (state.missions || []).filter(m => m.done).length } : null;
   // al superar la Cueva Húmeda entera, la primera vez: Scyther, en lo más hondo (y con esta escena se desbloquea reclutar)
@@ -1237,7 +1237,7 @@ async function endRun(outcome) {
   { const st = runStats(), top = Object.entries(st.moves).sort((a, b) => b[1] - a[1]).slice(0, 8); track('run_summary', { outcome, floor: state.floor, dealt: st.dealt, taken: st.taken, kills: st.kills, items: st.items, moves: Object.fromEntries(top), min: Math.round((state.run?.playMs || 0) / 60000) }); }
   const endBody = { playMs: Math.round(state.run?.playMs || 0), outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] };
   const rid = state.run?.endRid || (state.run ? (state.run.endRid = newRequestId()) : newRequestId());
-  try { localStorage.setItem(PENDING_KEY, JSON.stringify({ user: user?.name, rid, body: endBody, where: state.dungeonDef.name })); } catch {}
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify({ user: user?.name, rid, body: endBody, where: dnNm(state.dungeonDef) })); } catch {}
   let r = null, offline = false;
   state.busy = true; render();
   try { r = await api('/run/end', endBody, { rid }); } catch (e) { if (e.status === 0) offline = true; else say(e.message); }
@@ -1282,7 +1282,7 @@ async function endRun(outcome) {
   // (el rescate se ofrece al caer, antes de volver al gremio: ver deathChoice)
   state.lastRun = { dungeon: dungeonIdForStory, outcome };
   whenIdle().then(() => whenIdle()).then(() => playPendingScenes(true));   // las escenas, cuando ya se ha leído todo lo demás (también las de «a la vuelta»)
-  if (lost.length) openDialog([{ who: lost.map(s => SPECIES[s].name).join(', '), text: `${lost.length > 1 ? '(Al unísono) ' : ''}Me había equivocado, pensaba que eras más fuerte…`, portraits: lost }]);
+  if (lost.length) openDialog([{ who: lost.map(s => spNm(s)).join(', '), text: `${lost.length > 1 ? '(Al unísono) ' : ''}Me había equivocado, pensaba que eras más fuerte…`, portraits: lost }]);
 }
 
 // =====================================================================
@@ -1537,7 +1537,7 @@ function newRestArea() {
   musicZone = null; state.floorTurns = 0;
   for (const m of [state.player, ...state.team]) if (m) m.stages = {};
   const bossNext = ['legendary', 'bigLegendary', 'jirachi'].includes(floorKind(state.dungeonDef, state.floor, state.flags));
-  showCard(state.dungeonDef.name, bossNext ? 'Antes del jefe' : 'Zona de descanso');
+  showCard(dnNm(state.dungeonDef), bossNext ? 'Antes del jefe' : 'Zona de descanso');
   Object.assign(state, { dungeon: { tiles, rooms: [room], start: { x: statue.x, y: ry + rh - 1 }, stairs, stairsRoom: room, restArea: true, statue },
     enemies: [], groundItems: [], npcs: [], monsterHouse: null, shop: null, weather: 'none' });
   const p = state.player; Object.assign(p, state.dungeon.start); p.facing = [0, -1];
@@ -1603,7 +1603,7 @@ function newFloor() {
   setTimeout(updateDungeonMusic, 0);   // tema del piso (tras montar la planta)
   for (const m of [state.player, ...state.team]) if (m) { m.stages = {}; m.speed = 0; m.speedTurns = 0; } // los cambios de estadísticas (y de velocidad) duran lo que dura el piso
   state.freeActs = 0;
-  showCard(def0.name, `B${state.floor}F`); setTimeout(() => dungeonTips(), 1200);   // consejos del Campo de Entrenamiento (tras el cartel)
+  showCard(dnNm(def0), `B${state.floor}F`); setTimeout(() => dungeonTips(), 1200);   // consejos del Campo de Entrenamiento (tras el cartel)
   state.rng = makeRng(floorSeed(state.run.seed, state.floor));
   // El Huerto, las veces siguientes (tras el trato con Slaking): otro glotón se cuela, y Slaking, el «guardián», duerme en una esquina
   state.lakeShadow = null; giantCache = null;
@@ -1643,12 +1643,12 @@ function newFloor() {
       setTimeout(() => dungeonScene('zapdos-cima'), 300);
     }
     else {
-    const boss = built.boss, lines = (boss?.shadowForm && SHADOW_LINES) || BOSS_LINES[boss?.species] || [boss?.big ? `${boss.name} te espera con sus súbditos.` : `${boss?.name} aguarda al final de la sala. Su presencia llena el aire.`];
-    openDialog(lines.map(t => ({ who: boss?.shadowForm ? (t.startsWith('(') ? undefined : '???') : BOSS_LINES[boss?.species] ? boss.name : undefined, sp: boss?.shadowForm ? undefined : BOSS_LINES[boss?.species] ? boss.species : undefined, mood: 'Determined', text: t })));
+    const boss = built.boss, lines = (boss?.shadowForm && SHADOW_LINES) || BOSS_LINES[boss?.species] || [boss?.big ? `${monNm(boss)} te espera con sus súbditos.` : `${monNm(boss)} aguarda al final de la sala. Su presencia llena el aire.`];
+    openDialog(lines.map(t => ({ who: boss?.shadowForm ? (t.startsWith('(') ? undefined : '???') : BOSS_LINES[boss?.species] ? monNm(boss) : undefined, sp: boss?.shadowForm ? undefined : BOSS_LINES[boss?.species] ? boss.species : undefined, mood: 'Determined', text: t })));
     }
   } else if (built.kind === 'miniboss') say(`B${state.floor}F. Un guardián bloquea las escaleras…`);
-  else if (def.eras && (state.floor - 1) % def.eraEvery === 0) say(`B${state.floor}F. El tiempo se retuerce… estás en un eco de ${dungeonById(state.era).name}.`);
-  else say(`${def.name} B${state.floor}F.`);
+  else if (def.eras && (state.floor - 1) % def.eraEvery === 0) say(`B${state.floor}F. El tiempo se retuerce… estás en un eco de ${dnNmId(state.era)}.`);
+  else say(`${dnNm(def)} B${state.floor}F.`);
   if (state.weather && state.weather !== 'none') say(`El clima aquí es: ${WEATHER[state.weather].name}.`);
   autosave('floor');   // guardado automático al empezar cada piso
   // Mazmorra del Tiempo: algunos pisos (uno de cada cinco, más o menos; nunca el primero ni las salas de jefe) tienen el tiempo roto:
@@ -1701,8 +1701,8 @@ function thunderTrap(p) {
   t.splice(i, 1);
   const dmg = Math.max(4, Math.round(p.maxHp * 0.12)); p.hp = Math.max(1, p.hp - dmg);
   state.flash = { t0: performance.now(), ms: 320 }; playSfx('hit');
-  say(`¡Cae un rayo sobre ${p.name}! Pierde ${dmg} PS.`);
-  if (state.rng.random() < 0.25 && applyStatus(state.rng, p, 'paralysis', 1)) say(`¡${p.name} se ha quedado paralizado!`);
+  say(`¡Cae un rayo sobre ${monNm(p)}! Pierde ${dmg} PS.`);
+  if (state.rng.random() < 0.25 && applyStatus(state.rng, p, 'paralysis', 1)) say(`¡${monNm(p)} se ha quedado paralizado!`);
 }
 // una escena a mitad de mazmorra: se pausa la exploración, se ve la escena (en una zona solo de escenas) y se vuelve al piso
 async function dungeonScene(id, opts = {}) {
@@ -1758,33 +1758,33 @@ function useMove(userMon, move) {
   state.attacked = true;
   if (userMon === state.player && move?.name) { const st = runStats(); st.moves[move.name] = (st.moves[move.name] || 0) + 1; }   // el turno hará una pausa para que se vea
   playAnim(userMon, move.cat === 'spec' && Sprites.mons[userMon.species]?.anims?.Shoot ? 'Shoot' : 'Attack');   // animación de ataque
-  const ally = isAlly(userMon), targets = findTargets(userMon, move), who = ally ? userMon.name : `${userMon.name} salvaje`;
+  const ally = isAlly(userMon), targets = findTargets(userMon, move), who = ally ? monNm(userMon) : `${monNm(userMon)} salvaje`, mn = nm('move', move.name);   // el movimiento, en el idioma activo
   // la animación del movimiento (si se ve): lo que pasa en el impacto (dolor, sonido, número) llega cuando llega el golpe
   const seen = !FAST() && (isVisibleNow(userMon.x, userMon.y) || targets.some(t => isVisibleNow(t.x, t.y)));
   const fx = seen ? spawnMoveFx(move, userMon, targets) : null, at = t => (fx ? fx.impactDelay(t) : 0);
   const later = (ms, f) => (ms > 0 ? setTimeout(() => { f(); render(); }, ms) : f());
-  if (!targets.length) { say(`${who} usa ${move.name}, pero no acierta a nadie.`); return; }
-  if (targets.length > 1) say(`${who} usa ${move.name} contra ${targets.length} objetivos.`);
+  if (!targets.length) { say(`${who} usa ${mn}, pero no acierta a nadie.`); return; }
+  if (targets.length > 1) say(`${who} usa ${mn} contra ${targets.length} objetivos.`);
   const ownSide = move.range === 'self' || move.range === 'team';
-  if (ownSide) say(`${who} usa ${move.name}.`);
+  if (ownSide) say(`${who} usa ${mn}.`);
   for (const target of targets) {
     if (target.neutral) { if (ally) wakeGuard(target); continue; }   // Slaking, el guardián dormido del huerto
     if (ownSide) {                                                     // movimientos sobre uno mismo o el equipo: no fallan
-      if (move.heal) { const h = Math.min(target.maxHp - target.hp, Math.floor(target.maxHp * move.heal / 100)); target.hp += h; say(`${target.name} recupera ${h} PS.`); }
+      if (move.heal) { const h = Math.min(target.maxHp - target.hp, Math.floor(target.maxHp * move.heal / 100)); target.hp += h; say(`${monNm(target)} recupera ${h} PS.`); }
       if (move.statFx) applyStages(target, move.statFx.changes).forEach(say);
       continue;
     }
-    if (!hitCheck(state.rng, move, userMon, target, state.weather)) { say(`${who} usa ${move.name}, pero falla contra ${target.name}.`); if (isVisibleNow(target.x, target.y)) { later(at(target), () => playSfx('miss')); state.effects.push({ x: target.x, y: target.y, text: 'MISS', t: performance.now() + at(target), color: '#ffffff', miss: true }); } continue; } // acierto real: dos tiradas con estadios
+    if (!hitCheck(state.rng, move, userMon, target, state.weather)) { say(`${who} usa ${mn}, pero falla contra ${monNm(target)}.`); if (isVisibleNow(target.x, target.y)) { later(at(target), () => playSfx('miss')); state.effects.push({ x: target.x, y: target.y, text: 'MISS', t: performance.now() + at(target), color: '#ffffff', miss: true }); } continue; } // acierto real: dos tiradas con estadios
     if (move.name !== BASIC.name) target.hitByMove = true;           // para la experiencia completa
-    if (target.asleep) { target.asleep = false; say(`${target.name} se despierta.`); } // dormía de forma natural: se despierta al primer golpe
+    if (target.asleep) { target.asleep = false; say(`${monNm(target)} se despierta.`); } // dormía de forma natural: se despierta al primer golpe
     // golpes múltiples (Doble Patada, Pin Misil…): cada golpe se calcula aparte
     const hits = Math.max(1, move.strikes || 1); let dmg = 0, eff = 1, crit = false;
     let abil = null;
     for (let h = 0; h < hits && target.hp - dmg > 0; h++) { const r = damage(state.rng, { ...userMon, isEnemy: !ally, isLeader: userMon === state.player }, target, move, state.weather); if (r.absorbed || r.note) abil = r; dmg += r.dmg; eff = r.eff; crit = crit || r.crit; }
-    if (move.power && abil?.absorbed) { const h = Math.max(1, Math.floor(target.maxHp / 4)); target.hp = Math.min(target.maxHp, target.hp + h); say(`${who} usa ${move.name}, pero ${target.name} lo absorbe (${abil.note}) y recupera ${h} PS.`); continue; }
-    if (move.power && abil?.note && dmg === 0) { say(`${who} usa ${move.name}, pero a ${target.name} no le afecta (${abil.note}).`); continue; }
+    if (move.power && abil?.absorbed) { const h = Math.max(1, Math.floor(target.maxHp / 4)); target.hp = Math.min(target.maxHp, target.hp + h); say(`${who} usa ${mn}, pero ${monNm(target)} lo absorbe (${abilNoteNm(abil.note)}) y recupera ${h} PS.`); continue; }
+    if (move.power && abil?.note && dmg === 0) { say(`${who} usa ${mn}, pero a ${monNm(target)} no le afecta (${abilNoteNm(abil.note)}).`); continue; }
     if (move.power && target.exAbsorb?.includes(move.type)) {   // objeto exclusivo: absorbe ese tipo y recupera PS
-      target.hp = Math.min(target.maxHp, target.hp + dmg); say(`${target.name} absorbe ${move.name} y recupera ${dmg} PS.`);
+      target.hp = Math.min(target.maxHp, target.hp + dmg); say(`${monNm(target)} absorbe ${mn} y recupera ${dmg} PS.`);
       state.effects.push({ x: target.x, y: target.y, text: `+${dmg}`, t: performance.now(), color: '#7fd67f' }); continue;
     }
     if (move.power) {
@@ -1795,18 +1795,18 @@ function useMove(userMon, move) {
       if (onOurSide(target) && !onOurSide(userMon)) { target.lastHitBy = { sp: userMon.species, move: move.name || 'Ataque', lv: userMon.level, boss: !!userMon.isBoss }; runStats().taken += dmg; }
       else if (onOurSide(userMon) && !onOurSide(target)) runStats().dealt += dmg;
       const note = (crit ? ' ¡Golpe crítico!' : '') + (eff === 0 ? ' Apenas afecta.' : eff > 1 ? ' ¡Es muy eficaz!' : eff < 1 ? ' No es muy eficaz…' : '');
-      if (targets.length === 1) say(`${who} usa ${move.name}: ${dmg} de daño a ${target.name}.${note}`);
+      if (targets.length === 1) say(`${who} usa ${mn}: ${dmg} de daño a ${monNm(target)}.${note}`);
       state.effects.push({ x: target.x, y: target.y, text: `-${dmg}`, t: performance.now() + at(target), color: ally ? '#e9e3d3' : '#c95c5c', crit, eff });   // el número, en el impacto
-      if (wakeOnHit(target)) say(`${target.name} se despierta.`);
+      if (wakeOnHit(target)) say(`${monNm(target)} se despierta.`);
       if (move.drain) userMon.hp = Math.min(userMon.maxHp, userMon.hp + Math.floor(dmg * move.drain));
       if (dmg > 0 && cheb(userMon, target) <= 1) {
-        if (hasAbility(target, 'STENCH') && state.rng.random() < 0.1) terrify(userMon, 5, `¡El hedor de ${target.name} asusta a ${userMon.name}!`);   // Hedor
+        if (hasAbility(target, 'STENCH') && state.rng.random() < 0.1) terrify(userMon, 5, `¡El hedor de ${monNm(target)} asusta a ${monNm(userMon)}!`);   // Hedor
         const cs = contactStatus(state.rng, userMon, target, move);   // Elec. Estática, Punto Tóxico, Cuerpo Llama, Efecto Espora
-        if (cs && applyStatus(state.rng, userMon, cs, 1)) say(`¡${userMon.name} está ${STATUS[cs].name.toLowerCase()} por la habilidad de ${target.name}!`);
-        if (target.iqSkills?.includes('Counter Hitter') && target.hp > 0 && state.rng.random() < 0.3) { const back = Math.max(1, Math.floor(dmg / 4)); userMon.hp = Math.max(0, userMon.hp - back); say(`¡${target.name} contraataca: ${back} de daño!`); if (userMon.hp <= 0) { ally ? downed(userMon) : defeatEnemy(userMon, target); } }
+        if (cs && applyStatus(state.rng, userMon, cs, 1)) say(`¡${monNm(userMon)} está ${STATUS[cs].name.toLowerCase()} por la habilidad de ${monNm(target)}!`);
+        if (target.iqSkills?.includes('Counter Hitter') && target.hp > 0 && state.rng.random() < 0.3) { const back = Math.max(1, Math.floor(dmg / 4)); userMon.hp = Math.max(0, userMon.hp - back); say(`¡${monNm(target)} contraataca: ${back} de daño!`); if (userMon.hp <= 0) { ally ? downed(userMon) : defeatEnemy(userMon, target); } }
       }
-    } else say(`${who} usa ${move.name}.`);
-    if (move.effect && target.hp > 0 && applyStatus(state.rng, target, move.effect.status, move.effect.chance)) say(`${target.name} está ${STATUS[move.effect.status].name.toLowerCase()}.`);
+    } else say(`${who} usa ${mn}.`);
+    if (move.effect && target.hp > 0 && applyStatus(state.rng, target, move.effect.status, move.effect.chance)) say(`${monNm(target)} está ${STATUS[move.effect.status].name.toLowerCase()}.`);
     // cambios de estadísticas: los de estado siempre; los de daño, con su probabilidad (a ti si te suben algo, si no al rival)
     if (move.statFx && target.hp > 0 && (!move.power || state.rng.random() * 100 < move.statFx.chance)) applyStages(move.power && move.statFx.raiseSelf ? userMon : target, move.statFx.changes).forEach(say);
     if (target.hp <= 0) { ally ? defeatEnemy(target, userMon) : downed(target); if (state.dead) return; }
@@ -1845,7 +1845,7 @@ function floorClock() {
   if (warn) { stopPassing(); playSfx('wind'); say(`Sopla un viento extraño. ${warn}`); state.effects.push({ x: state.player.x, y: state.player.y, text: '〰', t: performance.now(), color: '#b8c0cc' }); openDialog([{ text: `Sopla un viento extraño… ${warn}` }, { text: 'Si te quedas mucho más en este piso, el viento te expulsará de la mazmorra.' }]); }
   if (left <= 0 && !state.dead) {
     state.dead = true; say('¡Está justo al lado! ¡Una ráfaga te arrastra fuera de la mazmorra!');
-    (async () => { await sleep(600); await showCard('Una ráfaga misteriosa te expulsa…', `${state.dungeonDef.name} B${state.floor}F`, 2000); endRun('death'); })();
+    (async () => { await sleep(600); await showCard('Una ráfaga misteriosa te expulsa…', `${dnNm(state.dungeonDef)} B${state.floor}F`, 2000); endRun('death'); })();
     return false;
   }
   // un enemigo nuevo cada 36 turnos, lejos de la vista, hasta un máximo de 15 en el piso
@@ -1873,7 +1873,7 @@ function defeatEnemy(e, by) {
   if (!e.escaped) { playSfx('faint'); addFading(e); }   // (Chatot se va con un Orbe Escape: sin desmayo)
   state.enemies = state.enemies.filter(x => x !== e);
   const p = e.shopkeeper ? 0 : pokesFor(e.species, state.floor); state.runPokes += p; if (p) setTimeout(() => playSfx('coin'), 180);
-  say(e.shopkeeper ? `¡${e.name} derrotado! (Un Kecleon nunca lleva Pokés encima…)` : `¡${e.name} derrotado! +${p} Pokés.`);
+  say(e.shopkeeper ? `¡${monNm(e)} derrotado! (Un Kecleon nunca lleva Pokés encima…)` : `¡${monNm(e)} derrotado! +${p} Pokés.`);
   const exp = expGained(e.species, e.level, !!e.hitByMove) * (state.floorEvent === 'multitud' ? 2 : 1); // ×0,5 si solo recibió ataques normales; ×2 en un piso «multitud»
   say(`+${exp} de experiencia.`);
   const xp = m => Math.round(exp * (m.iqSkills?.includes('Exp. Elite') ? 1.25 : 1));   // Élite de Experiencia
@@ -1881,19 +1881,19 @@ function defeatEnemy(e, by) {
   if (e.missionId) { const m = state.missions.find(m => m.id === e.missionId); if (m) { m.done = true; say('¡Objetivo de misión cumplido! Cobrarás al volver al gremio.'); } }
   if (e.jirachiEvent) { jirachiNextPhase(e); arenaCleared(); return; }   // tras la última fase, la sala queda despejada
   if (e.isLegendary) {
-    if (state.inventory.length < bagSizeFor(meta?.rankPts)) { addItem(`MD: ${e.md}`); say(`¡${e.name} te entrega una Máquina Definitiva: ${e.md}! Úsala desde la bolsa para enseñársela a quien pueda aprenderla.`); }
-    else { (state.mdToStorage ||= []).push(e.md); say(`¡${e.name} te entrega una Máquina Definitiva: ${e.md}! Tu bolsa está llena: la guardará Kangaskhan en su depósito.`); }
+    if (state.inventory.length < bagSizeFor(meta?.rankPts)) { addItem(`MD: ${e.md}`); say(`¡${monNm(e)} te entrega una Máquina Definitiva: ${nm('move', e.md)}! Úsala desde la bolsa para enseñársela a quien pueda aprenderla.`); }
+    else { (state.mdToStorage ||= []).push(e.md); say(`¡${monNm(e)} te entrega una Máquina Definitiva: ${nm('move', e.md)}! Tu bolsa está llena: la guardará Kangaskhan en su depósito.`); }
     if (e.big) { addItem('Diamante'); say('Entre sus restos brilla un Diamante.'); }
   } else if (e.dropsStone) {
     (state.stonesFound ||= []).push(e.dropsStone.id);
     const dlg = MEGA_DIALOG[e.species];
-    if (dlg) openDialog(dlg.defeat.map(t => ({ who: e.name, text: t, font: dlg.font, color: dlg.color })), () => say(`Recoges la ${e.dropsStone.name}. No sabes usarla… llévasela al maestro Pidgeot.`));
-    else say(`¡${e.name} suelta su ${e.dropsStone.name}!`);
+    if (dlg) openDialog(dlg.defeat.map(t => ({ who: monNm(e), text: t, font: dlg.font, color: dlg.color })), () => say(`Recoges la ${itemNm(e.dropsStone.name)}. No sabes usarla… llévasela al maestro Pidgeot.`));
+    else say(`¡${monNm(e)} suelta su ${itemNm(e.dropsStone.name)}!`);
   }
-  else if (e.isBoss && !e.shopkeeper) { const move = state.rng.pick(TM_POOL); addItem(`MT: ${move}`); say(`${e.name} deja caer una MT: ${move}.`); }
+  else if (e.isBoss && !e.shopkeeper) { const move = state.rng.pick(TM_POOL); addItem(`MT: ${move}`); say(`${monNm(e)} deja caer una MT: ${nm('move', move)}.`); }
   // Moltres y Articuno, vencidos: se dan cuenta de que no ibas con Scyther (el final de la mazmorra espera a que cierres el diálogo)
   const birdScene = { moltres: 'moltres-vencido', articuno: 'articuno-vencida', zapdos: 'zapdos-pluma' }[e.species];
-  if (e.isBoss && BIRD_AFTER[e.species] && state.dungeonDef?.finalBoss === e.species && !(birdScene && !(meta?.scenes || []).includes(birdScene))) openDialog(BIRD_AFTER[e.species].map(t => ({ who: e.name, sp: e.species, mood: 'Normal', text: t })));   // (la primera vez, en su lugar, la escena)
+  if (e.isBoss && BIRD_AFTER[e.species] && state.dungeonDef?.finalBoss === e.species && !(birdScene && !(meta?.scenes || []).includes(birdScene))) openDialog(BIRD_AFTER[e.species].map(t => ({ who: monNm(e), sp: e.species, mood: 'Normal', text: t })));   // (la primera vez, en su lugar, la escena)
   dropCarried(e);   // solo suelta lo que hubiera recogido, y al suelo (no a tu bolsa)
   tryRecruit(e, by);
   if (e.shadowForm && state.lakeShadow && e.isBoss) lakeShadowEchoDown();   // un eco de la sombra del lago
@@ -1917,13 +1917,13 @@ function tryRecruit(e, by) {
   const recruit = createMon(e.species, e.level, { x: e.x, y: e.y, tactic: 'seguir', floors: 1, held: null });   // el piso en que se une ya cuenta
   if (e.shopkeeper) say('Kecleon: "…Vale. Tienes agallas. Me apunto, pero de esto ni una palabra a mi hermano."');
   recruit.hp = Math.ceil(recruit.maxHp / 2);
-  openMenu({ title: `¡${e.name} quiere unirse al equipo! (${chance.toFixed(0)} %)`, items: ['Aceptar', 'Rechazar'], onSelect: i => {
-    if (i === 1) { say(`${e.name} se marcha cabizbajo.`); return; }
-    playSfx('recruit'); recruit.runStartLevel = recruit.level; state.team.push(recruit); track('recruit', { species: recruit.species, level: recruit.level }); if (state.diary) state.diary.recruited++; say(`¡${e.name} se une al equipo!`);
+  openMenu({ title: `¡${monNm(e)} quiere unirse al equipo! (${chance.toFixed(0)} %)`, items: ['Aceptar', 'Rechazar'], onSelect: i => {
+    if (i === 1) { say(`${monNm(e)} se marcha cabizbajo.`); return; }
+    playSfx('recruit'); recruit.runStartLevel = recruit.level; state.team.push(recruit); track('recruit', { species: recruit.species, level: recruit.level }); if (state.diary) state.diary.recruited++; say(`¡${monNm(e)} se une al equipo!`);
     // mote, como en el original
-    setTimeout(() => openMenu({ title: `¿Quieres ponerle un mote a ${recruit.name}?`, items: ['Sí', 'No'], onSelect: async k => {
+    setTimeout(() => openMenu({ title: `¿Quieres ponerle un mote a ${monNm(recruit)}?`, items: ['Sí', 'No'], onSelect: async k => {
       if (k !== 0) return;
-      const nick = await askText(`Mote para ${SPECIES[recruit.species].name}`, 10);
+      const nick = await askText(`Mote para ${spNm(recruit.species)}`, 10);
       if (nick) { recruit.name = nick; recruit.nick = nick; say(`¡A partir de ahora, se llamará ${nick}!`); render(); }
     } }), 50);
     if (SPECIES[e.species].legendary) { state.recruitedLegendaries.push(e.species); say(`Un legendario… sólo podrá acompañarte en la Mazmorra de los Sueños.`); }
@@ -1940,7 +1940,7 @@ function jirachiNextPhase(e) {
   }
   const boss = createMon(next.species, e.level, { statMult: next.statMult, x: e.x, y: e.y, asleep: false, isBoss: true, isLegendary: true, phase: e.phase + 1, jirachiEvent: true });
   computeStats(boss); boss.hp = boss.maxHp; state.enemies.push(boss);
-  say(next.species === 'jirachi' ? 'Jirachi: "Ahora, enfréntate a mí."' : `Jirachi invoca a ${boss.name}.`);
+  say(next.species === 'jirachi' ? 'Jirachi: "Ahora, enfréntate a mí."' : `Jirachi invoca a ${monNm(boss)}.`);
 }
 // dropIfFull: si la bolsa está llena, el objeto nuevo cae al suelo (botines). Al recoger uno del suelo NO se duplica: se queda donde estaba.
 function addItem(name, dropIfFull = true) { if (state.inventory.length >= bagSizeFor(meta?.rankPts)) { say(dropIfFull ? `La bolsa está llena, ${name} se queda en el suelo.` : `La bolsa está llena: ${name} se queda en el suelo.`); if (dropIfFull) state.groundItems.push({ x: state.player.x, y: state.player.y, name }); return false; } state.inventory.push(name); return true; }
@@ -1959,14 +1959,14 @@ function gainExp(mon, n) {
     const before = { hp: mon.maxHp, atk: mon.atk, def: mon.def, spa: mon.spa, spd: mon.spd };
     mon.level++; computeStats(mon); mon.hp += mon.maxHp - before.hp;
     const gains = [['PS', mon.maxHp - before.hp], ['Ataque', mon.atk - before.atk], ['Defensa', mon.def - before.def], ['At. Esp.', mon.spa - before.spa], ['Def. Esp.', mon.spd - before.spd]].filter(([, v]) => v > 0);
-    say(`¡${mon.name} sube al nivel ${mon.level}!`); track('level_up', { species: mon.species, level: mon.level, leader: mon === state.player });
-    pages.push({ who: mon.name, sp: mon.species, mood: 'Happy', text: `¡${mon.name} sube al nivel ${mon.level}!${gains.length ? '  ' + gains.map(([k, v]) => `${k} +${v}`).join(' · ') : ''}` });
+    say(`¡${monNm(mon)} sube al nivel ${mon.level}!`); track('level_up', { species: mon.species, level: mon.level, leader: mon === state.player });
+    pages.push({ who: monNm(mon), sp: mon.species, mood: 'Happy', text: `¡${monNm(mon)} sube al nivel ${mon.level}!${gains.length ? '  ' + gains.map(([k, v]) => `${k} +${v}`).join(' · ') : ''}` });
     for (const m of [SPECIES[mon.species].learnset[mon.level]].flat().filter(Boolean)) {
       if (mon.moves.some(x => x.name === m) || !MOVES[m]) continue;
-      if (mon === state.player) { if (mon.moves.length < 4) { mon.moves.push({ name: m, pp: MOVES[m].pp }); say(`¡${mon.name} aprende ${m}!`); pages.push({ who: mon.name, sp: mon.species, mood: 'Joyous', text: `¡${mon.name} aprende ${m}!` }); } else offers.push(m); continue; }
+      if (mon === state.player) { if (mon.moves.length < 4) { mon.moves.push({ name: m, pp: MOVES[m].pp }); say(`¡${monNm(mon)} aprende ${nm('move', m)}!`); pages.push({ who: monNm(mon), sp: mon.species, mood: 'Joyous', text: `¡${monNm(mon)} aprende ${nm('move', m)}!` }); } else offers.push(m); continue; }
       const old = mon.moves.length >= 4 ? mon.moves.shift().name : null;   // compañeros: olvidan el más antiguo
-      mon.moves.push({ name: m, pp: MOVES[m].pp }); say(old ? `${mon.name} olvida ${old} y aprende ${m}.` : `¡${mon.name} aprende ${m}!`);
-      pages.push({ who: mon.name, sp: mon.species, mood: 'Joyous', text: old ? `${mon.name} olvida ${old}… ¡y aprende ${m}!` : `¡${mon.name} aprende ${m}!` });
+      mon.moves.push({ name: m, pp: MOVES[m].pp }); say(old ? `${monNm(mon)} olvida ${nm('move', old)} y aprende ${nm('move', m)}.` : `¡${monNm(mon)} aprende ${nm('move', m)}!`);
+      pages.push({ who: monNm(mon), sp: mon.species, mood: 'Joyous', text: old ? `${monNm(mon)} olvida ${nm('move', old)}… ¡y aprende ${nm('move', m)}!` : `¡${monNm(mon)} aprende ${nm('move', m)}!` });
     }
   }
   // tras los mensajes, el líder decide qué olvidar si ya tenía 4 movimientos
@@ -1974,46 +1974,57 @@ function gainExp(mon, n) {
   if (pages.length) { playSfx(pages.some(pg => /sube al nivel/.test(pg.text)) ? 'levelup' : 'learn'); levelDialog(pages, nextOffer); }
 }
 function offerMove(name, permanent, then) {
-  const p = state.player;
-  if (p.moves.some(m => m.name === name)) { say(`${p.name} ya conoce ${name}.`); return then?.(); }
+  const p = state.player, mn = nm('move', name);
+  if (p.moves.some(m => m.name === name)) { say(`${monNm(p)} ya conoce ${mn}.`); return then?.(); }
   const entry = { name, pp: MOVES[name].pp, permanent };
-  if (p.moves.length < 4) { p.moves.push(entry); say(`¡${p.name} aprende ${name}!`); levelDialog([{ who: p.name, sp: p.species, mood: 'Joyous', text: `¡${p.name} aprende ${name}!` }], then); return; }
-  openMenu({ title: `Aprender ${name}`, items: [...p.moves.map(m => m.name), 'No aprender'], icons: p.moves.map(m => MOVES[m.name].type), onCancel: () => { state.menu = null; say(`${p.name} no aprende ${name}.`); render(); then?.(); }, onSelect: i => { if (i < 4) { say(`${p.name} olvida ${p.moves[i].name} y aprende ${name}.`); p.moves[i] = entry; } else say(`${p.name} no aprende ${name}.`); state.menu = null; render(); then?.(); } });
+  if (p.moves.length < 4) { p.moves.push(entry); say(`¡${monNm(p)} aprende ${mn}!`); levelDialog([{ who: monNm(p), sp: p.species, mood: 'Joyous', text: `¡${monNm(p)} aprende ${mn}!` }], then); return; }
+  openMenu({ title: `Aprender ${mn}`, items: [...p.moves.map(m => nm('move', m.name)), 'No aprender'], icons: p.moves.map(m => MOVES[m.name].type), onCancel: () => { state.menu = null; say(`${monNm(p)} no aprende ${mn}.`); render(); then?.(); }, onSelect: i => { if (i < 4) { say(`${monNm(p)} olvida ${nm('move', p.moves[i].name)} y aprende ${mn}.`); p.moves[i] = entry; } else say(`${monNm(p)} no aprende ${mn}.`); state.menu = null; render(); then?.(); } });
 }
 function downed(mon) {
   playSfx('faint'); if (mon !== state.player) addFading(mon);
   if (mon === state.player) {
     const i = state.inventory.indexOf('Semilla Revivir');
     if (i >= 0) { state.inventory.splice(i, 1); mon.hp = mon.maxHp; mon.status = null; say('¡La Semilla Revivir te revive!'); return; }
-    state.dead = true; say(`${mon.name} se ha quedado sin PS…`);
+    state.dead = true; say(`${monNm(mon)} se ha quedado sin PS…`);
     track('death', { by: mon.lastHitBy || null, hunger: (mon.belly ?? 1) <= 0, turn: state.turn, floorTurns: state.floorTurns || 0, near: state.enemies.filter(e => e.hp > 0 && cheb(e, mon) <= 2).length, team: state.team.length, bag: state.inventory.length });
-    const where = `${state.dungeonDef.name} B${state.floor}F`;
+    const where = `${dnNm(state.dungeonDef)} B${state.floor}F`;
     playOnce('defeat');
     (async () => { await sleep(700); await showCard('Te han derrotado…', where, 2000); deathChoice(); })();
     return;
   }
   state.team = state.team.filter(a => a !== mon);
-  if (mon.guest) say(`${mon.name} se retira a recuperarse. ¡Seguid sin él!`);   // un invitado no se pierde
-  else if (mon.floors >= CFG.bondFloors) { state.bondedLost.push({ species: mon.species, floors: mon.floors, nick: mon.nick }); say(`${mon.name} cae, pero vuestro vínculo ya está forjado.`); }
-  else { state.lostRecruits.push(mon.species); say(`${mon.name} cae… y se marcha.`); }
+  if (mon.guest) say(`${monNm(mon)} se retira a recuperarse. ¡Seguid sin él!`);   // un invitado no se pierde
+  else if (mon.floors >= CFG.bondFloors) { state.bondedLost.push({ species: mon.species, floors: mon.floors, nick: mon.nick }); say(`${monNm(mon)} cae, pero vuestro vínculo ya está forjado.`); }
+  else { state.lostRecruits.push(mon.species); say(`${monNm(mon)} cae… y se marcha.`); }
 }
 
 // ---------- máquinas (MT de los jefes, MD de los legendarios) ----------
 // Son objetos de la bolsa: al usarlos eliges quién la aprende, y solo la aprenden los compatibles (datos del juego original).
 const isMachine = name => name.startsWith('MT: ') || name.startsWith('MD: ');
+// Nombre de un objeto tal como se enseña (en el idioma activo). Las máquinas: «MT: Lanzallamas» → «TM: Flamethrower».
+const MACHINE_EN = { MT: 'TM', MD: 'UM' };
+const itemNm = name => !isMachine(name) ? nm('item', name)
+  : getLang() === 'es' ? name : `${MACHINE_EN[name.slice(0, 2)]}: ${nm('move', name.slice(4))}`;
+// Habilidad por su nombre en castellano (el motor la nombra así en sus avisos) → en el idioma activo
+// El nombre de un Pokémon en el idioma activo: los motes y el nombre del explorador se quedan; el de la especie, el oficial
+const spNm = sp => nm('species', sp, SPECIES[sp]?.name || sp);
+const monNm = m => m && m.name === SPECIES[m.species]?.name ? spNm(m.species) : m?.name;
+const dnNm = d => d ? nm('dungeon', d.id, d.name) : '';   // nombre de una mazmorra en el idioma activo
+const dnNmId = id => dnNm(dungeonById(id));
+const abilNoteNm = es => nm('ability', Object.keys(ABILITY_ES).find(k => ABILITY_ES[k] === es), es);
 function useMachine(index) {
-  const name = state.inventory[index], move = name.slice(4), isMD = name.startsWith('MD: ');
+  const name = state.inventory[index], move = name.slice(4), isMD = name.startsWith('MD: '), mn = nm('move', move);
   const who = [state.player, ...state.team];
-  openMenu({ title: `¿Quién aprende ${move}?`, items: who.map(m => `${m.name} Nv${m.level}${canLearnMachine(m.species, move) ? '' : ' — no puede'}`), onCancel: () => { state.menu = null; render(); },
+  openMenu({ title: `¿Quién aprende ${mn}?`, items: who.map(m => `${monNm(m)} Nv${m.level}${canLearnMachine(m.species, move) ? '' : ' — no puede'}`), onCancel: () => { state.menu = null; render(); },
     onSelect: i => {
       const mon = who[i]; state.menu = null;
-      if (!canLearnMachine(mon.species, move)) { say(`${mon.name} no puede aprender ${move}.`); render(); return; }
-      if (mon.moves.some(x => x.name === move)) { say(`${mon.name} ya conoce ${move}.`); render(); return; }
+      if (!canLearnMachine(mon.species, move)) { say(`${monNm(mon)} no puede aprender ${mn}.`); render(); return; }
+      if (mon.moves.some(x => x.name === move)) { say(`${monNm(mon)} ya conoce ${mn}.`); render(); return; }
       state.inventory.splice(state.inventory.indexOf(name), 1);
       if (mon === state.player) { if (isMD && !state.earnedMD.includes(move)) state.earnedMD.push(move); offerMove(move, isMD); }
       else {   // compañero: aprende directamente; si ya tiene 4, olvida el más antiguo
         const old = mon.moves.length >= 4 ? mon.moves.shift().name : null;
-        mon.moves.push({ name: move, pp: MOVES[move].pp }); say(old ? `${mon.name} olvida ${old} y aprende ${move}.` : `${mon.name} aprende ${move}.`);
+        mon.moves.push({ name: move, pp: MOVES[move].pp }); say(old ? `${monNm(mon)} olvida ${nm('move', old)} y aprende ${mn}.` : `${monNm(mon)} aprende ${mn}.`);
       }
       render();
     } });
@@ -2143,8 +2154,8 @@ function speakerSpecies(page) {
   const who = page.who; if (!who) return null;
   if (NPC_SPECIES[who]) return NPC_SPECIES[who];
   const mons = [state.player, ...(state.team || []), ...(state.enemies || []), ...(state.npcs || [])].filter(Boolean);
-  const m = mons.find(x => x.name === who || x.name === who.replace(/ \(forajido\)$/, '')); if (m) return m.species;
-  return SPECIES_BY_NAME[who.replace(/^Mega /, '')] || null;
+  const m = mons.find(x => [x.name, monNm(x)].some(n => n === who || n === who.replace(/ \(forajido\)$/, ''))); if (m) return m.species;
+  const base = who.replace(/^Mega /, ''); return SPECIES_BY_NAME[base] || nameKey('species', base) || null;
 }
 // la emoción, si la línea no la indica: se deduce del texto
 function inferMood(page) {
@@ -2154,7 +2165,7 @@ function inferMood(page) {
   if (/^…|\.\.\.$|…$/.test(t.trim()) && !/!/.test(t)) return 'Sigh';
   if (/gracias|bienvenid|perfecto|estupendo|genial|¡hola|enhorabuena|muy bien|¡por fin/i.test(t)) return 'Happy';
   if (/\?!|¿¡|¡¿|¡Qué/i.test(t)) return 'Surprised';
-  if (['legendary', 'bigLegendary', 'jirachi'].includes(state.dungeon?.arena ? 'legendary' : '') && state.enemies?.some(e => e.isBoss && e.name === page.who)) return 'Determined';
+  if (['legendary', 'bigLegendary', 'jirachi'].includes(state.dungeon?.arena ? 'legendary' : '') && state.enemies?.some(e => e.isBoss && monNm(e) === page.who)) return 'Determined';
   return 'Normal';
 }
 
@@ -2178,8 +2189,14 @@ function itemInText(t) {
   const m = t.match(/^💿 (.+?) \((MT|MD)\)/); if (m) return `${m[2]}: ${m[1]}`;
   const s = t.replace(/^\[Equipado\] /, '').replace(/^(MT|MD): /, x => x);
   if (/^(MT|MD): /.test(s)) { const mv = s.slice(4).split(' — ')[0].split(' (')[0].trim(); if (MOVES[mv]) return s.slice(0, 4) + mv; }
+  const en = s.match(/^(TM|UM): (.+?)(?: — | \(|$)/), mvEn = en && nameKey('move', en[2].trim());   // las máquinas en inglés
+  if (mvEn && MOVES[mvEn]) return `${en[1] === 'TM' ? 'MT' : 'MD'}: ${mvEn}`;
   const w = s.split(/\s+/);
-  for (let k = Math.min(6, w.length); k > 0; k--) { const cand = w.slice(0, k).join(' ').replace(/[,:—·]+$/, ''); if (ITEMS[cand]) return cand; }
+  for (let k = Math.min(6, w.length); k > 0; k--) {
+    const cand = w.slice(0, k).join(' ').replace(/[,:—·]+$/, '');
+    if (ITEMS[cand]) return cand;
+    const es = nameKey('item', cand); if (es && ITEMS[es]) return es;   // (nombre en inglés)
+  }
   return null;
 }
 
@@ -2203,40 +2220,40 @@ const revealFloor = () => { for (const row of state.seen) row.fill(true); };
 function levelUpFree(mon, n) {   // subidas de nivel de objetos: no cuentan para el tope de la exploración
   for (let i = 0; i < n && mon.level < 100; i++) { mon.level++; mon.exp = 0; const old = mon.maxHp; computeStats(mon); mon.hp += mon.maxHp - old; }
   mon.seedLevels = (mon.seedLevels || 0) + n; mon.runStartLevel = (mon.runStartLevel ?? mon.level - n) + n;
-  say(`¡${mon.name} sube al nivel ${mon.level}!`); levelDialog([{ who: mon.name, sp: mon.species, mood: 'Happy', text: `¡${mon.name} sube al nivel ${mon.level}!` }]);
+  say(`¡${monNm(mon)} sube al nivel ${mon.level}!`); levelDialog([{ who: monNm(mon), sp: mon.species, mood: 'Happy', text: `¡${monNm(mon)} sube al nivel ${mon.level}!` }]);
 }
 // Gominolas: IQ +1..+8 según el tipo (Maravilla: +15 a todos); el Potenciador IQ lo multiplica
 function eatGummi(mon, it) {
   const types = SPECIES[mon.species].types, match = it.type === '*' || types.includes(it.type);
   const gain = Math.round((it.type === '*' ? 15 : match ? 8 : 2) * (ITEMS[mon.held]?.iqBoost || 1));
   const before = mon.iq || 0; mon.iq = Math.min(999, before + gain); mon.iqGain = (mon.iqGain || 0) + gain;
-  say(`${mon.name} come la gominola${match && it.type !== '*' ? ' (¡su favorita!)' : ''}. IQ +${gain} (${mon.iq}).`);
-  for (const s of iqSkillsFor(mon)) if (s.iq > before && s.iq <= mon.iq) say(`¡${mon.name} aprende la habilidad IQ «${s.name}»!`);
+  say(`${monNm(mon)} come la gominola${match && it.type !== '*' ? ' (¡su favorita!)' : ''}. IQ +${gain} (${mon.iq}).`);
+  for (const s of iqSkillsFor(mon)) if (s.iq > before && s.iq <= mon.iq) say(`¡${monNm(mon)} aprende la habilidad IQ «${s.name}»!`);
 }
 function seedEffect(name, it) {
   const p = state.player, f = frontFoe(), need = () => { if (!f) { say(`Comes ${name}, pero no hay nadie delante.`); return false; } return true; };
   switch (it.fx) {
     case 'cureAll': p.status = null; say(`Comes ${name}. Todos los estados se curan.`); break;
     case 'blast': if (need()) { say(`¡${name} lanza una llamarada!`); itemStrike(f, it.dmg); } break;
-    case 'stun': if (need() && applyStatus(state.rng, f, 'paralysis', 1)) say(`${f.name} queda paralizado.`); break;
-    case 'totter': if (need() && applyStatus(state.rng, f, 'confusion', 1)) say(`${f.name} está confuso.`); break;
+    case 'stun': if (need() && applyStatus(state.rng, f, 'paralysis', 1)) say(`${monNm(f)} queda paralizado.`); break;
+    case 'totter': if (need() && applyStatus(state.rng, f, 'confusion', 1)) say(`${monNm(f)} está confuso.`); break;
     case 'blinker': if (need()) applyStages(f, [['acc', -4]]).forEach(say); break;
-    case 'doom': if (need()) { if (f.level > 1 && !f.isBoss) { f.level--; computeStats(f); f.hp = Math.min(f.hp, f.maxHp); say(`${f.name} baja al nivel ${f.level}.`); } else say('No le afecta.'); } break;
+    case 'doom': if (need()) { if (f.level > 1 && !f.isBoss) { f.level--; computeStats(f); f.hp = Math.min(f.hp, f.maxHp); say(`${monNm(f)} baja al nivel ${f.level}.`); } else say('No le afecta.'); } break;
     case 'vile': if (need()) applyStages(f, [['def', -2], ['spd', -2]]).forEach(say); break;
     case 'violent': applyStages(p, [['atk', 2], ['spa', 2]]).forEach(say); break;
     case 'quick': applyStages(p, [['spe', 1]]).forEach(say); break;   // Semilla Rápida: más velocidad (como en el original)
     case 'vanish': applyStages(p, [['eva', 4]]).forEach(say); break;
     case 'blindSelf': applyStages(p, [['acc', -2]]).forEach(say); break;
-    case 'confuseSelf': if (applyStatus(state.rng, p, 'confusion', 1)) say(`${p.name} está confuso.`); break;
-    case 'warp': warpTo(p, randomFreeTile()); say(`${p.name} se teletransporta.`); break;
-    case 'toStairs': warpTo(p, randomFreeTile(true)); say(`${p.name} aparece junto a la escalera.`); break;
-    case 'nextFloor': say(`${p.name} atraviesa el suelo…`); setTimeout(() => descend(), 300); break;
+    case 'confuseSelf': if (applyStatus(state.rng, p, 'confusion', 1)) say(`${monNm(p)} está confuso.`); break;
+    case 'warp': warpTo(p, randomFreeTile()); say(`${monNm(p)} se teletransporta.`); break;
+    case 'toStairs': warpTo(p, randomFreeTile(true)); say(`${monNm(p)} aparece junto a la escalera.`); break;
+    case 'nextFloor': say(`${monNm(p)} atraviesa el suelo…`); setTimeout(() => descend(), 300); break;
     case 'reveal': revealFloor(); say('¡Ves todo el piso!'); break;
     case 'hunger': p.belly = 0; say('¡La barriga se vacía de golpe!'); break;
     case 'slip': state.slip = true; say('Ahora puedes andar sobre el agua en este piso.'); break;
     case 'levelUp': levelUpFree(p, 1); break;
     case 'levelUp3': levelUpFree(p, 3); break;
-    case 'maxHp': p.bonus = { ...(p.bonus || {}), hp: (p.bonus?.hp || 0) + 10 }; computeStats(p); p.hp = Math.min(p.maxHp, p.hp + 10); say(`¡Los PS máximos de ${p.name} suben 10!`); break;
+    case 'maxHp': p.bonus = { ...(p.bonus || {}), hp: (p.bonus?.hp || 0) + 10 }; computeStats(p); p.hp = Math.min(p.maxHp, p.hp + 10); say(`¡Los PS máximos de ${monNm(p)} suben 10!`); break;
     case 'restorePP': for (const m of p.moves) m.pp = Math.min(MOVES[m.name]?.pp ?? m.pp, m.pp + 5); say('Los PP se recuperan un poco.'); break;
     default: say(`Comes ${name}. No pasa nada.`);
   }
@@ -2245,7 +2262,7 @@ function drinkEffect(name, it) {
   const p = state.player;
   if (it.fx === 'ppAll' || it.fx === 'ppMax') { for (const m of p.moves) m.pp = MOVES[m.name]?.pp ?? m.pp; say(`Bebes ${name}. ¡PP restaurados!`); }
   else if (it.fx === 'iq') eatGummi(p, { type: '*' });
-  else if (it.fx === 'stat') { p.bonus = { ...(p.bonus || {}), [it.stat]: (p.bonus?.[it.stat] || 0) + it.n }; const nm = STAT_NAMES_DE[it.stat]; say(`Tomas ${name}. ¡Sube ${nm} de ${p.name} para siempre!`); }
+  else if (it.fx === 'stat') { p.bonus = { ...(p.bonus || {}), [it.stat]: (p.bonus?.[it.stat] || 0) + it.n }; const nm = STAT_NAMES_DE[it.stat]; say(`Tomas ${name}. ¡Sube ${nm} de ${monNm(p)} para siempre!`); }
 }
 // Objetos arrojadizos: en línea recta (hasta 10 casillas) o en arco (saltan por encima de lo que haya en medio)
 function throwItem(name, it) {
@@ -2254,14 +2271,14 @@ function throwItem(name, it) {
     const x = p.x + dx * k, y = p.y + dy * k;
     if (!it.arc && tileAt(x, y) === T.WALL) break;
     const t = state.enemies.find(e => e.hp > 0 && e.x === x && e.y === y);
-    if (t) { const d = Math.round(it.dmg * (!it.arc && p.iqSkills?.includes('Power Pitcher') ? 1.5 : 1)); say(`Lanzas ${name}: ${d} de daño a ${t.name}.`); itemStrike(t, d); if (t.hp > 0 && it.status && state.rng.random() < it.chance) applyStatus(state.rng, t, it.status, 1); return true; }
+    if (t) { const d = Math.round(it.dmg * (!it.arc && p.iqSkills?.includes('Power Pitcher') ? 1.5 : 1)); say(`Lanzas ${name}: ${d} de daño a ${monNm(t)}.`); itemStrike(t, d); if (t.hp > 0 && it.status && state.rng.random() < it.chance) applyStatus(state.rng, t, it.status, 1); return true; }
   }
   say(`Lanzas ${name}, pero no alcanza a nadie.`); return true;
 }
 function orbEffect(name, it) {
   playSfx('orb');
   const p = state.player, f = frontFoe(), foes = roomFoes(), team = [p, ...state.team];
-  say(`¡Usas ${name}!`);
+  say(`¡Usas ${itemNm(name)}!`);
   switch (it.fx) {
     case 'escape': say('Una luz te envuelve… ¡sales de la mazmorra con todo lo que llevas!'); state.inventory.splice(state.inventory.indexOf(name), 1); setTimeout(() => endRun('exit'), 400); return 'consumed';
     case 'reveal': revealFloor(); say('¡El piso se ilumina!'); break;
@@ -2270,28 +2287,28 @@ function orbEffect(name, it) {
     case 'roomStatus': { let n = 0; for (const e of foes) if (applyStatus(state.rng, e, it.status, 1)) { if (it.turns && e.status) e.status.turns = it.turns; n++; } say(n ? `${n} enemigo${n > 1 ? 's quedan' : ' queda'} ${STATUS[it.status].name.toLowerCase()}.` : 'No afecta a nadie.'); break; }
     case 'roomWarp': foes.forEach(e => warpTo(e, randomFreeTile())); say(foes.length ? 'Los enemigos desaparecen de la sala.' : 'No hay enemigos cerca.'); break;
     case 'terrify': { let n = 0; foes.forEach(e => { if (terrify(e, 10, '')) n++; }); say(n ? '¡Los enemigos se asustan y huyen!' : 'No hay enemigos cerca.'); break; }
-    case 'frontWarp': if (f && !f.isBoss) { warpTo(f, randomFreeTile()); say(`${f.name} sale despedido lejos.`); } else say('No pasa nada.'); break;
-    case 'swap': if (f && !f.isBoss) { const px = p.x, py = p.y; p.x = f.x; p.y = f.y; f.x = px; f.y = py; updateVisibility(); say(`Intercambias el sitio con ${f.name}.`); } else say('No pasa nada.'); break;
-    case 'warp': warpTo(p, randomFreeTile()); say(`${p.name} se teletransporta.`); break;
-    case 'toStairs': warpTo(p, randomFreeTile(true)); say(`${p.name} aparece junto a la escalera.`); break;
+    case 'frontWarp': if (f && !f.isBoss) { warpTo(f, randomFreeTile()); say(`${monNm(f)} sale despedido lejos.`); } else say('No pasa nada.'); break;
+    case 'swap': if (f && !f.isBoss) { const px = p.x, py = p.y; p.x = f.x; p.y = f.y; f.x = px; f.y = py; updateVisibility(); say(`Intercambias el sitio con ${monNm(f)}.`); } else say('No pasa nada.'); break;
+    case 'warp': warpTo(p, randomFreeTile()); say(`${monNm(p)} se teletransporta.`); break;
+    case 'toStairs': warpTo(p, randomFreeTile(true)); say(`${monNm(p)} aparece junto a la escalera.`); break;
     case 'scanItems': state.scanItems = true; say('Los objetos del piso aparecen en el mapa.'); break;
     case 'scanFoes': state.scanFoes = true; say('Los enemigos del piso aparecen en el mapa.'); break;
     case 'teamStat': team.forEach(m => applyStages(m, [[it.stat, it.n]]).forEach(say)); break;
     case 'roomStat': foes.forEach(e => applyStages(e, [[it.stat, it.n]]).forEach(say)); if (!foes.length) say('No afecta a nadie.'); break;
     case 'cleanse': team.forEach(m => { m.status = null; }); say('Tu equipo se recupera de sus estados.'); break;
     case 'ppAll': team.forEach(m => m.moves.forEach(mv => { mv.pp = MOVES[mv.name]?.pp ?? mv.pp; })); say('¡Los PP de todo el equipo se restauran!'); break;
-    case 'oneShot': if (f && !f.isBoss && state.rng.random() < 0.5) { say(`¡${f.name} cae de un solo golpe!`); itemStrike(f, f.hp); } else say('Falla…'); break;
+    case 'oneShot': if (f && !f.isBoss && state.rng.random() < 0.5) { say(`¡${monNm(f)} cae de un solo golpe!`); itemStrike(f, f.hp); } else say('Falla…'); break;
     case 'twoEdge': foes.filter(e => !e.isBoss).forEach(e => { e.hp = Math.min(e.hp, 1); }); p.hp = Math.max(1, Math.floor(p.hp / 2)); say('¡Los enemigos quedan al límite… y tú también pagas el precio!'); break;
     case 'roomDamage': foes.forEach(e => { itemStrike(e, it.dmg); if (e.hp > 0 && it.status && state.rng.random() < 0.3) applyStatus(state.rng, e, it.status, 1); }); if (!foes.length) say('No afecta a nadie.'); break;
     case 'roomSeal': foes.forEach(e => { e.sealed = 8; }); say(foes.length ? 'Los enemigos no pueden usar sus movimientos.' : 'No afecta a nadie.'); break;
     case 'weather': state.weather = it.weather; say(`El tiempo cambia: ${WEATHER[it.weather]?.name || it.weather}.`); break;
     case 'drought': { const T0 = state.dungeon.tiles; let n = 0; T0.forEach((row, y) => row.forEach((t, x) => { if (t === T.WATER || t === T.LAVA) { T0[y][x] = T.FLOOR; n++; } })); say(n ? 'El agua y la lava del piso desaparecen.' : 'No hay nada que secar.'); break; }
-    case 'mug': if (f) { const pk = 20 + state.rng.int(0, 80) * state.floor; state.runPokes += pk; say(`Le quitas ${pk} Pokés a ${f.name}.`); } else say('No hay nadie delante.'); break;
-    case 'itemize': if (f && !f.isBoss) { state.enemies = state.enemies.filter(e => e !== f); state.groundItems.push({ x: f.x, y: f.y, name: rollLoot(state.rng, state.floor) }); say(`¡${f.name} se convierte en un objeto!`); } else say('No pasa nada.'); break;
-    case 'transform': if (f && !f.isBoss) { const sp = state.rng.pick(dungeonById(state.era || state.dungeonDef.id).pool); const n2 = createMon(sp, f.level, { x: f.x, y: f.y, asleep: false }); Object.assign(f, n2); say(`¡Se transforma en ${n2.name}!`); } else say('No pasa nada.'); break;
+    case 'mug': if (f) { const pk = 20 + state.rng.int(0, 80) * state.floor; state.runPokes += pk; say(`Le quitas ${pk} Pokés a ${monNm(f)}.`); } else say('No hay nadie delante.'); break;
+    case 'itemize': if (f && !f.isBoss) { state.enemies = state.enemies.filter(e => e !== f); state.groundItems.push({ x: f.x, y: f.y, name: rollLoot(state.rng, state.floor) }); say(`¡${monNm(f)} se convierte en un objeto!`); } else say('No pasa nada.'); break;
+    case 'transform': if (f && !f.isBoss) { const sp = state.rng.pick(dungeonById(state.era || state.dungeonDef.id).pool); const n2 = createMon(sp, f.level, { x: f.x, y: f.y, asleep: false }); Object.assign(f, n2); say(`¡Se transforma en ${monNm(n2)}!`); } else say('No pasa nada.'); break;
     case 'decoy': foes.forEach(e => applyStatus(state.rng, e, 'confusion', 1)); say('Los enemigos se lían y atacan a lo loco.'); break;
-    case 'blowback': if (f && !f.isBoss) { let k = 0; while (k < 10 && walkableFor(f, f.x + p.facing[0], f.y + p.facing[1]) && !occupied(f.x + p.facing[0], f.y + p.facing[1])) { f.x += p.facing[0]; f.y += p.facing[1]; k++; } say(`${f.name} sale volando.`); itemStrike(f, 10); } else say('No pasa nada.'); break;
-    case 'pounce': { let k = 0; while (k < 20 && canMove(p, p.facing[0], p.facing[1])) { p.x += p.facing[0]; p.y += p.facing[1]; k++; } updateVisibility(); say(`${p.name} sale disparado hacia delante.`); break; }
+    case 'blowback': if (f && !f.isBoss) { let k = 0; while (k < 10 && walkableFor(f, f.x + p.facing[0], f.y + p.facing[1]) && !occupied(f.x + p.facing[0], f.y + p.facing[1])) { f.x += p.facing[0]; f.y += p.facing[1]; k++; } say(`${monNm(f)} sale volando.`); itemStrike(f, 10); } else say('No pasa nada.'); break;
+    case 'pounce': { let k = 0; while (k < 20 && canMove(p, p.facing[0], p.facing[1])) { p.x += p.facing[0]; p.y += p.facing[1]; k++; } updateVisibility(); say(`${monNm(p)} sale disparado hacia delante.`); break; }
     case 'slip': state.slip = true; say('Ahora puedes andar sobre el agua y la lava en este piso.'); break;
     default: say('No parece tener efecto aquí.');
   }
@@ -2313,8 +2330,8 @@ function floorStartTraits() {
   if (p.iqSkills.includes('Acute Sniffer')) say(`Olfato Fino: hay ${state.groundItems.filter(i => !i.shop).length} objetos en este piso.`);
   for (const m of team) {
     if (m.iqSkills?.includes('Deep Breather')) { const mv = m.moves.filter(x => x.pp < (MOVES[x.name]?.pp ?? x.pp)); if (mv.length) state.rng.pick(mv).pp++; }
-    if (m.status && hasAbility(m, 'NATURAL_CURE')) { m.status = null; say(`Cura Natural: ${m.name} se recupera.`); }
-    if (hasAbility(m, 'PICKUP') && state.rng.random() < 0.1 && state.inventory.length < bagSizeFor(meta?.rankPts)) { const it = rollLoot(state.rng, state.floor, { noSell: true }); state.inventory.push(it); say(`Recogida: ${m.name} ha encontrado ${it}.`); }
+    if (m.status && hasAbility(m, 'NATURAL_CURE')) { m.status = null; say(`Cura Natural: ${monNm(m)} se recupera.`); }
+    if (hasAbility(m, 'PICKUP') && state.rng.random() < 0.1 && state.inventory.length < bagSizeFor(meta?.rankPts)) { const it = rollLoot(state.rng, state.floor, { noSell: true }); state.inventory.push(it); say(`Recogida: ${monNm(m)} ha encontrado ${itemNm(it)}.`); }
   }
   state.scanItems = state.scanFoes = state.slip = false;
 }
@@ -2322,10 +2339,10 @@ function floorStartTraits() {
 function turnTraits() {
   for (const m of [state.player, ...state.team]) {
     if (!m || m.hp <= 0) continue;
-    if (m.status && ((hasAbility(m, 'SHED_SKIN') && state.rng.random() < 0.3) || (hasAbility(m, 'HYDRATION') && state.weather === 'rain'))) { m.status = null; say(`${m.name} se recupera de su estado gracias a su habilidad.`); }
+    if (m.status && ((hasAbility(m, 'SHED_SKIN') && state.rng.random() < 0.3) || (hasAbility(m, 'HYDRATION') && state.weather === 'rain'))) { m.status = null; say(`${monNm(m)} se recupera de su estado gracias a su habilidad.`); }
   }
   const p = state.player, h = ITEMS[p.held];
-  if (h?.warpChance && state.rng.random() < h.warpChance) { warpTo(p, randomFreeTile()); say(`¡${h ? p.held : ''} teletransporta a ${p.name}!`); }
+  if (h?.warpChance && state.rng.random() < h.warpChance) { warpTo(p, randomFreeTile()); say(`¡${h ? itemNm(p.held) : ''} teletransporta a ${monNm(p)}!`); }
   if (h?.expTick && state.turn % 10 === 0) gainExp(p, h.expTick * Math.max(1, Math.floor(p.level / 5)));
 }
 function refreshBagEffects() {
@@ -2347,16 +2364,16 @@ function useItem(index) {
   if (!it) return false;
   const consume = () => state.inventory.splice(index, 1);
   switch (it.kind) {
-    case 'heal': playSfx('heal'); p.hp = Math.min(p.maxHp, p.hp + Math.round(it.value * (p.iqSkills?.includes('Wise Healer') ? 1.5 : 1))); say(`Comes ${name}. PS restaurados.`); consume();
-      if (it.bad && applyStatus(state.rng, p, it.bad, 1)) say(`¡Pero ${p.name} está confuso!`); return true;
+    case 'heal': playSfx('heal'); p.hp = Math.min(p.maxHp, p.hp + Math.round(it.value * (p.iqSkills?.includes('Wise Healer') ? 1.5 : 1))); say(`Comes ${itemNm(name)}. PS restaurados.`); consume();
+      if (it.bad && applyStatus(state.rng, p, it.bad, 1)) say(`¡Pero ${monNm(p)} está confuso!`); return true;
     case 'belly':
       playSfx('eat');
-      if (it.maxBelly) { p.maxBelly = Math.min(200, p.maxBelly + it.maxBelly); say(`¡La barriga de ${p.name} crece! (tope ${p.maxBelly})`); }
-      p.belly = Math.min(p.maxBelly, p.belly + Math.round(it.value * (p.iqSkills?.includes('Survivalist') ? 1.5 : 1))); say(`Comes ${name}. ${p.belly >= p.maxBelly ? 'Barriga llena.' : 'Te sienta bien.'}`); consume();
+      if (it.maxBelly) { p.maxBelly = Math.min(200, p.maxBelly + it.maxBelly); say(`¡La barriga de ${monNm(p)} crece! (tope ${p.maxBelly})`); }
+      p.belly = Math.min(p.maxBelly, p.belly + Math.round(it.value * (p.iqSkills?.includes('Survivalist') ? 1.5 : 1))); say(`Comes ${itemNm(name)}. ${p.belly >= p.maxBelly ? 'Barriga llena.' : 'Te sienta bien.'}`); consume();
       if (it.bad && state.rng.random() < 0.5) { const st = state.rng.pick(['poison', 'paralysis', 'confusion']); if (applyStatus(state.rng, p, st, 1)) say(`Uf… le ha sentado mal: ${STATUS[st].name.toLowerCase()}.`); }
       return true;
-    case 'cure': if (!p.status) { say('No tienes ningún estado alterado.'); return false; } p.status = null; say(`Comes ${name}. Te sientes mejor.`); consume(); return true;
-    case 'throw_sleep': { const [t] = findTargets(p, { range: 'front' }); if (!t) { say('No hay nadie delante.'); return false; } applyStatus(state.rng, t, 'sleep', 1); say(`Lanzas ${name}: ${t.name} se duerme.`); consume(); return true; }
+    case 'cure': if (!p.status) { say('No tienes ningún estado alterado.'); return false; } p.status = null; say(`Comes ${itemNm(name)}. Te sientes mejor.`); consume(); return true;
+    case 'throw_sleep': { const [t] = findTargets(p, { range: 'front' }); if (!t) { say('No hay nadie delante.'); return false; } applyStatus(state.rng, t, 'sleep', 1); say(`Lanzas ${itemNm(name)}: ${monNm(t)} se duerme.`); consume(); return true; }
     case 'orb':
       if (it.fx) { const r = orbEffect(name, it); if (r === 'keep') return false; if (r !== 'consumed') consume(); return true; }
       if (it.orb === 'heal') { for (const m of [p, ...state.team]) { m.hp = m.maxHp; m.status = null; } say('El Orbe Cura restaura a todo el equipo.'); }
@@ -2365,15 +2382,15 @@ function useItem(index) {
       consume(); return true;
     case 'held':
       playSfx('pickup'); if (p.held) state.inventory.push(p.held);
-      p.held = name; consume(); say(`${p.name} se equipa ${name}.`); refreshBagEffects(); return false;
-    case 'exclusive': say(`${name}: ${it.desc}`); return false;
+      p.held = name; consume(); say(`${monNm(p)} se equipa ${itemNm(name)}.`); refreshBagEffects(); return false;
+    case 'exclusive': say(`${itemNm(name)}: ${it.desc}`); return false;
     case 'gummi': { playSfx('eat'); consume(); p.belly = Math.min(p.maxBelly, p.belly + 10); eatGummi(p, it); return true; }
     case 'berry': playSfx('eat'); consume(); p.belly = Math.min(p.maxBelly, p.belly + 5);
-      if (p.status?.kind === it.cure) { p.status = null; say(`Comes ${name}. ¡Se te pasa!`); } else say(`Comes ${name}. Está rica, pero no tiene efecto ahora.`); return true;
-    case 'seed': playSfx('eat'); consume(); p.belly = Math.min(p.maxBelly, p.belly + 2); seedEffect(name, it); return true;
-    case 'drink': playSfx('drink'); consume(); if (it.belly) p.belly = Math.min(p.maxBelly, p.belly + it.belly); drinkEffect(name, it); return true;
-    case 'throw': { playSfx('throw'); const ok = throwItem(name, it); if (ok) consume(); return ok; }
-    case 'sell': say(`${name}: sólo sirve para vendérselo a Kecleon.`); return false;
+      if (p.status?.kind === it.cure) { p.status = null; say(`Comes ${itemNm(name)}. ¡Se te pasa!`); } else say(`Comes ${itemNm(name)}. Está rica, pero no tiene efecto ahora.`); return true;
+    case 'seed': playSfx('eat'); consume(); p.belly = Math.min(p.maxBelly, p.belly + 2); seedEffect(itemNm(name), it); return true;
+    case 'drink': playSfx('drink'); consume(); if (it.belly) p.belly = Math.min(p.maxBelly, p.belly + it.belly); drinkEffect(itemNm(name), it); return true;
+    case 'throw': { playSfx('throw'); const ok = throwItem(itemNm(name), it); if (ok) consume(); return ok; }
+    case 'sell': say(`${itemNm(name)}: sólo sirve para vendérselo a Kecleon.`); return false;
     case 'revive': say('Se activa sola cuando caes.'); return false;
     case 'quest': say('Es el objeto perdido de una misión. Llévalo al gremio.'); return false;
   }
@@ -2383,8 +2400,8 @@ function useItem(index) {
 // ---------- acciones del jugador ----------
 function preTurn(mon) { // estados al empezar a actuar. Devuelve { skip, randomMove }
   const r = tickStatus(state.rng, mon, state.turn);
-  if (r.dmg) { say(`${mon.name} sufre ${r.dmg} de daño por estar ${STATUS[mon.status?.kind || 'poison'].name.toLowerCase()}.`); state.effects.push({ x: mon.x, y: mon.y, text: `-${r.dmg}`, t: performance.now(), color: '#b48ead' }); }
-  if (r.cured) say(`${mon.name} se recupera.`);
+  if (r.dmg) { say(`${monNm(mon)} sufre ${r.dmg} de daño por estar ${STATUS[mon.status?.kind || 'poison'].name.toLowerCase()}.`); state.effects.push({ x: mon.x, y: mon.y, text: `-${r.dmg}`, t: performance.now(), color: '#b48ead' }); }
+  if (r.cured) say(`${monNm(mon)} se recupera.`);
   if (mon.hp <= 0) { isAlly(mon) ? downed(mon) : defeatEnemy(mon, null); return { skip: true }; }
   return r;
 }
@@ -2393,8 +2410,8 @@ function playerAction(kind, dx = 0, dy = 0, extra) {
   if (['move', 'attack', 'skill'].includes(kind)) {
     const st = preTurn(p);
     if (state.dead) return;
-    if (st.skip) { say(`${p.name} no puede moverse (${STATUS[p.status?.kind]?.name.toLowerCase() || 'aturdido'}).`); endTurn(true); return; }
-    if (st.randomMove) { [dx, dy] = state.rng.pick(DIRS8); kind = 'move'; say(`${p.name} está confuso y tropieza.`); }
+    if (st.skip) { say(`${monNm(p)} no puede moverse (${STATUS[p.status?.kind]?.name.toLowerCase() || 'aturdido'}).`); endTurn(true); return; }
+    if (st.randomMove) { [dx, dy] = state.rng.pick(DIRS8); kind = 'move'; say(`${monNm(p)} está confuso y tropieza.`); }
   }
   if (kind === 'move') {
     p.facing = [dx, dy];
@@ -2404,16 +2421,16 @@ function playerAction(kind, dx = 0, dy = 0, extra) {
     if (npc?.keeper) { openKeeperMenu(); return; }
     if (npc?.wants) {   // misión de entrega: si llevas lo que pide, se lo das
       const m = state.missions.find(m => m.id === npc.missionId), i = state.inventory.indexOf(npc.wants);
-      if (m && i >= 0) { state.inventory.splice(i, 1); m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`${npc.name}: "¡${npc.wants}! ¡Muchísimas gracias!" Cobrarás al volver al gremio.`); }
-      else say(`${npc.name}: "¿Me traes ${npc.wants}? Lo necesito de verdad…"`);
+      if (m && i >= 0) { state.inventory.splice(i, 1); m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`${monNm(npc)}: "¡${npc.wants}! ¡Muchísimas gracias!" Cobrarás al volver al gremio.`); }
+      else say(`${monNm(npc)}: "¿Me traes ${npc.wants}? Lo necesito de verdad…"`);
       endTurn(true); return;
     }
-    if (npc) { const m = state.missions.find(m => m.id === npc.missionId); if (m) { m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`¡${npc.name}: "¡Gracias por rescatarme!" Volverá contigo al gremio.`); } endTurn(true); return; }
+    if (npc) { const m = state.missions.find(m => m.id === npc.missionId); if (m) { m.done = true; state.npcs = state.npcs.filter(n => n !== npc); say(`¡${monNm(npc)}: "¡Gracias por rescatarme!" Volverá contigo al gremio.`); } endTurn(true); return; }
     // moverte hacia un compañero: os intercambiáis el sitio (como en el original), para que nunca te dejen encerrado
     const ally = state.team.find(a => a.hp > 0 && a.x === p.x + dx && a.y === p.y + dy);
     if (ally && tileAt(ally.x, ally.y) !== T.WALL && !(dx && dy && (tileAt(p.x + dx, p.y) === T.WALL || tileAt(p.x, p.y + dy) === T.WALL))) {
       const px = p.x, py = p.y; p.x = ally.x; p.y = ally.y; ally.x = px; ally.y = py; p.movedAt = ally.movedAt = performance.now(); ally.facing = [-dx, -dy];
-      say(`Intercambias el sitio con ${ally.name}.`); updateVisibility();
+      say(`Intercambias el sitio con ${monNm(ally)}.`); updateVisibility();
       if (tileAt(p.x, p.y) === T.STAIRS) { endTurn(true); askStairs(); return; }
       endTurn(true); return;
     }
@@ -2421,14 +2438,14 @@ function playerAction(kind, dx = 0, dy = 0, extra) {
     p.x += dx; p.y += dy; p.movedAt = performance.now();
     thunderTrap(p);   // Monte Eléctrico: ¿había un rayo oculto aquí?
     const gi = state.groundItems.findIndex(g => g.x === p.x && g.y === p.y);
-    if (gi >= 0 && state.groundItems[gi].shop) { const g = state.groundItems[gi]; say(`Kecleon: "${g.name}, ${shopPriceFor(g)} Pokés." (Menú → Suelo para cogerlo)`); }
-    else if (gi >= 0) { const g = state.groundItems[gi]; if (g.megaStone) { state.groundItems.splice(gi, 1); (state.stonesFound ||= []).push(g.megaStone); say('¡Has encontrado la ' + g.name + '! Llevala al maestro Pidgeot.'); } else if (addItem(g.name, false)) { playSfx('pickup'); state.groundItems.splice(gi, 1); if (g.shop) { const price = Math.round(g.price * (state.player.species === 'kecleon' ? KECLEON_DISCOUNT : 1)); state.shop.unpaid.push({ name: g.name, price }); say(`Coges ${g.name} (${price} P). Kecleon: ${state.player.species === 'kecleon' ? '"Para ti con descuento, hermano. Pero paga."' : '"¡Paga antes de irte!"'}`); } else say(`Recoges ${g.name}.`); if (g.missionId) { const m = state.missions.find(m => m.id === g.missionId); if (m) { m.done = true; say('¡Es el objeto de la misión!'); } } } }
+    if (gi >= 0 && state.groundItems[gi].shop) { const g = state.groundItems[gi]; say(`Kecleon: "${itemNm(g.name)}, ${shopPriceFor(g)} Pokés." (Menú → Suelo para cogerlo)`); }
+    else if (gi >= 0) { const g = state.groundItems[gi]; if (g.megaStone) { state.groundItems.splice(gi, 1); (state.stonesFound ||= []).push(g.megaStone); say('¡Has encontrado la ' + g.name + '! Llevala al maestro Pidgeot.'); } else if (addItem(g.name, false)) { playSfx('pickup'); state.groundItems.splice(gi, 1); if (g.shop) { const price = Math.round(g.price * (state.player.species === 'kecleon' ? KECLEON_DISCOUNT : 1)); state.shop.unpaid.push({ name: g.name, price }); say(`Coges ${itemNm(g.name)} (${price} P). Kecleon: ${state.player.species === 'kecleon' ? '"Para ti con descuento, hermano. Pero paga."' : '"¡Paga antes de irte!"'}`); } else say(`Recoges ${itemNm(g.name)}.`); if (g.missionId) { const m = state.missions.find(m => m.id === g.missionId); if (m) { m.done = true; say('¡Es el objeto de la misión!'); } } } }
     checkShopExit();
     if (tileAt(p.x, p.y) === T.STAIRS) { endTurn(true); askStairs(); return; }
   } else if (kind === 'face') { p.facing = [dx, dy]; render(); return; } // girar no gasta turno
   else if (kind === 'attack' && state.dungeon?.restArea && p.x + p.facing[0] === state.dungeon.statue.x && p.y + p.facing[1] === state.dungeon.statue.y) return openStatueMenu();   // la estatua de Kangaskhan
   else if (kind === 'attack') useMove(p, BASIC);
-  else if (kind === 'skill') { const mv = p.moves[extra]; if (!mv) return; if (mv.pp <= 0) { say(`${mv.name} no tiene PP.`); return; } useMove(p, { ...MOVES[mv.name], name: mv.name }); if (!(p.iqSkills?.includes('PP Saver') && state.rng.random() < 0.25)) mv.pp--; }
+  else if (kind === 'skill') { const mv = p.moves[extra]; if (!mv) return; if (mv.pp <= 0) { say(`${nm('move', mv.name)} no tiene PP.`); return; } useMove(p, { ...MOVES[mv.name], name: mv.name }); if (!(p.iqSkills?.includes('PP Saver') && state.rng.random() < 0.25)) mv.pp--; }
   else if (kind === 'useItem') { if (!useItem(extra)) { render(); return; } }
   endTurn(true);
 }
@@ -2438,7 +2455,7 @@ async function openRescueBoard() {
   const r = await call('/rescue/list', undefined);
   const list = r?.rescues || [];
   if (!list.length) { say('No hay peticiones de rescate ahora mismo.'); return openBoardMenu(); }
-  openMenu({ title: 'Rescates disponibles', items: [...list.map(x => `${x.victim} (${SPECIES[x.species]?.name || x.species}) — ${dungeonById(x.dungeonId).name} B${x.floor}F`), 'Volver'], onCancel: openBoardMenu, onSelect: i => {
+  openMenu({ title: 'Rescates disponibles', items: [...list.map(x => `${x.victim} (${spNm(x.species)}) — ${dnNmId(x.dungeonId)} B${x.floor}F`), 'Volver'], onCancel: openBoardMenu, onSelect: i => {
     if (i >= list.length) return openBoardMenu();
     startRescue(list[i]);
   } });
@@ -2485,7 +2502,7 @@ function openKeeperMenu() {
   playSfx('kecleon'); say(due ? `Kecleon: "Son ${due} Pokés. Tienes ${state.runPokes}."` : 'Kecleon: "¡Bienvenido! Coge lo que quieras de la alfombra y paga aquí."');
   openMenu({ title: 'Kecleon', items, onSelect: i => {
     if (i === 0 && due) { if (state.runPokes >= due) { state.runPokes -= due; state.shop.unpaid = []; say('Kecleon: "¡Gracias por su compra!"'); } else say('Kecleon: "Ejem… no te llega. Devuelve algo o consigue Pokés."'); }
-    else if (items[i] === 'Vender objetos') openMenu({ title: 'Vender (precio de mazmorra)', items: sellable.map(x => `${x.n} — ${Math.floor(ITEMS[x.n].sell * 0.8)} P`), onSelect: j => { const x = sellable[j], p = Math.floor(ITEMS[x.n].sell * 0.8); state.inventory.splice(x.i, 1); state.runPokes += p; say(`Vendes ${x.n} por ${p} P.`); render(); } });
+    else if (items[i] === 'Vender objetos') openMenu({ title: 'Vender (precio de mazmorra)', items: sellable.map(x => `${itemNm(x.n)} — ${Math.floor(ITEMS[x.n].sell * 0.8)} P`), onSelect: j => { const x = sellable[j], p = Math.floor(ITEMS[x.n].sell * 0.8); state.inventory.splice(x.i, 1); state.runPokes += p; say(`Vendes ${itemNm(x.n)} por ${p} P.`); render(); } });
     render();
   } });
 }
@@ -2514,7 +2531,7 @@ function descend() {
   if (state.floor >= def.floors) { playOnce('clear'); return endRun('clear'); }
   // los compañeros cuentan pisos solo al bajar de verdad (antes, salir de cada sala de descanso sumaba uno de más,
   // y en mazmorras largas el servidor rechazaba el vínculo por tener más pisos juntos que la propia mazmorra)
-  for (const a of state.team) { a.floors++; if (a.floors === CFG.bondFloors) say(`¡Vínculo forjado con ${a.name}!`); }
+  for (const a of state.team) { a.floors++; if (a.floors === CFG.bondFloors) say(`¡Vínculo forjado con ${monNm(a)}!`); }
   state.floor++;
   const kindNext = floorKind(def, state.floor, state.flags);
   if (((state.floor - 1) % CFG.checkpointEvery === 0 && kindNext === 'normal') || ['legendary', 'bigLegendary', 'jirachi'].includes(kindNext)) return newRestArea();   // antes de cualquier jefe legendario
@@ -2548,7 +2565,7 @@ async function resolveTurn(playerActed) {
   const hf = (ITEMS[p.held]?.hunger ?? 1) * (p.iqSkills?.includes('Energy Saver') ? 0.75 : 1);   // Cinto Glotón ×2, Banda Aguante ×0,5, Cinto Apretado ×0
   const heat = state.dungeonDef?.hungerLastFloors && state.floor > state.dungeonDef.floors - state.dungeonDef.hungerLastFloors ? 2 : 1;   // Sierra Ígnea: el calor de los últimos pisos
   const bellyEvery = hf === 0 ? Infinity : Math.max(1, Math.round(CFG.bellyEveryTurns * (CFG.bellySlowDungeons[state.dungeonDef?.id] || 1) / hf / heat));
-  if (p.belly > 0) { if (state.turn % bellyEvery === 0) { p.belly--; if (p.belly === 20) { say(`¡${p.name} tiene hambre!`); playSfx('hunger'); } if (p.belly === 10) { say(`¡${p.name} tiene muchísima hambre! Come algo pronto.`); playSfx('hunger'); } if (p.belly === 0) { say(`¡La barriga de ${p.name} está vacía! Pierde PS en cada turno.`); playSfx('hunger'); openDialog([{ who: p.name, sp: p.species, mood: 'Pain', text: `¡La barriga de ${p.name} está vacía! Si no come algo, irá perdiendo PS.` }]); } } regen(p); }
+  if (p.belly > 0) { if (state.turn % bellyEvery === 0) { p.belly--; if (p.belly === 20) { say(`¡${monNm(p)} tiene hambre!`); playSfx('hunger'); } if (p.belly === 10) { say(`¡${monNm(p)} tiene muchísima hambre! Come algo pronto.`); playSfx('hunger'); } if (p.belly === 0) { say(`¡La barriga de ${monNm(p)} está vacía! Pierde PS en cada turno.`); playSfx('hunger'); openDialog([{ who: monNm(p), sp: p.species, mood: 'Pain', text: `¡La barriga de ${monNm(p)} está vacía! Si no come algo, irá perdiendo PS.` }]); } } regen(p); }
   else { p.hp = Math.max(0, p.hp - 1); if (state.turn % 10 === 0) say('El hambre te va quitando PS…'); if (p.hp <= 0) { downed(p); if (state.dead) return; } }
   weatherTick();
   state.resolving = true;
@@ -2596,15 +2613,15 @@ async function resolveTurn(playerActed) {
 function speedTick() {
   for (const m of [state.player, ...state.team, ...state.enemies]) {
     if (!m || m.hp <= 0) continue;
-    if (m.speedTurns > 0 && --m.speedTurns === 0 && m.speed) { m.speed = 0; if (isVisibleNow(m.x, m.y)) say(`La velocidad de ${m.name} vuelve a la normalidad.`); }
-    if (hasAbility(m, 'SPEED_BOOST') && state.turn % 10 === 0 && (m.speed || 0) < 3) { m.speed = (m.speed || 0) + 1; m.speedTurns = Infinity; if (isVisibleNow(m.x, m.y)) say(`¡${m.name} acelera gracias a Impulso!`); }
+    if (m.speedTurns > 0 && --m.speedTurns === 0 && m.speed) { m.speed = 0; if (isVisibleNow(m.x, m.y)) say(`La velocidad de ${monNm(m)} vuelve a la normalidad.`); }
+    if (hasAbility(m, 'SPEED_BOOST') && state.turn % 10 === 0 && (m.speed || 0) < 3) { m.speed = (m.speed || 0) + 1; m.speedTurns = Infinity; if (isVisibleNow(m.x, m.y)) say(`¡${monNm(m)} acelera gracias a Impulso!`); }
   }
 }
 // ---------- huir (como en el original): asustados, con Fuga por debajo del 50 % y forajidos que huyen ----------
 function terrify(mon, turns, why) {
   if (!mon || mon === state.player || mon.isBoss || mon.shopkeeper || mon.hp <= 0) return false;
   const was = mon.terrified; mon.terrified = Math.max(mon.terrified || 0, turns);
-  if (!was && isVisibleNow(mon.x, mon.y)) say(why || `¡${mon.name} se asusta y huye!`);
+  if (!was && isVisibleNow(mon.x, mon.y)) say(why || `¡${monNm(mon)} se asusta y huye!`);
   return true;
 }
 // paso que más aleja de todos los que amenazan (entre las 8 casillas vecinas)
@@ -2619,12 +2636,12 @@ function fleeStep(mon, threats) {
 // true si el enemigo ha dedicado su turno a huir
 function fleeTurn(e) {
   const threats = [state.player, ...state.team].filter(m => m && m.hp > 0);
-  if (!e.terrified && !e.isBoss && !e.shopkeeper && hasAbility(e, 'RUN_AWAY') && e.hp <= e.maxHp / 2) terrify(e, Infinity, `¡${e.name} huye asustado! (Fuga)`);
+  if (!e.terrified && !e.isBoss && !e.shopkeeper && hasAbility(e, 'RUN_AWAY') && e.hp <= e.maxHp / 2) terrify(e, Infinity, `¡${monNm(e)} huye asustado! (Fuga)`);
   if (e.fleeOutlaw) {   // forajido que huye: se aleja si te ve y, si no, va hacia la escalera; si llega, escapa
     const st = state.dungeon.stairs;
     if (st && e.x === st.x && e.y === st.y) {
       state.enemies = state.enemies.filter(x => x !== e);
-      if (isVisibleNow(e.x, e.y) || true) say(`¡${e.name} ha escapado por las escaleras!`);
+      if (isVisibleNow(e.x, e.y) || true) say(`¡${monNm(e)} ha escapado por las escaleras!`);
       return true;
     }
     const seen = threats.some(t => cheb(t, e) <= 5 && isVisibleNow(e.x, e.y));
@@ -2699,13 +2716,13 @@ function enemyPickup(e) {
   if (e.hp <= 0 || e.shopkeeper || e.isBoss) return;
   const i = state.groundItems.findIndex(g => g.x === e.x && g.y === e.y && !g.shop && !g.missionId); if (i < 0) return;
   const [g] = state.groundItems.splice(i, 1); (e.carried ||= []).push(g.name);
-  if (isVisibleNow(e.x, e.y)) say(`${e.name} recoge ${g.name}.`);
+  if (isVisibleNow(e.x, e.y)) say(`${monNm(e)} recoge ${itemNm(g.name)}.`);
 }
 function dropCarried(e) {   // lo que llevaba, al suelo: en su casilla o en la más cercana libre de objetos
   for (const name of e.carried || []) {
     const spots = [[0, 0], ...DIRS8, [2, 0], [-2, 0], [0, 2], [0, -2]].map(([dx, dy]) => ({ x: e.x + dx, y: e.y + dy }));
     const s = spots.find(p => state.dungeon.tiles[p.y]?.[p.x] === T.FLOOR && !state.groundItems.some(g => g.x === p.x && g.y === p.y)) || { x: e.x, y: e.y };
-    state.groundItems.push({ name, x: s.x, y: s.y }); say(`${e.name} suelta ${name}.`);
+    state.groundItems.push({ name, x: s.x, y: s.y }); say(`${monNm(e)} suelta ${name}.`);
   }
   e.carried = [];
 }
@@ -2725,9 +2742,9 @@ function enemyTurn(e) {
       if (dlg.behavior === 'flee') {
         if (!playerInRoom) return;
         e.megaPress = (e.megaPress || 0) + 1;
-        if (e.megaPress === 1 && dlg.flee) openDialog(dlg.flee.map(t => ({ who: e.name, text: t, font: dlg.font, color: dlg.color })));
+        if (e.megaPress === 1 && dlg.flee) openDialog(dlg.flee.map(t => ({ who: monNm(e), text: t, font: dlg.font, color: dlg.color })));
         const away = stepAway(e, state.player.x, state.player.y);
-        if (e.megaPress >= 4 || !away) { if (dlg.yield) openDialog(dlg.yield.map(t => ({ who: e.name, text: t, font: dlg.font, color: dlg.color })), () => { e.megaHostile = true; }); else e.megaHostile = true; }
+        if (e.megaPress >= 4 || !away) { if (dlg.yield) openDialog(dlg.yield.map(t => ({ who: monNm(e), text: t, font: dlg.font, color: dlg.color })), () => { e.megaHostile = true; }); else e.megaHostile = true; }
         return;
       }
       e.megaHostile = true;
@@ -2830,11 +2847,11 @@ function openMenu(menu) { state.menu = { index: 0, ...menu }; render(); }
 function openStatus(p, back) {   // «Estado»: lo que antes estaba en los paneles de fuera (experiencia, estadísticas, tipos, objeto equipado)
   if (!p) return;
   const sp = SPECIES[p.species] || {}, nxt = expToNext(p.species, p.level);
-  const lines = [`${p.name} · Nv ${p.level} · ${(sp.types || []).join(' / ')}`,
+  const lines = [`${monNm(p)} · Nv ${p.level} · ${(sp.types || []).map(x => nm('type', x)).join(' / ')}`,
     `PS ${Math.max(0, Math.ceil(p.hp))}/${p.maxHp}${p.belly != null ? ` · Barriga ${Math.round(p.belly)}/${p.maxBelly || 100}` : ''}`,
     `Experiencia ${p.exp || 0}/${nxt} · faltan ${Math.max(0, nxt - (p.exp || 0))}`,
     `Ataque ${p.atk} · Defensa ${p.def}`, `At. Esp. ${p.spa} · Def. Esp. ${p.spd}`,
-    `Equipado: ${p.held || 'nada'}`, 'Habilidades e IQ ▸'];
+    `Equipado: ${p.held ? itemNm(p.held) : 'nada'}`, 'Habilidades e IQ ▸'];
   openMenu({ title: 'Estado', items: lines, onCancel: back, onSelect: i => i === lines.length - 1 ? openSummary(p, () => openStatus(p, back)) : back && back() });
 }
 function openMissionsWindow(list, back) {
@@ -2842,7 +2859,7 @@ function openMissionsWindow(list, back) {
 }
 function openDungeonMainMenu() {
   openMenu({ title: 'Menú', items: ['Movimientos', 'Bolsa', 'Equipo', 'Estado', 'Suelo', 'Misiones', `Mapa: ${state.showMap === false ? 'oculto' : 'visible'}`, 'Registro de mensajes', 'Cerrar'], onSelect: i => {
-    if (i === 0) openMenu({ title: 'Movimientos', items: state.player.moves.map(m => `${m.name}${m.permanent ? ' ★' : ''}  ${m.pp}/${MOVES[m.name].pp}`), icons: state.player.moves.map(m => MOVES[m.name].type), onSelect: j => playerAction('skill', 0, 0, j) });
+    if (i === 0) openMenu({ title: 'Movimientos', items: state.player.moves.map(m => `${nm('move', m.name)}${m.permanent ? ' ★' : ''}  ${m.pp}/${MOVES[m.name].pp}`), icons: state.player.moves.map(m => MOVES[m.name].type), onSelect: j => playerAction('skill', 0, 0, j) });
     else if (i === 1) openBagMenu();
     else if (i === 2) openTeamMenu();
     else if (i === 3) openStatus(state.player, openDungeonMainMenu);
@@ -2860,10 +2877,10 @@ function itemInfo(name) {
   return `${name}: ${it.desc || parts[it.kind] || 'Objeto.'}${it.sell ? ` (se vende por ${it.sell} P)` : ''}`;
 }
 function openBagMenu() {
-  const items = [...state.inventory.map(n => isMachine(n) ? `${n.slice(0, 2)}: ${n.slice(4)}` : n), state.player.held ? `[Equipado] ${state.player.held} — quitar` : '[Nada equipado]'];   // las máquinas, con su disco
+  const items = [...state.inventory.map(itemNm), state.player.held ? `[Equipado] ${itemNm(state.player.held)} — quitar` : '[Nada equipado]'];   // las máquinas, con su disco
   openMenu({ title: `Bolsa ${state.inventory.length}/${bagSizeFor(meta?.rankPts)}`, money: state.runPokes || 0, items, onSelect: j => {
     if (j < state.inventory.length) return openItemMenu(j);
-    if (state.player.held && state.inventory.length < bagSizeFor(meta?.rankPts)) { state.inventory.push(state.player.held); say(`Te quitas ${state.player.held}.`); state.player.held = null; }
+    if (state.player.held && state.inventory.length < bagSizeFor(meta?.rankPts)) { state.inventory.push(state.player.held); say(`Te quitas ${itemNm(state.player.held)}.`); state.player.held = null; }
     render();
   } });
 }
@@ -2871,7 +2888,7 @@ function openBagMenu() {
 function openItemMenu(j) {
   const name = state.inventory[j]; if (!name) return openBagMenu();
   const verb = itemVerb(name), opts = [...(verb ? [verb] : []), 'Colocar', 'Info', 'Volver'];
-  openMenu({ title: name, items: opts, onCancel: openBagMenu, onSelect: k => {
+  openMenu({ title: itemNm(name), items: opts, onCancel: openBagMenu, onSelect: k => {
     const o = opts[k];
     if (o === verb) return playerAction('useItem', 0, 0, j);
     if (o === 'Colocar') return placeItem(j);
@@ -2890,27 +2907,27 @@ function placeItem(j) {
   const g = { name, x: p.x, y: p.y };
   if (onCarpet(p.x, p.y)) {
     const u = state.shop.unpaid.findIndex(x => x.name === name);
-    if (u >= 0) { const [back] = state.shop.unpaid.splice(u, 1); Object.assign(g, { shop: true, price: back.price }); state.groundItems.push(g); say(`Devuelves ${name}. Kecleon: "Sin problema."`); endTurn(true); return; }
+    if (u >= 0) { const [back] = state.shop.unpaid.splice(u, 1); Object.assign(g, { shop: true, price: back.price }); state.groundItems.push(g); say(`Devuelves ${itemNm(name)}. Kecleon: "Sin problema."`); endTurn(true); return; }
     state.groundItems.push(g);
     const offer = Math.floor((ITEMS[name]?.sell || 0) * 0.8);
     if (offer > 0 && !state.shop.robbed) {
-      say(`Kecleon: "¿Me vendes ${name} por ${offer} Pokés?"`);
-      return openMenu({ title: `¿Vender ${name} por ${offer} P?`, items: ['Sí', 'No'], onSelect: k => { if (k === 0) { state.runPokes += offer; Object.assign(g, { shop: true, price: shopPrice(name) }); say(`Vendes ${name} por ${offer} P.`); if (state.diary) state.diary.itemsSold++; } endTurn(true); }, onCancel: () => endTurn(true) });
+      say(`Kecleon: "¿Me vendes ${itemNm(name)} por ${offer} Pokés?"`);
+      return openMenu({ title: `¿Vender ${itemNm(name)} por ${offer} P?`, items: ['Sí', 'No'], onSelect: k => { if (k === 0) { state.runPokes += offer; Object.assign(g, { shop: true, price: shopPrice(name) }); say(`Vendes ${itemNm(name)} por ${offer} P.`); if (state.diary) state.diary.itemsSold++; } endTurn(true); }, onCancel: () => endTurn(true) });
     }
-    say(`Dejas ${name} en el suelo.`); endTurn(true); return;
+    say(`Dejas ${itemNm(name)} en el suelo.`); endTurn(true); return;
   }
-  state.groundItems.push(g); say(`Dejas ${name} en el suelo.`); endTurn(true);
+  state.groundItems.push(g); say(`Dejas ${itemNm(name)} en el suelo.`); endTurn(true);
 }
 // Menú "Suelo": lo que hay bajo tus pies (coger, cambiar por un objeto de la bolsa)
 function openGroundMenu() {
   const p = state.player, g = itemUnder(p);
   if (!g) { say('No hay nada en el suelo.'); return; }
-  const title = g.shop ? `${g.name} — ${shopPriceFor(g)} P` : g.name;
+  const title = g.shop ? `${itemNm(g.name)} — ${shopPriceFor(g)} P` : itemNm(g.name);
   const opts = ['Coger', ...(state.inventory.length ? ['Cambiar'] : []), 'Info', 'Volver'];
   openMenu({ title, items: opts, onSelect: k => {
     const o = opts[k];
     if (o === 'Coger') return pickUp(g);
-    if (o === 'Cambiar') return openMenu({ title: `Cambiar ${g.name} por…`, items: state.inventory, onCancel: openGroundMenu, onSelect: j => { const mine = state.inventory[j]; if (pickUp(g, true)) { state.inventory.splice(state.inventory.indexOf(mine), 1); const put = { name: mine, x: p.x, y: p.y }; state.groundItems.push(put); say(`Cambias ${mine} por ${g.name}.`); if (onCarpet(p.x, p.y)) say('(Si quieres vendérselo a Kecleon, cógelo y vuelve a colocarlo.)'); } } });
+    if (o === 'Cambiar') return openMenu({ title: `Cambiar ${itemNm(g.name)} por…`, items: state.inventory.map(itemNm), onCancel: openGroundMenu, onSelect: j => { const mine = state.inventory[j]; if (pickUp(g, true)) { state.inventory.splice(state.inventory.indexOf(mine), 1); const put = { name: mine, x: p.x, y: p.y }; state.groundItems.push(put); say(`Cambias ${itemNm(mine)} por ${itemNm(g.name)}.`); if (onCarpet(p.x, p.y)) say('(Si quieres vendérselo a Kecleon, cógelo y vuelve a colocarlo.)'); } } });
     if (o === 'Info') { say(itemInfo(g.name)); return openGroundMenu(); }
   } });
 }
@@ -2918,17 +2935,17 @@ function pickUp(g, swapping = false) {
   if (!swapping && state.inventory.length >= bagSizeFor(meta?.rankPts)) { say('La bolsa está llena.'); return false; }
   state.groundItems.splice(state.groundItems.indexOf(g), 1);
   state.inventory.push(g.name);
-  if (g.shop) { const price = shopPriceFor(g); state.shop.unpaid.push({ name: g.name, price }); say(`Coges ${g.name} (${price} P). Kecleon: "¡Paga antes de irte! O déjalo en la alfombra si cambias de idea."`); }
-  else if (!swapping) say(`Coges ${g.name}.`);
+  if (g.shop) { const price = shopPriceFor(g); state.shop.unpaid.push({ name: g.name, price }); say(`Coges ${itemNm(g.name)} (${price} P). Kecleon: "¡Paga antes de irte! O déjalo en la alfombra si cambias de idea."`); }
+  else if (!swapping) say(`Coges ${itemNm(g.name)}.`);
   endTurn(true); return true;
 }
 // Resumen de un Pokémon: habilidades (con su efecto), IQ y habilidades IQ
 function openSummary(m, back) {
   refreshTraits();
-  const abil = abilitiesOf(m.species).map(a => `${ABILITY_ES[a] || a}: ${ABILITY_DESC[a] || 'su efecto aún no está disponible.'}`);
+  const abil = abilitiesOf(m.species).map(a => `${nm('ability', a, ABILITY_ES[a] || a)}: ${ABILITY_DESC[a] || 'su efecto aún no está disponible.'}`);
   const sk = iqSkillsFor(m), learned = sk.filter(s => s.iq <= (m.iq || 0)), next = sk.find(s => s.iq > (m.iq || 0));
   const pages = [
-    { who: m.name, text: `${SPECIES[m.species].name} · Nv${m.level} · ${m.hp}/${m.maxHp} PS · IQ ${m.iq || 0}` },
+    { who: monNm(m), text: `${nm('species', m.species, SPECIES[m.species].name)} · Nv${m.level} · ${m.hp}/${m.maxHp} PS · IQ ${m.iq || 0}` },
     { who: 'Habilidades', text: abil.join('  ·  ') || 'Ninguna.' },
     { who: 'Habilidades IQ', text: learned.length ? learned.map(s => s.name + (s.works ? '' : ' (pendiente)')).join(', ') + '.' : 'Aún ninguna. ¡Dale gominolas!' },
   ];
@@ -2937,16 +2954,16 @@ function openSummary(m, back) {
 }
 function openTeamMenu() {
   const lead = state.player;
-  openMenu({ title: 'Equipo', items: [`${lead.name} Nv${lead.level} · ${lead.hp}/${lead.maxHp} PS · IQ ${lead.iq || 0} (líder)`, ...state.team.map(a => `${a.name} Nv${a.level} · ${a.hp}/${a.maxHp} PS · ${TACTICS[a.tactic]} · ${a.floors}/${CFG.bondFloors} pisos${a.floors >= CFG.bondFloors ? ' ★' : ''}`)], onSelect: i0 => {
+  openMenu({ title: 'Equipo', items: [`${monNm(lead)} Nv${lead.level} · ${lead.hp}/${lead.maxHp} PS · IQ ${lead.iq || 0} (líder)`, ...state.team.map(a => `${monNm(a)} Nv${a.level} · ${a.hp}/${a.maxHp} PS · ${TACTICS[a.tactic]} · ${a.floors}/${CFG.bondFloors} pisos${a.floors >= CFG.bondFloors ? ' ★' : ''}`)], onSelect: i0 => {
     if (i0 === 0) return openSummary(lead, openTeamMenu);
     const i = i0 - 1;
     const a = state.team[i], keys = Object.keys(TACTICS);
     openMenu({ title: a.name, items: ['Resumen', ...keys.map(k => `Táctica: ${TACTICS[k]}${a.tactic === k ? ' ✓' : ''}`), 'Expulsar del equipo'], onCancel: openTeamMenu, onSelect: j0 => {
       if (j0 === 0) return openSummary(a, openTeamMenu);
       const j = j0 - 1;
-      if (j < keys.length) { a.tactic = keys[j]; say(`${a.name}: "${TACTICS[a.tactic]}".`); openTeamMenu(); }
-      else if (a.guest) { say(`${a.name} es un invitado: os acompaña hasta rescatar al equipo de Smeargle.`); openTeamMenu(); }
-      else openMenu({ title: `¿Expulsar a ${a.name}?${a.floors < CFG.bondFloors ? ' Se perderá.' : ' El vínculo se mantiene.'}`, items: ['No', 'Sí'], onCancel: openTeamMenu, onSelect: k => { if (k === 1) { state.team = state.team.filter(x => x !== a); if (a.floors >= CFG.bondFloors) state.bondedLost.push({ species: a.species, floors: a.floors }); else state.lostRecruits.push(a.species); say(`${a.name} abandona el equipo.`); } render(); } });
+      if (j < keys.length) { a.tactic = keys[j]; say(`${monNm(a)}: "${TACTICS[a.tactic]}".`); openTeamMenu(); }
+      else if (a.guest) { say(`${monNm(a)} es un invitado: os acompaña hasta rescatar al equipo de Smeargle.`); openTeamMenu(); }
+      else openMenu({ title: `¿Expulsar a ${monNm(a)}?${a.floors < CFG.bondFloors ? ' Se perderá.' : ' El vínculo se mantiene.'}`, items: ['No', 'Sí'], onCancel: openTeamMenu, onSelect: k => { if (k === 1) { state.team = state.team.filter(x => x !== a); if (a.floors >= CFG.bondFloors) state.bondedLost.push({ species: a.species, floors: a.floors }); else state.lostRecruits.push(a.species); say(`${monNm(a)} abandona el equipo.`); } render(); } });
     } });
   } });
 }
@@ -2961,7 +2978,7 @@ function say(msg) {
 const HISTORY_MAX = 300;
 let lastPlace = '';
 function logHistory(msg) {
-  const place = state.scene === 'dungeon' && state.dungeonDef ? `${state.dungeonDef.name} B${state.floor}F` : 'Gremio';
+  const place = state.scene === 'dungeon' && state.dungeonDef ? `${dnNm(state.dungeonDef)} B${state.floor}F` : 'Gremio';
   const h = state.history ||= [];
   if (place !== lastPlace) { lastPlace = place; h.push({ sep: true, text: place }); }   // separador al cambiar de piso o volver al gremio
   h.push({ text: String(msg) });
@@ -3007,7 +3024,7 @@ const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 // Tamaño LÓGICO del juego (todo se dibuja en estas coordenadas). El lienzo real se escala para verse nítido a cualquier tamaño.
 const LOG = { w: CFG.view.w * CFG.tile, h: CFG.view.h * CFG.tile };
 let RK = 1; // píxeles reales por píxel lógico
-const SCALES = { fit: 'Ajustar', 1: '100 %', 1.5: '150 %', 2: '200 %', 2.5: '250 %', 3: '300 %' };
+const SCALES = { fit: 'opciones.ajustar', 1: '100 %', 1.5: '150 %', 2: '200 %', 2.5: '250 %', 3: '300 %' };
 const getScalePref = () => { try { return localStorage.getItem('mm_scale') || 'fit'; } catch { return 'fit'; } };
 function applyScale() {
   const pref = getScalePref(), dpr = window.devicePixelRatio || 1;
@@ -3098,7 +3115,8 @@ function drawStatusIcon(e, px, py, tile) {
   ctx.restore(); return true;
 }
 const STAT_NAMES_DE = { atk: 'el Ataque', def: 'la Defensa', spa: 'el At. Esp.', spd: 'la Def. Esp.' };   // «sube el Ataque de…»
-const AREA_NAMES = { plaza: 'Plaza del gremio', gremio: 'Gremio de Pidgeot', descanso: 'Zona de descanso', mercado: 'Mercado', aldea: 'Aldea', fuente: 'Fuente de la Evolución', barrio: 'Barrio' };   // nombre de cada zona (etiqueta del mapa y cabecera)
+const AREA_NAMES = { campamento: 'Campamento de la Expedición', plaza: 'Plaza del gremio', gremio: 'Gremio de Pidgeot', descanso: 'Zona de descanso', mercado: 'Mercado', aldea: 'Aldea', fuente: 'Fuente de la Evolución', barrio: 'Barrio', observatorio: 'Observatorio' };   // nombre de cada zona (etiqueta del mapa y cabecera)
+const areaNm = a => nm('area', a, AREA_NAMES[a] || '');
 function drawInfoHud() {
   if (infoMode() !== 'dentro' || state.scene !== 'dungeon' || !state.player || state.menu || state.cut) return;
   const p = state.player, s = UIS(), fs = Math.round(12 * s), font = DIALOG_FONT();
@@ -3192,7 +3210,7 @@ function renderHub() {
   const fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
   const near = def.npcs.filter(npcShown).find(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))) || (def.signs || []).find(s => (!s.when || s.when(meta || {})) && inRect(fx, fy, s.rect)) || (def.hotspots || []).find(hs => inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) || def.exits.find(ex => ex.label && inExit(ex, fx, fy));
   if (near && !state.menu && !state.dialog) { ctx.font = 'bold 11px sans-serif'; const hint = (document.body.classList.contains('touch-on') ? 'A' : 'Z') + ' · ' + (near.label || near.text ? (near.label || 'Leer') : 'Hablar'), hw = ctx.measureText(hint).width + 20; ctx.fillStyle = 'rgba(20,18,28,.85)'; ctx.fillRect(W / 2 - hw / 2, 8, hw, 20); ctx.fillStyle = '#f2b544'; ctx.textAlign = 'center'; ctx.fillText(hint, W / 2, 22); ctx.textAlign = 'left'; } // el fondo se ajusta al texto
-  { ctx.font = '11px sans-serif'; const nm = AREA_NAMES[h.area] || ''; ctx.fillStyle = 'rgba(20,18,28,.7)'; ctx.fillRect(8, 8, ctx.measureText(nm).width + 12, 18); ctx.fillStyle = '#e9e3d3'; ctx.fillText(nm, 14, 21); } // el fondo se ajusta al texto
+  { ctx.font = '11px sans-serif'; const nm = areaNm(h.area); ctx.fillStyle = 'rgba(20,18,28,.7)'; ctx.fillRect(8, 8, ctx.measureText(nm).width + 12, 18); ctx.fillStyle = '#e9e3d3'; ctx.fillText(nm, 14, 21); } // el fondo se ajusta al texto
 }
 const TILE_COLORS = { [T.WALL]: '#3b2f5a', [T.FLOOR]: '#8f7a5c', [T.STAIRS]: '#8f7a5c', [T.WATER]: '#2f6fa8', [T.LAVA]: '#c4521f' };
 const TILE_KEYS = { [T.WALL]: 'wall', [T.FLOOR]: 'floor', [T.STAIRS]: 'stairs', [T.WATER]: 'water', [T.LAVA]: 'lava' };
@@ -3420,7 +3438,7 @@ function drawMoveHints() {
     const d = MOVES[m.name], ty = y + pad + i * rh + rh / 2;
     ctx.fillStyle = '#f8d848'; ctx.fillText(keys[i], x + pad, ty);
     const im = typeIconImg(d.type), isz = Math.round(14 * s); if (im.complete) ctx.drawImage(im, x + pad + 16 * s, ty - isz / 2, isz, isz); else im.onload = () => scheduleRender();
-    ctx.fillStyle = m.pp > 0 ? '#f8f8f8' : '#8d8599'; ctx.fillText(m.name, x + pad + 16 * s + isz + 5, ty, w - pad * 2 - 90 * s);
+    ctx.fillStyle = m.pp > 0 ? '#f8f8f8' : '#8d8599'; ctx.fillText(nm('move', m.name), x + pad + 16 * s + isz + 5, ty, w - pad * 2 - 90 * s);
     ctx.textAlign = 'right'; ctx.fillStyle = '#9fb0d8'; ctx.fillText(`${m.pp}/${d.pp}`, x + w - pad, ty); ctx.textAlign = 'left';
   });
   ctx.textBaseline = 'alphabetic';
@@ -3551,11 +3569,11 @@ function renderDialog() {
 function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function renderHud() {
   const p = state.player, $ = id => document.getElementById(id);
-  $('floor').textContent = state.scene === 'hub' ? (AREA_NAMES[state.hub.area] || 'Gremio') : `${state.dungeonDef.name} B${state.floor}F${state.dungeonDef.eras ? ` · eco de ${dungeonById(state.era).name}` : ''}${state.weather && state.weather !== 'none' ? ` · ${WEATHER[state.weather].name}` : ''}`;
-  $('pokes').textContent = meta.pokes; $('pokes').parentElement.style.display = state.scene === 'hub' ? 'none' : ''; $('runPokes').textContent = state.scene === 'hub' ? meta.pokes : `${state.runPokes}${unpaidTotal() ? ` (debes ${unpaidTotal()})` : ''}`;
-  $('rank').textContent = `${RANKS[rankOf(meta.rankPts)].name} (${meta.rankPts})`;
+  $('floor').textContent = state.scene === 'hub' ? (areaNm(state.hub.area) || t('hud.gremio')) : `${dnNm(state.dungeonDef)} B${state.floor}F${state.dungeonDef.eras ? ` · ${t('hud.eco', { d: dnNmId(state.era) })}` : ''}${state.weather && state.weather !== 'none' ? ` · ${t('clima.' + state.weather)}` : ''}`;
+  $('pokes').textContent = meta.pokes; $('pokes').parentElement.style.display = state.scene === 'hub' ? 'none' : ''; $('runPokes').textContent = state.scene === 'hub' ? meta.pokes : `${state.runPokes}${unpaidTotal() ? ` (${t('hud.debes', { n: unpaidTotal() })})` : ''}`;
+  $('rank').textContent = `${t('rango.' + rankOf(meta.rankPts))} (${meta.rankPts})`;
   if (!p) return;
-  $('nameLv').textContent = `${p.name} (${SPECIES[p.species].name}) · Nv ${p.level}${p.status ? ' · ' + STATUS[p.status.kind].name : ''}${p.speed > 0 ? ' · Rápido' : p.speed < 0 ? ' · Lento' : ''}`;
+  $('nameLv').textContent = `${monNm(p)} (${spNm(p.species)}) · ${t('hud.nv', { n: p.level })}${p.status ? ' · ' + t('estado.' + p.status.kind) : ''}${p.speed > 0 ? ' · ' + t('hud.rapido') : p.speed < 0 ? ' · ' + t('hud.lento') : ''}`;
   $('hpBar').style.width = `${p.hp / p.maxHp * 100}%`; $('hpText').textContent = `${p.hp} / ${p.maxHp}`;
   $('bellyBar').style.width = `${p.belly / p.maxBelly * 100}%`; $('bellyBar').parentElement.classList.toggle('hungry', p.belly <= 20); $('bellyText').textContent = `${p.belly} / ${p.maxBelly}`;
   $('exp').textContent = `${p.exp} / ${expToNext(p.species, p.level)}`;
@@ -3563,16 +3581,16 @@ function renderHud() {
     const key = ['L+A', 'L+B', 'L+X', 'L+Y'][i];
     const m = p.moves[i]; if (!m) return `<div class="move empty"><span>${key}</span><span>—</span><span></span></div>`;
     const d = MOVES[m.name];
-    return `<div class="move usable" data-move="${i}" title="Usar (o ${key})"><span>${key}</span><span>${typeIconHTML(d.type)}${m.name}${m.permanent ? ' ★' : ''}<br><span class="type">${d.type} · ${d.power ? 'potencia ' + (d.pmdPower ?? Math.round(d.power / 5)) : 'estado'} · ${d.range === 'line' ? (d.dist >= 10 ? 'en línea' : 'hasta ' + d.dist + ' casillas') : d.range === 'room' ? 'toda la sala' : d.range === 'around' ? 'a tu alrededor' : 'de frente'}</span></span><span class="pp">${m.pp}/${d.pp}</span></div>`;
+    return `<div class="move usable" data-move="${i}" title="${t('panel.usar', { k: key })}"><span>${key}</span><span>${typeIconHTML(d.type)}${nm('move', m.name)}${m.permanent ? ' ★' : ''}<br><span class="type">${nm('type', d.type)} · ${d.power ? t('panel.potencia', { n: d.pmdPower ?? Math.round(d.power / 5) }) : t('panel.estado')} · ${d.range === 'line' ? (d.dist >= 10 ? t('panel.linea') : t('panel.hasta', { n: d.dist })) : d.range === 'room' ? t('panel.sala') : d.range === 'around' ? t('panel.alrededor') : t('panel.frente')}</span></span><span class="pp">${m.pp}/${d.pp}</span></div>`;
   }).join('');
   const bar = document.getElementById('movebar');
-  if (bar) bar.innerHTML = state.scene === 'dungeon' ? p.moves.map((m, i) => `<button class="mb" data-move="${i}" ${m.pp <= 0 ? 'disabled' : ''}><b>${['A', 'B', 'X', 'Y'][i]}</b>${typeIconHTML(MOVES[m.name].type)}<span>${m.name}</span><i>${m.pp}/${MOVES[m.name].pp}</i></button>`).join('') : '';
-  $('stats').innerHTML = `${SPECIES[p.species].types.join(' / ')}<br>Ataque ${p.atk} · Defensa ${p.def}<br>At. Esp. ${p.spa} · Def. Esp. ${p.spd}<br>Equipado: ${p.held || '—'}`;
-  $('team').innerHTML = state.scene === 'dungeon' && state.team.length ? state.team.map(a => `<div>${a.name} Nv${a.level} · ${a.hp}/${a.maxHp}${a.status ? ' · ' + STATUS[a.status.kind].name : ''} · ${a.floors}/${CFG.bondFloors}${a.floors >= CFG.bondFloors ? ' ★' : ''}</div>`).join('') : '<span class="dim">En solitario</span>';
+  if (bar) bar.innerHTML = state.scene === 'dungeon' ? p.moves.map((m, i) => `<button class="mb" data-move="${i}" ${m.pp <= 0 ? 'disabled' : ''}><b>${['A', 'B', 'X', 'Y'][i]}</b>${typeIconHTML(MOVES[m.name].type)}<span>${nm('move', m.name)}</span><i>${m.pp}/${MOVES[m.name].pp}</i></button>`).join('') : '';
+  $('stats').innerHTML = `${SPECIES[p.species].types.map(x => nm('type', x)).join(' / ')}<br>${t('panel.ataque', { a: p.atk, d: p.def })}<br>${t('panel.especial', { a: p.spa, d: p.spd })}<br>${t('panel.equipado', { o: p.held ? itemNm(p.held) : '—' })}`;
+  $('team').innerHTML = state.scene === 'dungeon' && state.team.length ? state.team.map(a => `<div>${monNm(a)} ${t('panel.nvEquipo', { n: a.level })} · ${a.hp}/${a.maxHp}${a.status ? ' · ' + t('estado.' + a.status.kind) : ''} · ${a.floors}/${CFG.bondFloors}${a.floors >= CFG.bondFloors ? ' ★' : ''}</div>`).join('') : `<span class="dim">${t('panel.solitario')}</span>`;
   const missions = state.scene === 'hub' ? meta.active : state.missions;
-  $('missions').innerHTML = missions.length ? missions.map(m => `<div>${m.done ? '✓ ' : ''}${MISSION_TYPES[m.type || 'derrotar'].label} ${m.target ? SPECIES[m.target].name : ''} · B${m.floor}F ${dungeonById(m.dungeonId).name}</div>`).join('') : 'Ninguna';
+  $('missions').innerHTML = missions.length ? missions.map(m => `<div>${m.done ? '✓ ' : ''}${t('mision.' + (m.type || 'derrotar'))} ${m.target ? spNm(m.target) : ''} · B${m.floor}F ${dnNmId(m.dungeonId)}</div>`).join('') : t('panel.ninguna');
   const bag = state.scene === 'hub' ? meta.bag : state.inventory;
-  $('items').innerHTML = bag.length ? bag.map(n => `<div class="${ITEMS[n]?.kind === 'sell' ? 'sell' : ''}">${n}</div>`).join('') : '<div class="dim">Nada</div>';
+  $('items').innerHTML = bag.length ? bag.map(n => `<div class="${ITEMS[n]?.kind === 'sell' ? 'sell' : ''}">${itemNm(n)}</div>`).join('') : `<div class="dim">${t('panel.nada')}</div>`;
 }
 
 // =====================================================================
@@ -3651,15 +3669,16 @@ function bindInput() {
 function setupMusicControl() {
   const r = document.getElementById('music-vol'); if (!r || r.dataset.ready) return; r.dataset.ready = '1';
   const out = document.getElementById('music-val');
-  const show = () => { r.style.setProperty('--fill', r.value + '%'); out.textContent = +r.value === 0 ? 'Silencio' : r.value + ' %'; };
+  const show = () => { r.style.setProperty('--fill', r.value + '%'); out.textContent = +r.value === 0 ? t('opciones.silencio') : r.value + ' %'; };
   r.value = Math.round(getVolume() * 100); show();
   r.addEventListener('input', () => { setVolume(r.value / 100); show(); });
   r.addEventListener('change', () => r.blur());
   const fx = document.getElementById('sfx-vol'), fxOut = document.getElementById('sfx-val');
-  if (fx) { const showFx = () => { fx.style.setProperty('--fill', fx.value + '%'); fxOut.textContent = +fx.value === 0 ? 'Silencio' : fx.value + ' %'; };
+  if (fx) { const showFx = () => { fx.style.setProperty('--fill', fx.value + '%'); fxOut.textContent = +fx.value === 0 ? t('opciones.silencio') : fx.value + ' %'; };
     fx.value = Math.round(getSfxVolume() * 100); showFx();
     fx.addEventListener('input', () => { setSfxVolume(fx.value / 100); showFx(); });
-    fx.addEventListener('change', () => { fx.blur(); playSfx('confirm'); }); }
+    fx.addEventListener('change', () => { fx.blur(); playSfx('confirm'); }); onLangChange(showFx); }
+  onLangChange(show);   // «Silencio» en el idioma nuevo
   preloadMusic();
   // menú de opciones (hamburguesa): se abre y cierra con el botón, al pulsar fuera o con Escape
   const btn = document.getElementById('settings-btn'), panel = document.getElementById('settings-panel');
@@ -3683,7 +3702,7 @@ function setupMusicControl() {
     const where = state.scene === 'dungeon' ? `${state.dungeonDef?.name || ''} ${state.floor}F` : `aldea (${state.hub?.area || '—'})`;
     try { await api('/feedback', { kind: document.getElementById('fb-kind').value, text: fbt.value, context: { where, version: VERSION_LABEL, ua: navigator.userAgent.slice(0, 160), w: innerWidth, h: innerHeight } });
       fbt.value = ''; fbmsg.textContent = t('buzon.gracias'); setTimeout(fbClose, 1400); }
-    catch (e) { fbmsg.textContent = e.message || 'No se ha podido enviar. Prueba otra vez.'; }
+    catch (e) { fbmsg.textContent = e.message || t('buzon.error'); }
   });
   // idioma: se guarda en el navegador y en la cuenta; al cambiarlo se rehacen los textos de la página y la pantalla
   const lsel = document.getElementById('opt-lang');
@@ -3702,7 +3721,7 @@ function setupMusicControl() {
 function setupScaleSelector() {
   setupMusicControl();
   const sel = document.getElementById('scale'); if (!sel || sel.dataset.ready) return; sel.dataset.ready = '1';
-  sel.innerHTML = Object.entries(SCALES).map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  sel.innerHTML = Object.entries(SCALES).map(([v, s]) => v === 'fit' ? `<option value="${v}" data-i18n="${s}">${t(s)}</option>` : `<option value="${v}">${s}</option>`).join('');
   sel.value = getScalePref();
   sel.addEventListener('change', () => { try { localStorage.setItem('mm_scale', sel.value); } catch {} applyScale(); sel.blur(); });
   new MutationObserver(() => applyScale()).observe(document.body, { attributes: true, attributeFilter: ['class'] });
@@ -3787,7 +3806,7 @@ const foesInView = () => state.enemies.filter(e => e.hp > 0 && isVisibleNow(e.x,
 function startPassing() {
   if (!canPass()) return;
   const seen0 = new Set(foesInView()), hp0 = state.player.hp;
-  endTurn(false); say(`${state.player.name} espera un turno.`);
+  endTurn(false); say(`${monNm(state.player)} espera un turno.`);
   clearTimeout(passTimer);
   const tick = async () => {
     await state.turnP;

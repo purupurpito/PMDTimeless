@@ -142,11 +142,22 @@ export const HUB = {
     wanderers: 4, // Pokémon sueltos paseando (sin función por ahora)
   },
   // El barrio de las casas (zona grande, 1536 × 1024): diez casas (y una en un árbol) alrededor de una plaza con pozo. Sin vecinos todavía.
-  // Colisiones provisionales. El camino de abajo queda reservado para el observatorio (aún sin salida).
+  // Colisiones provisionales. El camino de abajo sube al observatorio.
   barrio: {
     img: 'client/assets/hub/barrio.png', mask: 'client/assets/hub/barrio_mask.png', spawn: { x: 1488, y: 394 },
-    exits: [ { rect: [1514, 350, 1536, 438], to: 'aldea', at: { x: 40, y: 283 } } ],
+    exits: [ { rect: [1514, 350, 1536, 438], to: 'aldea', at: { x: 40, y: 283 } },
+             { rect: [729, 1002, 829, 1024], to: 'observatorio', at: { x: 391, y: 478 } } ],   // camino de abajo: al observatorio
     npcs: [],
+  },
+  // El observatorio en la colina (al atardecer), encima del barrio. Colisiones provisionales. Sin vecinos todavía.
+  observatorio: {
+    img: 'client/assets/hub/observatorio.png', mask: 'client/assets/hub/observatorio_mask.png', spawn: { x: 391, y: 478 },
+    exits: [ { rect: [352, 493, 432, 515], to: 'barrio', at: { x: 779, y: 978 } } ],
+    npcs: [],
+    signs: [
+      { rect: [360, 180, 410, 212], text: 'La puerta del observatorio está cerrada.' },
+      { rect: [476, 150, 568, 210], text: 'Un telescopio enorme apunta al cielo. Ya asoman las primeras estrellas.' },
+    ],
   },
 };
 export const VIEW = { w: 600, h: 408 };
