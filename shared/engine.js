@@ -54,6 +54,7 @@ export function createMon(species, level, extra = {}) {
 }
 // Bonos planos de los objetos equipados (Pañuelo Poder/Cinta Especial +12, Bufanda Defensa/Cinta Zinc +8)
 // Habilidades: se definen en abilities.js; aquí solo los ganchos que usa el motor
+import { t, nm } from './i18n.js';
 import { abilityBlocksStatus, abilityBlocksDrop, abilityDamageMods, abilityAccMods, sniperCrit, scrappy, has as hasAbility } from './abilities.js';
 // suma a una estadística: objeto equipado + exclusivos de la bolsa (exBoost) + vitaminas permanentes (bonus)
 const heldAdd = (mon, stat) => ((mon.held && ITEMS[mon.held]?.[stat + 'Add']) || 0) + (mon.exBoost?.[stat] || 0) + (mon.bonus?.[stat] || 0);
@@ -84,10 +85,10 @@ export function hitCheck(rng, move, attacker, defender, weather = 'none') {
 // por turno). Los cambios duran SPEED_TURNS turnos (y se pierden al cambiar de piso). Nado Rápido / Clorofila: +1 con su clima.
 export const SPEED_TURNS = 10;
 export function applySpeed(mon, delta) {
-  const cur = mon.speed || 0, nv = Math.max(-1, Math.min(3, cur + Math.sign(delta)));
-  if (nv === cur) return [`La velocidad de ${mon.name} no puede ${delta > 0 ? 'subir' : 'bajar'} más.`];
+  const cur = mon.speed || 0, nv = Math.max(-1, Math.min(3, cur + Math.sign(delta))), who = hooks.nameOf(mon);
+  if (nv === cur) return [t(delta > 0 ? 'veloc.topeSube' : 'veloc.topeBaja', { t: who })];
   mon.speed = nv; mon.speedTurns = SPEED_TURNS; hooks.onStage?.(mon, 'spe', nv - cur);
-  return [nv > cur ? (nv > 0 ? `¡${mon.name} se mueve más rápido!` : `¡${mon.name} recupera su velocidad normal!`) : (nv < 0 ? `¡${mon.name} se vuelve más lento!` : `¡${mon.name} pierde velocidad!`)];
+  return [t(nv > cur ? (nv > 0 ? 'veloc.rapido' : 'veloc.normal') : (nv < 0 ? 'veloc.lento' : 'veloc.pierde'), { t: who })];
 }
 // nivel efectivo este turno (con las habilidades que dependen del clima)
 export function speedOf(mon, weather = 'none') {
@@ -96,21 +97,24 @@ export function speedOf(mon, weather = 'none') {
   return Math.max(-1, Math.min(3, s));
 }
 // Cambios de estadísticas (estadios −10…+10 sobre el neutro), con los mensajes del juego. La velocidad va aparte (applySpeed).
-const STAT_NAMES = { atk: 'el Ataque', def: 'la Defensa', spa: 'el At. Esp.', spd: 'la Def. Esp.', acc: 'la Precisión', eva: 'la Evasión' };
-// Ganchos para el juego: cambios de estadística y estados aplicados (flechas, iconos, sonidos)
-export const hooks = { onStage: null, onStatus: null };
+// (los nombres de cada estadística son las claves «etapa.atk»…, con el artículo en castellano: «el Ataque»)
+const STAT_NAMES = { atk: 1, def: 1, spa: 1, spd: 1, acc: 1, eva: 1 };
+// Ganchos para el juego: cambios de estadística y estados aplicados (flechas, iconos, sonidos) y el nombre que se muestra
+const spName = sp => nm('species', sp, SPECIES[sp]?.name || sp);   // nombre de una especie en el idioma activo
+export const hooks = { onStage: null, onStatus: null, nameOf: m => m.name };
 export function applyStages(mon, changes) {
   const msgs = [];
   for (const [stat, n] of changes) {
     if (stat === 'spe') { msgs.push(...applySpeed(mon, n)); continue; }   // velocidad de movimiento
     if (!STAT_NAMES[stat]) continue;
-    if (n < 0 && (ITEMS[mon.held]?.noStatDrop || abilityBlocksDrop(mon, stat))) { msgs.push(`¡${mon.name} no deja que le bajen ${STAT_NAMES[stat]}!`); continue; }   // Banda Giro / habilidad
+    const st = t('etapa.' + stat), St = st[0].toUpperCase() + st.slice(1), who = hooks.nameOf(mon);
+    if (n < 0 && (ITEMS[mon.held]?.noStatDrop || abilityBlocksDrop(mon, stat))) { msgs.push(t('etapa.protegida', { t: who, st })); continue; }   // Banda Giro / habilidad
     mon.stages ||= {};
     const cur = mon.stages[stat] || 0, nv = Math.max(-10, Math.min(10, cur + n));
-    if (nv === cur) { msgs.push(`${STAT_NAMES[stat][0].toUpperCase() + STAT_NAMES[stat].slice(1)} de ${mon.name} no puede ${n > 0 ? 'subir' : 'bajar'} más.`); continue; }
+    if (nv === cur) { msgs.push(t(n > 0 ? 'etapa.topeSube' : 'etapa.topeBaja', { t: who, st, St })); continue; }
     mon.stages[stat] = nv;
     const d = nv - cur;
-    msgs.push(`¡${STAT_NAMES[stat][0].toUpperCase() + STAT_NAMES[stat].slice(1)} de ${mon.name} ${d > 0 ? 'sube' : 'baja'}${Math.abs(d) >= 2 ? ' mucho' : ''}!`);
+    msgs.push(t(`etapa.${d > 0 ? 'sube' : 'baja'}${Math.abs(d) >= 2 ? 'Mucho' : ''}`, { t: who, st, St }));
     hooks.onStage?.(mon, stat, d);
   }
   return msgs;
@@ -337,11 +341,11 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
   }
   for (const m of missions) if (!m.done && m.dungeonId === def.id && m.floor === floor) {
     const p = randomFloorIn(rng, rng.pick(rooms), tiles);
-    if (m.type === 'derrotar') { enemies.push(createMon(m.target, wildLevel() + 2, { ...p, asleep: false, missionId: m.id })); messages.push(`Tu objetivo, ${SPECIES[m.target].name}, está en este piso.`); }
-    else if (m.type === 'encontrar') { groundItems.push({ ...p, name: 'Objeto perdido', missionId: m.id }); messages.push('El objeto perdido debería estar en este piso.'); }
-    else if (m.type === 'rescatar') { npcs.push({ ...p, species: m.target, name: SPECIES[m.target].name, missionId: m.id, facing: [0, 1] }); messages.push(`${SPECIES[m.target].name} espera ser rescatado en este piso.`); }
-    else if (m.type === 'entregar') { npcs.push({ ...p, species: m.target, name: SPECIES[m.target].name, missionId: m.id, wants: m.item, facing: [0, 1] }); messages.push(`${SPECIES[m.target].name} espera en este piso: necesita ${m.item}.`); }
-    else if (m.type === 'forajido') { const o = createMon(m.target, wildLevel() + 5, { ...p, asleep: false, missionId: m.id, outlaw: true, statMult: 1.2, fleeOutlaw: rng.random() < 0.35 }); o.name = `${SPECIES[m.target].name} (forajido)`; enemies.push(o); messages.push(`¡El forajido ${SPECIES[m.target].name} se esconde en este piso!`); }
+    if (m.type === 'derrotar') { enemies.push(createMon(m.target, wildLevel() + 2, { ...p, asleep: false, missionId: m.id })); messages.push(t('piso.objetivo', { t: spName(m.target) })); }
+    else if (m.type === 'encontrar') { groundItems.push({ ...p, name: 'Objeto perdido', missionId: m.id }); messages.push(t('piso.perdido')); }
+    else if (m.type === 'rescatar') { npcs.push({ ...p, species: m.target, name: SPECIES[m.target].name, missionId: m.id, facing: [0, 1] }); messages.push(t('piso.rescatar', { t: spName(m.target) })); }
+    else if (m.type === 'entregar') { npcs.push({ ...p, species: m.target, name: SPECIES[m.target].name, missionId: m.id, wants: m.item, facing: [0, 1] }); messages.push(t('piso.entregar', { t: spName(m.target), obj: nm('item', m.item, m.item) })); }
+    else if (m.type === 'forajido') { const o = createMon(m.target, wildLevel() + 5, { ...p, asleep: false, missionId: m.id, outlaw: true, statMult: 1.2, fleeOutlaw: rng.random() < 0.35 }); o.name = `${SPECIES[m.target].name} (forajido)`; enemies.push(o); messages.push(t('piso.forajido', { t: spName(m.target) })); }
   }
   for (let i = 0, n = rng.int(1, 3); i < n; i++) {
     const p = randomFloorIn(rng, rng.pick(rooms), tiles);
@@ -360,7 +364,7 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     // se planta sobre las escaleras y las sella, como un minijefe, pero es la Mega guardiana
     boss = createMon(stone.guardian, wildLevel() + 8, { x: stairs.x, y: stairs.y, asleep: false, isBoss: true, sealsStairs: true, mega: true, megaStone: stone.id, dropsStone: stone });
     enemies.push(boss);
-    messages.push(`Una presencia inmensa sella las escaleras… ${SPECIES[stone.guardian].name} custodia la ${stone.name}.`);
+    messages.push(t('piso.mega', { t: spName(stone.guardian), obj: nm('item', stone.name, stone.name) }));
   } else if (kind === 'miniboss') { boss = createMon(rng.pick(MINIBOSS_POOL), wildLevel() + 3, { x: stairs.x, y: stairs.y, asleep: false, isBoss: true, sealsStairs: true }); enemies.push(boss); }
   else if (kind === 'rescue') {   // la primera bajada a la Cueva Húmeda: Quagsire y dos Wooper tienen acorralados a Teddiursa y Sentret, los compañeros de Smeargle
     boss = createMon('quagsire', wildLevel() + 3, { x: stairs.x, y: stairs.y, asleep: false, isBoss: true, sealsStairs: true, rescueGroup: true, noRecruit: true }); enemies.push(boss);
@@ -372,7 +376,7 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     if (w2) enemies.push(createMon('wooper', wildLevel() + 1, { ...w2, asleep: false, rescueGroup: true, noRecruit: true }));
     if (c1) npcs.push({ ...c1, species: 'teddiursa', name: 'Teddiursa', captive: true, facing: [0, 1], line: 'Teddiursa: "¡Cuidado con Quagsire! ¡Es mucho más rápido de lo que parece!"' });
     if (c2) npcs.push({ ...c2, species: 'sentret', name: 'Sentret', captive: true, facing: [0, 1], line: 'Sentret: "¡Los Wooper no paran de moverse! ¡Pégales cuando se queden quietos!"' });
-    messages.push('¡Teddiursa y Sentret! Quagsire y los Wooper los tienen acorralados junto a las escaleras.');
+    messages.push(t('piso.rehenes'));
   }
   // Tienda de Kecleon: una sala (ni la inicial ni la de las escaleras) con alfombra de objetos y el tendero
   let shop = null;
@@ -387,7 +391,7 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     // no queremos salvajes dormidos dentro de la tienda
     for (let i = enemies.length - 1; i >= 0; i--) if (carpet.some(c => c.x === enemies[i].x && c.y === enemies[i].y)) enemies.splice(i, 1);
     shop = { room, carpet, keeper: { x: cx, y: cy } };
-    messages.push('Huele a incienso… hay una tienda de Kecleon en este piso.');
+    messages.push(t('piso.tienda'));
   }
   // Que todo lo importante se alcance por tierra (sin nadar, volar ni resistir el fuego): si la escalera, un objeto o alguien a quien
   // rescatar ha quedado en una isla del estanque, se tiende un camino de tierra hasta él (el agua o la lava del camino más corto, a suelo)

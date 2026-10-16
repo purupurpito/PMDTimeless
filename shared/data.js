@@ -267,10 +267,10 @@ export const DREAM_DUNGEON = { id: 'suenos', name: 'Mazmorra de los Sueños', fl
 export const dungeonById = id => id === 'suenos' ? DREAM_DUNGEON : DUNGEONS.find(d => d.id === id);
 // Los zumos del Café de Spinda: una fruta de la bolsa → ventaja para la próxima exploración (uno cada vez; se gasta al empezar)
 export const JUICES = {
-  'Manzana':        { name: 'Zumo de Manzana', belly: 20, text: 'Empiezas la próxima exploración con la Barriga llena y 20 más de Barriga máxima.' },
-  'Manzana Grande': { name: 'Zumo Grande de Manzana', belly: 40, text: 'Empiezas la próxima exploración con la Barriga llena y 40 más de Barriga máxima.' },
-  'Baya Aranja':    { name: 'Zumo de Aranja', hp: 10, text: '+10 PS máximos durante la próxima exploración.' },
-  'Baya Zidra':     { name: 'Zumo de Zidra', hp: 20, text: '+20 PS máximos durante la próxima exploración.' },
+  'Manzana':        { id: 'manzana', name: 'Zumo de Manzana', belly: 20, text: 'Empiezas la próxima exploración con la Barriga llena y 20 más de Barriga máxima.' },
+  'Manzana Grande': { id: 'manzanaGrande', name: 'Zumo Grande de Manzana', belly: 40, text: 'Empiezas la próxima exploración con la Barriga llena y 40 más de Barriga máxima.' },
+  'Baya Aranja':    { id: 'aranja', name: 'Zumo de Aranja', hp: 10, text: '+10 PS máximos durante la próxima exploración.' },
+  'Baya Zidra':     { id: 'zidra', name: 'Zumo de Zidra', hp: 20, text: '+20 PS máximos durante la próxima exploración.' },
 };
 // Recompensas al alcanzar cada rango (van al almacén de Kangaskhan; si no caben, en Pokés)
 export const RANK_REWARDS = {

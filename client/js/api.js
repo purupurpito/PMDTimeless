@@ -1,5 +1,5 @@
 import { API_URL } from './config.js';
-import { getLang } from '../../shared/i18n.js';
+import { getLang, t } from '../../shared/i18n.js';
 
 let token = localStorage.getItem('mm_token');
 export const setToken = t => { token = t; t ? localStorage.setItem('mm_token', t) : localStorage.removeItem('mm_token'); };
@@ -36,7 +36,7 @@ export async function api(path, body, { onWaking, rid = newRequestId(), keepaliv
       return data;
     } catch (e) {
       if (e instanceof ApiError) throw e;
-      if (attempt >= TRIES || keepalive) { notify('down'); throw new ApiError('No se puede hablar con el servidor. Revisa tu conexión e inténtalo de nuevo.', 0); }
+      if (attempt >= TRIES || keepalive) { notify('down'); throw new ApiError(t('red.sinServidor'), 0); }
       notify('retry', attempt); await sleep(1500 * attempt);
     } finally { clearTimeout(wakeTimer); clearTimeout(killTimer); }
   }

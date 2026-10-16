@@ -37,6 +37,7 @@ export const placeholderPortrait = name => 'data:image/svg+xml;charset=utf-8,' +
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="4" fill="hsl(${hue(name)},45%,42%)"/><rect x="3" y="3" width="34" height="34" rx="3" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/><text x="20" y="27" text-anchor="middle" font-family="monospace" font-size="20" font-weight="700" fill="#fff">${name[0].toUpperCase()}</text></svg>`);
 // Retrato con emoción desde el atlas de PMDCollab (→ data URL para <img>); si no hay, el de los sprites o la inicial
 import { PORTRAIT, PORTRAIT_COLS } from './portraits.js';
+import { t as tx } from '../../shared/i18n.js';
 let atlasP = null;
 const loadAtlas = () => atlasP ||= new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = asset('portraits_atlas', 'client/assets/portraits/portraits.png'); });
 export async function portraitURL(id, mood = 'Normal') {
@@ -146,7 +147,7 @@ export function keyboard(el, { label, max = 20, min = 2, masked = false, initial
   const err = document.createElement('p'); err.className = 'kb-err';
   el.append(head, grid, err);
 
-  const ACTIONS = [{ k: 'case', t: 'Aa' }, { k: 'space', t: 'Espacio' }, { k: 'del', t: 'Borrar' }, { k: 'ok', t: 'OK' }];
+  const ACTIONS = [{ k: 'case', t: 'Aa' }, { k: 'space', t: tx('teclado.espacio') }, { k: 'del', t: tx('teclado.borrar') }, { k: 'ok', t: 'OK' }];
   let cells = [];
   const layout = () => {
     grid.innerHTML = ''; cells = [];
@@ -178,7 +179,7 @@ export function keyboard(el, { label, max = 20, min = 2, masked = false, initial
   let resolveFn = null;
   const submit = () => {
     const v = masked ? input.value : input.value.trim();
-    if (v.length < min) { err.textContent = `Mínimo ${min} caracteres.`; return; }
+    if (v.length < min) { err.textContent = tx('teclado.minimo', { n: min }); return; }
     const bad = validate?.(v); if (bad) { err.textContent = bad; return; }
     setKeyHandler(null); input.blur(); el.classList.add('hidden'); resolveFn(v);
   };

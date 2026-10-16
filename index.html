@@ -18,20 +18,20 @@
       <!-- con sesión guardada: la tarjeta de tu aventura (se rellena con lo guardado la última vez) -->
       <button class="session-card hidden" data-go="login" id="session-card" type="button">
         <canvas id="session-sprite" width="64" height="96" aria-hidden="true"></canvas>
-        <span class="session-text"><span class="session-title">Continuar mi aventura</span><span id="session-info" class="session-info"></span></span>
+        <span class="session-text"><span class="session-title" data-i18n="inicio.aventura">Continuar mi aventura</span><span id="session-info" class="session-info"></span></span>
       </button>
-      <button class="btn primary" data-go="login" id="btn-continue">Continuar</button>
-      <button class="btn" data-go="quiz">Nueva aventura</button>
-      <button class="btn link hidden" data-go="login" data-force="1" id="btn-switch" type="button">Cambiar de cuenta</button>
+      <button class="btn primary" data-go="login" id="btn-continue" data-i18n="inicio.continuar">Continuar</button>
+      <button class="btn" data-go="quiz" data-i18n="inicio.nueva">Nueva aventura</button>
+      <button class="btn link hidden" data-go="login" data-force="1" id="btn-switch" type="button" data-i18n="inicio.cambiar">Cambiar de cuenta</button>
     </div>
     <form id="auth-login" class="stack hidden" autocomplete="on">
-      <label>Nombre de explorador<input name="name" required maxlength="20" autocomplete="username"></label>
-      <label>Código secreto<input name="password" type="password" required autocomplete="current-password"></label>
-      <button class="btn primary" type="submit">Entrar</button>
-      <button class="btn link" type="button" data-go="choice">Volver</button>
+      <label><span data-i18n="inicio.nombre">Nombre de explorador</span><input name="name" required maxlength="20" autocomplete="username"></label>
+      <label><span data-i18n="inicio.codigo">Código secreto</span><input name="password" type="password" required autocomplete="current-password"></label>
+      <button class="btn primary" type="submit" data-i18n="inicio.entrar">Entrar</button>
+      <button class="btn link" type="button" data-go="choice" data-i18n="inicio.volver">Volver</button>
     </form>
     <p id="auth-msg" class="msg"></p>
-    <p class="beta-note">Beta: el juego envía datos de partida (qué te derrota, cuánto duras en cada piso, errores…) asociados a tu cuenta, sin datos personales, para mejorarlo. Puedes desactivarlo en ☰ Opciones.</p>
+    <p class="beta-note" data-i18n="inicio.beta">Beta: el juego envía datos de partida (qué te derrota, cuánto duras en cada piso, errores…) asociados a tu cuenta, sin datos personales, para mejorarlo. Puedes desactivarlo en ☰ Opciones.</p>
   </div>
 </section>
 
@@ -45,7 +45,7 @@
       <circle cx="50" cy="50" r="14" fill="#1d4b96"/>
     </g>
   </svg>
-  <p>Cargando la aldea…</p>
+  <p data-i18n="inicio.cargando">Cargando la aldea…</p>
 </div>
 <section id="screen-quiz" class="screen hidden">
   <canvas id="quiz-bg" class="quiz-bg"></canvas>
@@ -117,16 +117,16 @@
     <div id="movebar" class="movebar"></div>
     <div id="log"></div>
     <details class="help">
-      <summary>Controles</summary>
+      <summary data-i18n="ayuda.titulo">Controles</summary>
       <div class="help-grid">
-        <span><kbd>←↑→↓</kbd> mover · dos flechas a la vez: diagonal</span>
-        <span><kbd>X</kbd>(B) + flecha: correr</span>
-        <span><kbd>Z</kbd>(A) atacar / confirmar · <kbd>X</kbd>(B) cancelar</span>
-        <span>mantener <kbd>Z</kbd>+<kbd>X</kbd>: pasar turno</span>
-        <span><kbd>A</kbd>(Y) + flecha: girar sin moverse</span>
-        <span><kbd>W</kbd>(R) + flechas: solo diagonal</span>
-        <span>movimientos: mantén <kbd>Q</kbd>(L) y pulsa <kbd>Z</kbd><kbd>X</kbd><kbd>S</kbd><kbd>A</kbd>, o clic en la lista</span>
-        <span><kbd>S</kbd>(X) / <kbd>Enter</kbd> menú · <kbd>M</kbd> minimapa</span>
+        <span data-i18n-html="ayuda.mover"><kbd>←↑→↓</kbd> mover · dos flechas a la vez: diagonal</span>
+        <span data-i18n-html="ayuda.correr"><kbd>X</kbd>(B) + flecha: correr</span>
+        <span data-i18n-html="ayuda.atacar"><kbd>Z</kbd>(A) atacar / confirmar · <kbd>X</kbd>(B) cancelar</span>
+        <span data-i18n-html="ayuda.pasar">mantener <kbd>Z</kbd>+<kbd>X</kbd>: pasar turno</span>
+        <span data-i18n-html="ayuda.girar"><kbd>A</kbd>(Y) + flecha: girar sin moverse</span>
+        <span data-i18n-html="ayuda.diagonal"><kbd>W</kbd>(R) + flechas: solo diagonal</span>
+        <span data-i18n-html="ayuda.movimientos">movimientos: mantén <kbd>Q</kbd>(L) y pulsa <kbd>Z</kbd><kbd>X</kbd><kbd>S</kbd><kbd>A</kbd>, o clic en la lista</span>
+        <span data-i18n-html="ayuda.menu"><kbd>S</kbd>(X) / <kbd>Enter</kbd> menú · <kbd>M</kbd> minimapa</span>
       </div>
     </details>
   </footer>

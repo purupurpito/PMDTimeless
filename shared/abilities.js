@@ -47,6 +47,29 @@ export const ABILITY_DESC = {
   DRIZZLE: 'Hace que llueva en el piso.', DROUGHT: 'Hace que brille el sol en el piso.', SAND_STREAM: 'Levanta una tormenta de arena en el piso.',
   CLOUD_NINE: 'Anula los efectos del clima.', AIR_LOCK: 'Anula los efectos del clima.', MAGIC_GUARD: 'Solo recibe daño de los ataques.',
 };
+// …y en inglés (los textos de los originales cuando los hay)
+export const ABILITY_DESC_EN = {
+  BLAZE: 'Powers up Fire-type moves when its HP is low.', TORRENT: 'Powers up Water-type moves when its HP is low.',
+  OVERGROW: 'Powers up Grass-type moves when its HP is low.', SWARM: 'Powers up Bug-type moves when its HP is low.',
+  ADAPTABILITY: 'Powers up moves of its own type even more.', HUGE_POWER: 'Greatly boosts the damage of physical moves.',
+  GUTS: 'Hits harder when it has a status problem.', HUSTLE: 'Hits harder, but with lower accuracy.', IRON_FIST: 'Powers up punching moves.',
+  TECHNICIAN: 'Powers up weak moves.', TINTED_LENS: 'Not-very-effective moves deal double damage.', SNIPER: 'Critical hits deal even more damage.',
+  SOLAR_POWER: 'Raises Sp. Atk in sunny weather.', SCRAPPY: 'Its Normal- and Fighting-type moves can hit Ghost types.', MOLD_BREAKER: "Ignores the foe's Ability.",
+  THICK_FAT: 'Takes half damage from Fire- and Ice-type moves.', LEVITATE: 'Immune to Ground-type moves.', FLASH_FIRE: 'Absorbs Fire-type moves and powers up.',
+  WATER_ABSORB: 'Water-type moves restore its HP.', VOLT_ABSORB: 'Electric-type moves restore its HP.', DRY_SKIN: 'Water restores its HP; Fire hurts it more.',
+  LIGHTNINGROD: 'Immune to Electric-type moves.', BATTLE_ARMOR: 'Protected from critical hits.', SHELL_ARMOR: 'Protected from critical hits.',
+  SUPER_LUCK: 'Lands more critical hits.', COMPOUNDEYES: 'Raises accuracy.', NO_GUARD: 'Every move used by or against it lands.',
+  SAND_VEIL: 'Raises evasion in a sandstorm.', SNOW_CLOAK: 'Raises evasion in hail.', TANGLED_FEET: 'Raises evasion when it is confused.',
+  INSOMNIA: "Can't fall asleep.", VITAL_SPIRIT: "Can't fall asleep.", IMMUNITY: "Can't be poisoned.", LIMBER: "Can't be paralysed.",
+  OWN_TEMPO: "Can't become confused.", WATER_VEIL: "Can't be burned.", MAGMA_ARMOR: "Can't be frozen.", LEAF_GUARD: 'No status problems in sunny weather.',
+  CLEAR_BODY: "Its stats can't be lowered.", HYPER_CUTTER: "Its Attack can't be lowered.", KEEN_EYE: "Its accuracy can't be lowered.",
+  STATIC: 'Contact with it may cause paralysis.', POISON_POINT: 'Contact with it may poison the attacker.',
+  FLAME_BODY: 'Contact with it may burn the attacker.', EFFECT_SPORE: 'Contact with it may cause sleep, poison or paralysis.',
+  SHED_SKIN: 'Sometimes cures its own status problems.', NATURAL_CURE: 'Status problems are cured on a new floor.',
+  HYDRATION: 'Cures its status problems in the rain.', EARLY_BIRD: 'Wakes up quickly.', PICKUP: 'Sometimes finds items on a new floor.',
+  DRIZZLE: 'Makes it rain on the floor.', DROUGHT: 'Makes the sunlight harsh on the floor.', SAND_STREAM: 'Whips up a sandstorm on the floor.',
+  CLOUD_NINE: 'Cancels the effects of weather.', AIR_LOCK: 'Cancels the effects of weather.', MAGIC_GUARD: 'Only takes damage from attacks.',
+};
 export const abilitiesOf = sp => SPECIES_ABILITIES[sp] || [];
 export const has = (mon, ab) => !!mon && abilitiesOf(mon.species).includes(ab);
 const hasIQ = (mon, s) => !!mon?.iqSkills?.includes(s);
@@ -68,6 +91,9 @@ export const IQ_ES = {
   'Time Tripper': 'Viajero del Tiempo', 'Trap Avoider': 'Evita Trampas', 'Trap Buster': 'Rompetrampas', 'Trap Seer': 'Ve Trampas', 'Type-Advantage Master': 'Maestro del Tipo',
   'Wary Fighter': 'Luchador Prudente', 'Weak-Type Picker': 'Busca Debilidades', 'Weak-Type picker': 'Busca Debilidades', 'Wise Healer': 'Sanador Sabio',
 };
+// En inglés: el propio identificador (son los nombres de Exploradores del Cielo), con las erratas de la tabla corregidas
+const IQ_EN_FIX = { 'Multi talent': 'Multitalent', 'Self Curer': 'Self-Curer', 'Sharp Shooter': 'Sharpshooter', 'Status Cheker': 'Status Checker', 'Weak-Type picker': 'Weak-Type Picker' };
+export const IQ_EN = Object.fromEntries(Object.keys(IQ_ES).map(k => [k, IQ_EN_FIX[k] || k]));
 export const IQ_WORKS = new Set(['Sure-Hit Attacker', 'Sharpshooter', 'Sharp Shooter', 'Type-Advantage Master', 'Critical Dodger', 'Quick Dodger', 'Clutch Performer',
   'Concentrator', 'Aggressor', 'Defender', 'Counter Hitter', 'Brick-Tough', 'Energy Saver', 'Survivalist', 'Wise Healer', 'Self Curer', 'Self-Curer', 'Nonsleeper',
   'Exp. Elite', 'Fast Friend', 'Map Surveyor', 'Stair Sensor', 'Acute Sniffer', 'Deep Breather', 'PP Saver', 'Power Pitcher', 'All-Terrain Hiker', 'Absolute Mover', 'Quick Healer']);

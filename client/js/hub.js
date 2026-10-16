@@ -19,24 +19,25 @@ export const HUB = {
       { rect: [0, 225, 22, 305], to: 'mercado', at: { x: 722, y: 288 } },
       { rect: [746, 230, 768, 310], to: 'fuente', at: { x: 50, y: 290 } },   // camino de la derecha: la Fuente de la Evolución
       { rect: [335, 493, 430, 515], to: 'aldea', at: { x: 384, y: 48 } },
-      { rect: [345, 150, 425, 200], to: 'gremio', at: { x: 405, y: 466 }, label: 'Puerta del gremio' },
-      { rect: [498, 322, 534, 374], to: 'cafe', at: { x: 300, y: 196 }, label: 'Bajar al Café de Spinda', when: m => cafeOpen(m) },   // las escaleras del agujero (con el café abierto)
+      { rect: [345, 150, 425, 200], to: 'gremio', at: { x: 405, y: 466 }, label: 'salida.gremio' },
+      { rect: [498, 322, 534, 374], to: 'cafe', at: { x: 300, y: 196 }, label: 'salida.cafe', when: m => cafeOpen(m) },   // las escaleras del agujero (con el café abierto)
     ],
     npcs: [
       { id: 'chatot', x: 446, y: 226, facing: [-1, 1], talk: 'chatot_intro', intro: true },                          // solo al empezar: te recibe en la entrada
       { id: 'murkrow', x: 315, y: 152, facing: [0, 1], talk: 'murkrow', fixedFacing: true, still: true, reach: 92 },   // el cartero del gremio, posado encima del buzón (quieto, de frente; se le habla desde todo el buzón)
     ],
-    signs: [ { rect: [70, 170, 130, 230], text: 'Mercado de Kecleon ←' }, { rect: [440, 405, 500, 465], text: '↓ Aldea · Salida a las mazmorras' },
+    signs: [ { rect: [70, 170, 130, 230], text: 'letrero.mercado' }, { rect: [440, 405, 500, 465], text: 'letrero.aldea' },
       // entrada al Café de Spinda (bajo tierra): dibujada por tools/build-cafe-hole.py; el café aún no está abierto
-      { rect: [598, 306, 640, 368], when: m => cafeOpen(m), text: 'Un cartel con la cara de Spinda: «Café de Spinda. Zumos, batidos y… sobre todo zumos.»' },   // (el cartel solo está con el café abierto)
-      { rect: [506, 313, 596, 372], when: m => !cafeOpen(m), text: 'Una roca enorme. Alguien ha dibujado encima, con tiza, una flecha que apunta hacia abajo.' },
-      { rect: [534, 326, 596, 368], when: m => !cafeOpen(m), text: 'Unas escaleras bajan hacia la oscuridad. Se oye a alguien trastear ahí abajo… pero todavía está cerrado.' } ],
+      { rect: [598, 306, 640, 368], when: m => cafeOpen(m), text: 'letrero.cafe' },   // (el cartel solo está con el café abierto)
+      { rect: [506, 313, 596, 372], when: m => !cafeOpen(m), text: 'letrero.roca' },
+      { rect: [534, 326, 596, 368], when: m => !cafeOpen(m), text: 'letrero.escaleras' } ],
   },
   gremio: {
     img: 'client/assets/hub/gremio.png', mask: 'client/assets/hub/gremio_mask.png', spawn: { x: 405, y: 466 },
     exits: [
       { rect: [340, 494, 470, 515], to: 'plaza', at: { x: 384, y: 228 } },                                    // la luz de la salida
-      { rect: [174, 210, 228, 226], to: 'descanso', at: { x: 372, y: 288 }, label: 'Subir a la zona de descanso' },   // escalón de abajo de la escalera del hueco
+      { rect: [174, 210, 228, 226], to: 'descanso', at: { x: 372, y: 288 }, label: 'salida.descanso' },   // escalón de abajo de la escalera del hueco
+      { poly: [[68, 266], [114, 243], [116, 253], [70, 276]], to: 'trofeos', at: { x: 384, y: 470 }, label: 'salida.trofeos' },   // la puerta de la pared izquierda
     ],
     npcs: [
       { id: 'chatot', x: 440, y: 206, facing: [0, 1], talk: 'chatot' },                                          // junto al tablón
@@ -45,14 +46,25 @@ export const HUB = {
       { id: 'ampharos', x: 302, y: 298, facing: [1, 0], talk: 'ampharos', afterScene: 'veteranos', fixedFacing: true, reach: 56 },     // y despistada
       { id: 'mawile', x: 546, y: 256, facing: [-1, 1], talk: 'mawile', fixedFacing: true, reach: 44 },          // sobre el felpudo, guardando el despacho
     ],
-    hotspots: [ { rect: [300, 190, 480, 236], action: 'board', label: 'Tablón de misiones' } ],
+    hotspots: [ { rect: [300, 190, 480, 236], action: 'board', label: 'tablon.pista' } ],
+  },
+  // La sala de los trofeos del gremio (puerta de la pared izquierda). La vitrina del centro, vacía: es para la Pluma Trueno.
+  // Colisiones provisionales.
+  trofeos: {
+    img: 'client/assets/hub/trofeos.png', mask: 'client/assets/hub/trofeos_mask.png', spawn: { x: 384, y: 470 },
+    exits: [ { rect: [330, 494, 440, 515], to: 'gremio', at: { x: 100, y: 270 } } ],
+    npcs: [],
+    signs: [
+      { rect: [340, 150, 426, 318], text: 'letrero.vitrina' },
+      { rect: [320, 60, 446, 150], text: 'letrero.ventana' },
+    ],
   },
   // Zona de descanso: arriba, en el nido del gremio (se sube por la escalera del interior). Aquí se aparece al volver
   // de cada exploración; si has caído, en una de las camas
   descanso: {
     img: 'client/assets/hub/descanso.png', mask: 'client/assets/hub/descanso_mask.png', spawn: { x: 390, y: 400 },
     // el hueco de la escalera, en diagonal: se entra por su borde delantero (las barandillas chocan)
-    exits: [ { poly: [[160, 256], [250, 205], [258, 218], [344, 262], [254, 310]], to: 'gremio', at: { x: 200, y: 252 }, label: 'Bajar al gremio' } ],
+    exits: [ { poly: [[160, 256], [250, 205], [258, 218], [344, 262], [254, 310]], to: 'gremio', at: { x: 200, y: 252 }, label: 'salida.bajarGremio' } ],
     // camas de paja (dónde se despierta al caer) y el punto del suelo al que se sale al levantarse
     beds: [ { x: 116, y: 326, box: [32, 284, 198, 400] }, { x: 146, y: 434, box: [62, 394, 232, 494] },
             { x: 650, y: 326, box: [568, 284, 734, 400] }, { x: 614, y: 434, box: [532, 394, 694, 494] } ],
@@ -69,7 +81,7 @@ export const HUB = {
     img: 'client/assets/hub/fuente.png', mask: 'client/assets/hub/fuente_mask.png', spawn: { x: 60, y: 290 },
     exits: [ { rect: [0, 240, 22, 336], to: 'plaza', at: { x: 730, y: 270 } } ],
     npcs: [ { id: 'rowlet', x: 408, y: 262, facing: [0, 1], talk: 'rowlet', fixedFacing: true, reach: 70 } ],   // «???»: lleva tanto tiempo como el maestro del gremio
-    signs: [ { rect: [590, 240, 672, 336], text: 'El bosque es demasiado espeso para seguir… Por ahora.' } ],
+    signs: [ { rect: [590, 240, 672, 336], text: 'letrero.bosque' } ],
   },
   // solo para escenas (no se llega andando): salas de la Cueva Húmeda (tools/build-cueva-sala.py; la del fondo, con la pared a la izquierda)
   cuevasala: { img: 'client/assets/hub/scene_cueva_sala.png', mask: 'client/assets/hub/scene_cueva_sala_mask.png', spawn: { x: 384, y: 400 }, exits: [], npcs: [], signs: [] },
@@ -77,7 +89,7 @@ export const HUB = {
   // el Café de Spinda, bajo la plaza (abre la noche del «¡PAM!»): colisiones pintadas por Ferran; la barra, en primer plano (Spinda asoma detrás)
   cafe: {
     img: 'client/assets/hub/cafe.png', mask: 'client/assets/hub/cafe_mask.png', spawn: { x: 300, y: 196 },
-    exits: [ { rect: [236, 110, 312, 158], to: 'plaza', at: { x: 492, y: 352 }, label: 'Subir a la plaza' } ],
+    exits: [ { rect: [236, 110, 312, 158], to: 'plaza', at: { x: 492, y: 352 }, label: 'salida.plaza' } ],
     npcs: [
       { id: 'spinda', x: 588, y: 262, facing: [-1, 1], talk: 'spinda', still: true, fixedFacing: true, reach: 125 },   // detrás de la barra (se le habla desde los taburetes)
       { id: 'sableye', x: 238, y: 300, facing: [1, 0], talk: 'sableye_cafe', reach: 70 },                            // junto a los cofres: el tasador
@@ -93,7 +105,7 @@ export const HUB = {
   // Brumas; si caes en el bosque, vuelves aquí a descansar. Se puede hablar con todos.
   campamento: {
     img: 'client/assets/hub/scene_campamento.png', mask: 'client/assets/hub/scene_campamento_mask.png', spawn: { x: 342, y: 426 },
-    exits: [ { rect: [236, 136, 312, 151], action: 'brumas', label: 'Al Bosque de las Brumas', back: { x: 278, y: 166 } } ],   // (el borde de arriba del claro, bajo el hueco entre los árboles)
+    exits: [ { rect: [236, 136, 312, 151], action: 'brumas', label: 'salida.brumas', back: { x: 278, y: 166 } } ],   // (el borde de arriba del claro, bajo el hueco entre los árboles)
     npcs: [
       { id: 'pidgeot', x: 432, y: 288, facing: [0, 1], talk: 'camp_pidgeot' },   { id: 'chatot', x: 384, y: 288, facing: [0, 1], talk: 'camp_chatot' },
       { id: 'machamp', x: 300, y: 420, facing: [1, 0], talk: 'camp_machamp' },   { id: 'heracross', x: 270, y: 300, facing: [1, 0], talk: 'camp_heracross' },
@@ -138,7 +150,7 @@ export const HUB = {
     img: 'client/assets/hub/aldea.png', mask: 'client/assets/hub/aldea_mask.png', spawn: { x: 384, y: 48 },
     exits: [
       { rect: [345, 0, 425, 22], to: 'plaza', at: { x: 384, y: 468 } },
-      { rect: [345, 493, 425, 515], action: 'dungeons', label: 'Salida a las mazmorras', back: { x: 384, y: 470 } },
+      { rect: [345, 493, 425, 515], action: 'dungeons', label: 'salida.mazmorras', back: { x: 384, y: 470 } },
       { rect: [0, 262, 22, 300], to: 'barrio', at: { x: 1488, y: 394 } },   // camino de la izquierda, junto a la casa del árbol: al barrio
     ],
     npcs: [ { id: 'wobbuffet', x: 250, y: 300, facing: [0, 1], talk: 'wobbuffet', idle: true, untilScene: 'cafe-pam' } ],   // su balanceo es su gracia (cuando abre el café, se muda allí de cliente)
@@ -160,8 +172,8 @@ export const HUB = {
       { id: 'clefable', x: 467, y: 238, facing: [-1, 1], talk: 'clefable' },   // la astrónoma de la aldea: avisa de las lluvias de estrellas
     ],
     signs: [
-      { rect: [360, 180, 410, 212], text: 'La puerta del observatorio está cerrada.' },
-      { rect: [476, 150, 568, 210], text: 'Un telescopio enorme apunta al cielo. Ya asoman las primeras estrellas.', action: 'telescope' },
+      { rect: [360, 180, 410, 212], text: 'letrero.observatorio' },
+      { rect: [476, 150, 568, 210], text: 'letrero.telescopio', action: 'telescope' },
     ],
   },
 };

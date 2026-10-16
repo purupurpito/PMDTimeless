@@ -12,7 +12,7 @@ import { dialog, menu, keyboard, writeText, loadManifest, portraitOf, portraitUR
 import { initTouchControls } from './touch.js';
 import { playTrack, stopMusic } from './music.js';
 import { VERSION_LABEL } from '../../shared/version.js';
-import { applyDomText } from '../../shared/i18n.js';
+import { applyDomText, t, nm } from '../../shared/i18n.js';
 
 const $ = s => document.querySelector(s);
 const show = id => { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); $(id).classList.remove('hidden'); document.body.classList.toggle('in-game', id === '#screen-game'); if (id === '#screen-auth') playTrack('menu'); }; // música del menú (suena tras la primera pulsación, como exige el navegador)
@@ -30,19 +30,19 @@ async function puruNotice() {
   wrap.remove(); choice.classList.remove('hidden');
 }
 let toastTimer;
-export function toast(text, ms = 2500) { const t = $('#toast'); t.textContent = text; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), ms); }
+export function toast(text, ms = 2500) { const el = $('#toast'); el.textContent = text; el.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hidden'), ms); }
 // Aviso de conexión (arriba de la pantalla): mientras se espera al servidor, si se corta y se reintenta, o si no hay conexión
 const netBanner = (() => { const el = document.createElement('div'); el.id = 'net-banner'; el.className = 'net-banner hidden'; document.body.appendChild(el); return el; })();
 let netHide = null;
 onNetStatus((s, n) => {
   clearTimeout(netHide);
-  const txt = { waking: 'Conectando con el servidor… (si estaba dormido, puede tardar hasta un minuto)', retry: `Se ha cortado la conexión. Reintentando… (${n ?? 1})`, down: 'Sin conexión con el servidor.' }[s];
+  const txt = { waking: t('red.despertando'), retry: t('red.reintentando', { n: n ?? 1 }), down: t('red.caida') }[s];
   if (!txt) { netHide = setTimeout(() => netBanner.classList.add('hidden'), 400); return; }
   netBanner.textContent = txt; netBanner.dataset.kind = s; netBanner.classList.remove('hidden');
   if (s === 'down') netHide = setTimeout(() => netBanner.classList.add('hidden'), 7000);
   if (s === 'down') track('net_down');   // telemetría: problemas de conexión
 });
-const waking = () => toast('Despertando a Kecleon… el servidor gratuito tarda un poco en abrir la tienda.', 8000);
+const waking = () => toast(t('red.kecleon'), 8000);
 
 // ---- elección / login / registro ----
 document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
@@ -131,7 +131,7 @@ async function startQuiz() {
  track('quiz_done', { nature: result.nature, starter: result.starter, answers: quiz.answers.length }); }
   catch (e) {   // sin conexión: las respuestas están guardadas; al volver a «Nueva aventura» se retoma aquí
     writeText(box, e.message); await new Promise(r => setTimeout(r, 2500)); stopQuizBg();
-    show('#screen-auth'); msg($('#auth-msg'), e.status === 0 ? 'No hay conexión con el servidor. Tus respuestas están guardadas: pulsa «Nueva aventura» para seguir.' : e.message); return;
+    show('#screen-auth'); msg($('#auth-msg'), e.status === 0 ? t('inicio.sinRed') : e.message); return;
   }
   await dialog(box, [
     { text: 'Ya veo…' },
@@ -182,10 +182,10 @@ async function chatotScene() {
   await say('¡Hola! Te doy la bienvenida. ¿Vienes a inscribirte? Necesito un nombre para el formulario de inscripción.', 'Happy');
   for (;;) {
     hideNext();
-    const name = await keyboard(kb, { label: 'Nombre de explorador', max: 20, min: 2, validate: v => /^[\p{L}\p{N} _.-]{2,20}$/u.test(v) ? null : 'Solo letras, números, espacios y . - _' });
+    const name = await keyboard(kb, { label: t('inicio.nombre'), max: 20, min: 2, validate: v => /^[\p{L}\p{N} _.-]{2,20}$/u.test(v) ? null : t('teclado.caracteres') });
     await say('Y ahora, un código que sólo tú sepas. Será un secreto.');
     hideNext();
-    const password = await keyboard(kb, { label: 'Código secreto', max: 32, min: 4, masked: true });
+    const password = await keyboard(kb, { label: t('inicio.codigo'), max: 32, min: 4, masked: true });
     try {
       const r = await api('/auth/register', { name, password, answers: quiz.answers }, { onWaking: waking });   // el servidor puede estar despertando
       setToken(r.token); clearQuiz(); await enterGame(); return;
@@ -238,7 +238,7 @@ document.addEventListener('mousedown', ev => { if (ev.detail > 1 && !ev.target.c
       const r = await api('/dev/cheat', {});
       setToken(r.token); try { localStorage.setItem('mm_known', '1'); } catch {}
       stopMusic(); await enterGame();
-    } catch (e) { msg($('#auth-msg'), 'Ese truco no está disponible aquí.'); }
+    } catch (e) { msg($('#auth-msg'), t('inicio.truco')); }
   });
 }
 // "Continuar" solo tiene sentido si ya jugaste en este dispositivo
@@ -250,7 +250,7 @@ show('#screen-auth');
   let last = null; try { last = JSON.parse(localStorage.getItem('mm_last') || 'null'); } catch {}
   $('#btn-switch').classList.remove('hidden');
   if (!last) return;
-  $('#session-info').innerHTML = `<b>${String(last.name).replace(/[<>&]/g, '')}</b><br>${last.speciesName} · Nivel ${last.level} · ${last.pokes} Pokés`;
+  $('#session-info').innerHTML = `<b>${String(last.name).replace(/[<>&]/g, '')}</b><br>${t('inicio.sesion', { especie: nm('species', last.species, last.speciesName), n: last.level, p: last.pokes })}`;
   $('#session-card').classList.remove('hidden'); $('#btn-continue').classList.add('hidden');
   try {   // el sprite: el primer fotograma de reposo de su Pokémon
     const m = await loadManifest(), e = m[last.species]; if (!e?.idle) return;
