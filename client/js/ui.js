@@ -26,8 +26,8 @@ export async function loadManifest() {
   if (manifest) return manifest;
   if (window.__MANIFEST) return (manifest = window.__MANIFEST);
   try { manifest = await (await fetch('client/assets/manifest.json')).json(); } catch { manifest = {}; }
-  if (manifest._font && !document.fonts.check('12px PMDFont')) {
-    try { const f = new FontFace('PMDFont', `url(${manifest._font})`); await f.load(); document.fonts.add(f); } catch { /* sin fuente propia */ }
+  if (!document.fonts.check('12px PMDFont')) {
+    try { const f = new FontFace('PMDFont', `url(${manifest._font || 'client/assets/fonts/pmd-text.ttf'})`); await f.load(); document.fonts.add(f); } catch { /* sin fuente propia */ }
   }
   return manifest;
 }

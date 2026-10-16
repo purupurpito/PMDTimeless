@@ -49,7 +49,7 @@ const Sprites = {
     let manifest = window.__MANIFEST || null;
     if (!manifest) { try { const r = await fetch(url); if (r.ok) manifest = await r.json(); } catch { /* sin manifest */ } }
     manifest = { ...DUNGEON_TILES, ...(manifest || {}) };   // texturas de mazmorra del proyecto (el índice puede sustituirlas)
-    if (manifest._font) { try { const f = new FontFace('PMDFont', `url(${manifest._font})`); await f.load(); document.fonts.add(f); this.fontName = 'PMDFont'; } catch { /* sin fuente propia */ } }
+    { try { const f = new FontFace('PMDFont', `url(${manifest._font || PMD_FONT_URL})`); await f.load(); document.fonts.add(f); this.fontName = 'PMDFont'; } catch { /* sin fuente propia */ } }   // la fuente de texto de Mundo Misterioso (PMDCollab)
     const imgs = [];
     for (const [key, val] of Object.entries(manifest)) {
       if (key.startsWith('_')) continue;
@@ -3074,6 +3074,21 @@ const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 // Tamaño LÓGICO del juego (todo se dibuja en estas coordenadas). El lienzo real se escala para verse nítido a cualquier tamaño.
 const LOG = { w: CFG.view.w * CFG.tile, h: CFG.view.h * CFG.tile };
 let RK = 1; // píxeles reales por píxel lógico
+// La fuente de texto de Explorers of Sky (PMDCollab/RawAsset, font/text): celda de 12 píxeles, trazo blanco y sombra negra.
+// Una fuente de píxeles solo es nítida a múltiplos exactos de 12 píxeles REALES: pmdPx() da el tamaño (en píxeles lógicos) más
+// cercano al que se pida que cumple eso.
+const PMD_FONT_URL = 'client/assets/fonts/pmd-text.ttf';
+const pmdPx = want => (Sprites.fontName === 'PMDFont' ? Math.max(1, Math.round(want * RK / 12)) * 12 / RK : want);
+{ // la sombra (un píxel de la fuente a la derecha y uno abajo, en negro) para todo lo que se escriba con ella; y en su sitio exacto
+  const P = CanvasRenderingContext2D.prototype, fill = P.fillText;
+  P.fillText = function (t, x, y, mw) {
+    if (!/PMDFont/.test(this.font)) return fill.call(this, t, x, y, mw);
+    const m = /([\d.]+)px/.exec(this.font), u = m ? +m[1] / 12 : 1, k = this.getTransform().a || 1;
+    x = Math.round(x * k) / k; y = Math.round(y * k) / k;   // (en un píxel real exacto: si no, se ve borroso)
+    if (!this.__noShadow) { const st = this.fillStyle; this.fillStyle = '#000'; fill.call(this, t, x + u, y, mw); fill.call(this, t, x, y + u, mw); this.fillStyle = st; }
+    return fill.call(this, t, x, y, mw);
+  };
+}
 const SCALES = { fit: 'opciones.ajustar', 1: '100 %', 1.5: '150 %', 2: '200 %', 2.5: '250 %', 3: '300 %' };
 const getScalePref = () => { try { return localStorage.getItem('mm_scale') || 'fit'; } catch { return 'fit'; } };
 function applyScale() {
@@ -3168,9 +3183,9 @@ const AREA_NAMES = { campamento: 'Campamento de la Expedición', plaza: 'Plaza d
 const areaNm = a => nm('area', a, AREA_NAMES[a] || '');
 function drawInfoHud() {
   if (infoMode() !== 'dentro' || state.scene !== 'dungeon' || !state.player || state.menu || state.cut) return;
-  const p = state.player, s = UIS(), fs = Math.round(12 * s), font = DIALOG_FONT();
+  const p = state.player, s = UIS(), fs = pmdPx(18 * s), font = DIALOG_FONT();
   ctx.save(); ctx.font = `${fs}px ${font}`; ctx.textBaseline = 'top';
-  const txt = (t, x, y, c = '#fff') => { ctx.fillStyle = 'rgba(0,0,0,.8)'; ctx.fillText(t, x + 1, y + 1); ctx.fillStyle = c; ctx.fillText(t, x, y); return ctx.measureText(t).width; };
+  const txt = (t, x, y, c = '#fff') => { if (!/PMDFont/.test(ctx.font)) { ctx.fillStyle = 'rgba(0,0,0,.8)'; ctx.fillText(t, x + 1, y + 1); } ctx.fillStyle = c; ctx.fillText(t, x, y); return ctx.measureText(t).width; };   // (la fuente de Mundo Misterioso ya trae su sombra)
   const bar = (x, y, w, k, col) => { const h = Math.round(6 * s); ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2); ctx.fillStyle = '#383838'; ctx.fillRect(x, y, w, h); ctx.fillStyle = col; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, k)), h); };
   let x = 10, y = 8;
   x += txt(`${state.dungeonDef?.floors === Infinity ? '' : 'B'}${state.floor}F`, x, y, '#f8d848') + 14 * s;
@@ -3187,7 +3202,7 @@ function renderFeed() {
   const now = performance.now(), items = (state.feed || []).filter(f => now - f.t < FEED_MS);
   if (!items.length) return;
   const newest = Math.max(...items.map(f => f.t)), alpha = Math.min(1, (FEED_MS - (now - newest)) / FEED_FADE);
-  const W = LOG.w, H = LOG.h, s = UIS(), size = Math.round((Sprites.fontName ? 10 : 12) * s), lh = Math.round(size * 1.45);
+  const W = LOG.w, H = LOG.h, s = UIS(), size = pmdPx(18 * s), lh = Math.round(size * 1.3);
   ctx.save(); ctx.globalAlpha = Math.max(0, alpha);
   ctx.font = `${size}px ${DIALOG_FONT()}`;
   const lines = items.flatMap(f => wrapText(f.text, W - 44)).slice(-3);
@@ -3258,8 +3273,8 @@ function renderHub() {
   // indicación de interacción cerca de un PNJ o cartel
   const fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
   const near = def.npcs.filter(npcShown).find(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))) || (def.signs || []).find(s => (!s.when || s.when(meta || {})) && inRect(fx, fy, s.rect)) || (def.hotspots || []).find(hs => inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) || def.exits.find(ex => ex.label && inExit(ex, fx, fy));
-  if (near && !state.menu && !state.dialog) { ctx.font = 'bold 11px sans-serif'; const hint = (document.body.classList.contains('touch-on') ? 'A' : 'Z') + ' · ' + (near.action === 'board' ? t('tablon.pista') : near.label || near.text ? (near.label ? t(near.label) : t('pista.leer')) : t('pista.hablar')), hw = ctx.measureText(hint).width + 20; ctx.fillStyle = 'rgba(20,18,28,.85)'; ctx.fillRect(W / 2 - hw / 2, 8, hw, 20); ctx.fillStyle = '#f2b544'; ctx.textAlign = 'center'; ctx.fillText(hint, W / 2, 22); ctx.textAlign = 'left'; } // el fondo se ajusta al texto
-  { ctx.font = '11px sans-serif'; const nm = areaNm(h.area); ctx.fillStyle = 'rgba(20,18,28,.7)'; ctx.fillRect(8, 8, ctx.measureText(nm).width + 12, 18); ctx.fillStyle = '#e9e3d3'; ctx.fillText(nm, 14, 21); } // el fondo se ajusta al texto
+  if (near && !state.menu && !state.dialog) { const hfs = pmdPx(18 * UIS()); ctx.font = `${hfs}px ${DIALOG_FONT()}`; const hint = (document.body.classList.contains('touch-on') ? 'A' : 'Z') + ' · ' + (near.action === 'board' ? t('tablon.pista') : near.label || near.text ? (near.label ? t(near.label) : t('pista.leer')) : t('pista.hablar')), hw = ctx.measureText(hint).width + 20; ctx.fillStyle = 'rgba(20,18,28,.85)'; ctx.fillRect(W / 2 - hw / 2, 8, hw, hfs + 9); ctx.fillStyle = '#f2b544'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(hint, W / 2, 12); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; } // el fondo se ajusta al texto
+  { const fs = pmdPx(18 * UIS()); ctx.font = `${fs}px ${DIALOG_FONT()}`; ctx.textBaseline = 'top'; const nm = areaNm(h.area); ctx.fillStyle = 'rgba(20,18,28,.7)'; ctx.fillRect(8, 8, ctx.measureText(nm).width + 14, fs + 9); ctx.fillStyle = '#e9e3d3'; ctx.fillText(nm, 14, 12); ctx.textBaseline = 'alphabetic'; } // el fondo se ajusta al texto
 }
 const TILE_COLORS = { [T.WALL]: '#3b2f5a', [T.FLOOR]: '#8f7a5c', [T.STAIRS]: '#8f7a5c', [T.WATER]: '#2f6fa8', [T.LAVA]: '#c4521f' };
 const TILE_KEYS = { [T.WALL]: 'wall', [T.FLOOR]: 'floor', [T.STAIRS]: 'stairs', [T.WATER]: 'water', [T.LAVA]: 'lava' };
@@ -3479,7 +3494,7 @@ function pmdBox(x, y, w, h, r = 6) {
 }
 function drawMoveHints() {
   const p = state.player; if (!p) return;
-  const s = UIS(), fs = Math.round(12 * s), rh = Math.round(20 * s), pad = Math.round(10 * s), font = DIALOG_FONT();
+  const s = UIS(), fs = pmdPx(18 * s), rh = Math.round(fs + 6 * s), pad = Math.round(10 * s), font = DIALOG_FONT();
   const keys = ['A', 'B', 'X', 'Y'], w = Math.round(250 * s), h = rh * 4 + pad * 2, x = 12, y = LOG.h - h - 12;
   pmdBox(x, y, w, h);
   ctx.font = `${fs}px ${font}`; ctx.textBaseline = 'middle';
@@ -3494,18 +3509,23 @@ function drawMoveHints() {
 }
 function renderMenu() {
   const m = state.menu; if (!m) return;
-  const s = UIS(), fs = Math.round(13 * s), rh = Math.round(21 * s), font = DIALOG_FONT();
+  const s = UIS(), font = DIALOG_FONT();
+  let fs = pmdPx(18 * s);
+  { ctx.font = `${fs}px ${font}`; const need = Math.max(0, ...m.items.map((it, i) => ctx.measureText(it).width + Math.round(12 * s) * 2 + Math.round(18 * s) + 6 * s + (m.icons?.[i] ? 20 * s : 0)));
+    if (need > LOG.w - 24) { const fs2 = Sprites.fontName === 'PMDFont' ? Math.max(1, Math.floor(fs * (LOG.w - 24) / need * RK / 12)) * 12 / RK : fs * (LOG.w - 24) / need; if (fs2 < fs) fs = fs2; } }   // (no cabe: un punto menos, nítido)
+  const rh = Math.round(fs + 7 * s);
   ctx.font = `${fs}px ${font}`; ctx.textBaseline = 'middle';
   const title = m.title + (state.busy ? '  …' : '');
-  const tabH = Math.round(24 * s), pad = Math.round(12 * s), cur = Math.round(18 * s);
-  const w = Math.min(LOG.w - 24, Math.max(200, ...m.items.map((it, i) => ctx.measureText(it).width + pad * 2 + cur + 6 * s + (m.icons?.[i] ? 20 * s : 0))));
+  const tabH = Math.round(fs + 10 * s), pad = Math.round(12 * s), cur = Math.round(18 * s);   // (la pestaña, a la medida de la letra)
+  let w = Math.min(LOG.w - 24, Math.max(200, ...m.items.map((it, i) => ctx.measureText(it).width + pad * 2 + cur + 6 * s + (m.icons?.[i] ? 20 * s : 0))));
+  if (m.money !== undefined) { ctx.font = `${fs}px ${font}`; const need = ctx.measureText(title).width + pad * 2 + ctx.measureText(`${m.money}`).width + Math.round(16 * s) + pad * 2 + 6 * s + 8; w = Math.min(LOG.w - 24, Math.max(w, need)); }   // (que quepan la pestaña del título y la de los Pokés sin pisarse)
   const x = state.scene === 'hub' ? (LOG.w - w) / 2 : 12, y = 12;
   const maxRows = Math.max(3, Math.floor((LOG.h - y - tabH - 10 - pad * 2) / rh));
   const rows = Math.min(m.items.length, maxRows);
   const top = Math.min(Math.max(0, m.index - Math.floor(rows / 2)), m.items.length - rows);
   const h = rows * rh + pad * 2;
   // pestaña del título
-  ctx.font = `${Math.round(12 * s)}px ${font}`;
+  ctx.font = `${fs}px ${font}`;
   const tw = Math.min(w, ctx.measureText(title).width + pad * 2);
   pmdBox(x, y, tw, tabH + 6, 5);
   ctx.fillStyle = '#f8d848'; ctx.fillText(title, x + pad, y + tabH / 2 + 2, tw - pad * 2);
@@ -3546,7 +3566,7 @@ function scheduleRender() { if (renderQueued) return; renderQueued = true; reque
 const NPC_PORTRAITS = ['chatot', 'diglett', 'kecleon', 'kangaskhan', 'gulpin', 'wobbuffet', 'pidgeot', 'chansey', 'mawile', 'murkrow'];
 function renderDialog() {
   const d = state.dialog; if (!d) return;
-  const page = d.pages[d.i], W = LOG.w, h = Math.round(114 * UIS()), x = 6, w = W - 12;   // como en el original: casi todo el ancho y ~¼ de la altura
+  const page = d.pages[d.i], W = LOG.w, DS = pmdPx(24 * UIS()), h = Math.max(Math.round(114 * UIS()), Math.round(16 + 3 * (DS + DS / 12) + 10)), x = 6, w = W - 12;   // (sitio para tres líneas de la letra grande)   // como en el original: casi todo el ancho y ~¼ de la altura
   // Abajo, salvo que tape a quien habla: si alguien queda en la franja de abajo (y nadie arriba), el cuadro sube
   // y el retrato va debajo. Así se ve la escena (en la mazmorra la cámara te centra: siempre abajo).
   const focus = state.scene === 'hub' ? (state.dlgFocus || []) : [];
@@ -3594,14 +3614,18 @@ function renderDialog() {
     }
   });
   // texto: nombre en amarillo, cuerpo en blanco, efecto máquina de escribir (30 ms por carácter, X lo completa)
-  const font = page.font || DIALOG_FONT(), size = Math.round((Sprites.fontName && !page.font ? 15 : 17) * UIS());   // letra grande, como en el original
+  const font = page.font || DIALOG_FONT(), size = page.font ? Math.round(17 * UIS()) : DS;   // letra grande, como en el original (la de 12 píxeles, al doble)
   ctx.font = `${size}px ${font}`; ctx.textBaseline = 'top';
   const shown = Math.min(page.text.length, Math.floor((performance.now() - d.t0) / 30));
   d.done = shown >= page.text.length;
   const body = page.who ? `${page.who}: ` : '';
-  const lines = wrapText(body + page.text, w - 34);
-  let count = 0, ly = y + 14;
-  for (const ln of lines.slice(0, 4)) {
+  let lines = wrapText(body + page.text, w - 34);
+  if (lines.length > 3 && !page.font) {   // no cabe: lo que sobra, a una página nueva (con la flecha de continuar), sin cortar palabras
+    const keep = lines.slice(0, 3).join(' ').length - body.length, rest = page.text.slice(keep).trimStart();
+    if (rest) { d.pages.splice(d.i + 1, 0, { ...page, text: rest }); page.text = page.text.slice(0, keep).trimEnd(); lines = wrapText(body + page.text, w - 34); }
+  }
+  let count = 0, ly = y + 12;
+  for (const ln of lines.slice(0, 3)) {
     let lx = tx;
     for (const word of ln.split(' ')) {
       const isName = page.who && count < page.who.length + 1;
@@ -3609,7 +3633,7 @@ function renderDialog() {
       ctx.fillStyle = isName ? '#f8d848' : (page.color || '#f8f8f8');
       ctx.fillText(visible, lx, ly); lx += ctx.measureText(word + ' ').width; count += word.length + 1;
     }
-    ly += size + 6;
+    ly += page.font ? size + 6 : size + size / 12;   // (el interlineado del original: un píxel de la fuente)
   }
   ctx.textBaseline = 'alphabetic';
   if (d.done) { const b = Math.abs(Math.sin(performance.now() / 180)) * 3; ctx.fillStyle = '#f8d848'; ctx.beginPath(); ctx.moveTo(x + w - 30, y + h - 22 + b); ctx.lineTo(x + w - 14, y + h - 22 + b); ctx.lineTo(x + w - 22, y + h - 12 + b); ctx.fill(); scheduleRender(); }   // indicador para continuar: siempre visible, dando saltitos
