@@ -37,7 +37,7 @@ export const HUB = {
     exits: [
       { rect: [340, 494, 470, 515], to: 'plaza', at: { x: 384, y: 228 } },                                    // la luz de la salida
       { rect: [174, 210, 228, 226], to: 'descanso', at: { x: 372, y: 288 }, label: 'salida.descanso' },   // escalón de abajo de la escalera del hueco
-      { poly: [[68, 266], [114, 243], [116, 253], [70, 276]], to: 'trofeos', at: { x: 384, y: 470 }, label: 'salida.trofeos' },   // la puerta de la pared izquierda
+      // (la puerta a la sala de los trofeos: quitada el 16 de octubre hasta que se rehagan la puerta y la sala; ver docs/TAREAS-nocturno.md)
     ],
     npcs: [
       { id: 'chatot', x: 440, y: 206, facing: [0, 1], talk: 'chatot' },                                          // junto al tablón
