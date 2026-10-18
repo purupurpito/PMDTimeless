@@ -374,8 +374,8 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     const [w1, w2, c1, c2] = spots;
     if (w1) enemies.push(createMon('wooper', wildLevel() + 1, { ...w1, asleep: false, rescueGroup: true, noRecruit: true }));
     if (w2) enemies.push(createMon('wooper', wildLevel() + 1, { ...w2, asleep: false, rescueGroup: true, noRecruit: true }));
-    if (c1) npcs.push({ ...c1, species: 'teddiursa', name: 'Teddiursa', captive: true, facing: [0, 1], line: 'Teddiursa: "¡Cuidado con Quagsire! ¡Es mucho más rápido de lo que parece!"' });
-    if (c2) npcs.push({ ...c2, species: 'sentret', name: 'Sentret', captive: true, facing: [0, 1], line: 'Sentret: "¡Los Wooper no paran de moverse! ¡Pégales cuando se queden quietos!"' });
+    if (c1) npcs.push({ ...c1, species: 'teddiursa', name: 'Teddiursa', captive: true, facing: [0, 1], line: t('piso.rehen.teddiursa') });
+    if (c2) npcs.push({ ...c2, species: 'sentret', name: 'Sentret', captive: true, facing: [0, 1], line: t('piso.rehen.sentret') });
     messages.push(t('piso.rehenes'));
   }
   // Tienda de Kecleon: una sala (ni la inicial ni la de las escaleras) con alfombra de objetos y el tendero

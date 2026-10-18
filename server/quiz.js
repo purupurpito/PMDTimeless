@@ -2,14 +2,14 @@
 // cuantas al azar. Cada respuesta suma puntos a las naturalezas con las que encaja y resta a la opuesta;
 // gana la naturaleza con más puntos. El servidor elige las preguntas y puntúa: el cliente sólo muestra.
 export const NATURES = {
-  valiente:  { name: 'Valiente', starters: ['charmander', 'cyndaquil', 'machop', 'magby'], text: 'No te lo piensas dos veces cuando alguien necesita ayuda. A veces te metes en líos por ello, pero nunca te arrepientes.' },
-  tranquilo: { name: 'Tranquilo', starters: ['squirtle', 'totodile', 'seel', 'tentacool'], text: 'Cuando todo se desmorona, tú eres quien respira hondo y busca la salida. Los demás se apoyan en ti sin saberlo.' },
-  amable:    { name: 'Amable', starters: ['bulbasaur', 'chikorita', 'oddish', 'sunkern'], text: 'Te fijas en lo que otros pasan por alto: el que se queda atrás, el que no dice nada. Y actúas.' },
-  alegre:    { name: 'Alegre', starters: ['pikachu', 'mareep', 'meowth', 'elekid'], text: 'Tu energía contagia. Donde llegas, la gente sonríe, aunque no siempre entiendan por qué.' },
-  timido:    { name: 'Tímido', starters: ['eevee', 'vulpix', 'smoochum', 'chinchou'], text: 'Prefieres observar antes que hablar. Pero cuando hablas, todo el mundo escucha, porque sabes que vale la pena.' },
-  osado:     { name: 'Osado', starters: ['ekans', 'spinarak', 'voltorb', 'nidoran_f'], text: 'El riesgo te atrae. No por imprudencia, sino porque sabes que lo bueno está donde nadie se atreve a ir.' },
-  bromista:  { name: 'Bromista', starters: ['psyduck', 'geodude', 'swinub', 'slugma'], text: 'Ves el lado absurdo de todo. Eso te ha salvado de más de un mal día, a ti y a los que te rodean.' },
-  sereno:    { name: 'Sereno', starters: ['phanpy', 'drowzee', 'ledyba', 'pineco'], text: 'Nada te saca de tu centro. Tienes una paciencia que otros confunden con lentitud, hasta que ven los resultados.' },
+  valiente:  { name: 'Valiente', starters: ['charmander', 'cyndaquil', 'machop', 'magby'], text: 'No te lo piensas dos veces cuando alguien necesita ayuda. A veces te metes en líos por ello, pero nunca te arrepientes.', en: { name: "Brave", text: "You don't think twice when someone needs help. Sometimes it gets you into trouble, but you never regret it." } },
+  tranquilo: { name: 'Tranquilo', starters: ['squirtle', 'totodile', 'seel', 'tentacool'], text: 'Cuando todo se desmorona, tú eres quien respira hondo y busca la salida. Los demás se apoyan en ti sin saberlo.', en: { name: "Calm", text: "When everything falls apart, you're the one who takes a deep breath and looks for the way out. Others lean on you without even knowing it." } },
+  amable:    { name: 'Amable', starters: ['bulbasaur', 'chikorita', 'oddish', 'sunkern'], text: 'Te fijas en lo que otros pasan por alto: el que se queda atrás, el que no dice nada. Y actúas.', en: { name: "Gentle", text: "You notice what others overlook: the one left behind, the one who says nothing. And you act." } },
+  alegre:    { name: 'Alegre', starters: ['pikachu', 'mareep', 'meowth', 'elekid'], text: 'Tu energía contagia. Donde llegas, la gente sonríe, aunque no siempre entiendan por qué.', en: { name: "Jolly", text: "Your energy is contagious. Wherever you go, people smile, even if they don't always know why." } },
+  timido:    { name: 'Tímido', starters: ['eevee', 'vulpix', 'smoochum', 'chinchou'], text: 'Prefieres observar antes que hablar. Pero cuando hablas, todo el mundo escucha, porque sabes que vale la pena.', en: { name: "Timid", text: "You'd rather watch than talk. But when you do speak, everyone listens, because they know it's worth it." } },
+  osado:     { name: 'Osado', starters: ['ekans', 'spinarak', 'voltorb', 'nidoran_f'], text: 'El riesgo te atrae. No por imprudencia, sino porque sabes que lo bueno está donde nadie se atreve a ir.', en: { name: "Bold", text: "Risk draws you in. Not out of recklessness, but because you know the good stuff is where nobody dares to go." } },
+  bromista:  { name: 'Bromista', starters: ['psyduck', 'geodude', 'swinub', 'slugma'], text: 'Ves el lado absurdo de todo. Eso te ha salvado de más de un mal día, a ti y a los que te rodean.', en: { name: "Impish", text: "You see the funny side of everything. It has saved you from more than one bad day, you and those around you." } },
+  sereno:    { name: 'Sereno', starters: ['phanpy', 'drowzee', 'ledyba', 'pineco'], text: 'Nada te saca de tu centro. Tienes una paciencia que otros confunden con lentitud, hasta que ven los resultados.', en: { name: "Relaxed", text: "Nothing throws you off balance. You have a patience others mistake for slowness, until they see the results." } },
 };
 
 // naturalezas opuestas: una respuesta que encaja con una aleja de la otra
@@ -201,9 +201,194 @@ const RAW = [
     ['En una gran ciudad llena de vida.', { alegre: 2, osado: 1 }],
     ['En una cabaña escondida en el bosque.', { timido: 2, sereno: 1 }]]],
 ];
+// El mismo test en inglés, en el mismo orden que RAW: [pregunta, [respuesta, …]] (los puntos son los de RAW)
+const RAW_EN = [
+  ["You wake up and can't remember where you are. The first thing you do is…", [
+    "Explore. I'll figure out the rest along the way.",
+    "Stay still and watch before I make a move.",
+    "Look for someone to ask.",
+    "Take a deep breath. Whatever it is, it'll sort itself out."]],
+  ["A friend tells you about a plan that's clearly terrible. What do you say?", [
+    "Count me in.",
+    "I crack a joke so they see how ridiculous it is.",
+    "I calmly explain why it won't work.",
+    "Nothing. I go along and watch their back."]],
+  ["You're at a party where you don't know anyone.", [
+    "Ten minutes in, I've met half the room.",
+    "I find the other person standing alone and talk to them.",
+    "I stay near the food until something interesting happens.",
+    "I leave. It wasn't my scene."]],
+  ["You spot something shiny at the back of a dark cave.", [
+    "I go and get it right now.",
+    "I come back with a light and a plan.",
+    "It's a trap, surely. I leave it.",
+    "I tell someone else to grab it while I watch."]],
+  ["Someone makes a mistake in public and everyone laughs.", [
+    "I go over and make light of it.",
+    "I laugh too, but with them, not at them.",
+    "I don't laugh. I don't see what's funny.",
+    "I cringe for them and look away."]],
+  ["You have a whole day off with nothing to do.", [
+    "I head somewhere I've never been.",
+    "I meet up with people. The more, the better.",
+    "A book, a blanket and silence.",
+    "I sort out what I've been putting off for weeks."]],
+  ["You've been given a map with an X. The short way goes through a forest with a bad reputation.", [
+    "The short way. Obviously.",
+    "The long way. I'll get there all the same, in one piece.",
+    "I ask about the forest before deciding.",
+    "Depends on who's coming with me."]],
+  ["When something goes wrong for you…", [
+    "I get angry for a while, then try again.",
+    "I laugh at myself. What else can I do?",
+    "I work out what went wrong, no drama.",
+    "I keep it to myself. I'll deal with it later."]],
+  ["What scares you most?", [
+    "Being bored.",
+    "Letting someone down.",
+    "Losing control of a situation.",
+    "Being the centre of attention."]],
+  ["Someone challenges you to a race.", [
+    "I'm already running before they finish the sentence.",
+    "I accept, but I set the rules.",
+    "I let them win, then tease them about it for weeks.",
+    "There's no need to race to know who's faster."]],
+  ["Someone gives you a present you don't like at all.", [
+    "I thank them from the heart. It's the thought that counts.",
+    "I make up a story about how much I needed it.",
+    "It shows on my face before I can say a word.",
+    "I smile and put it in a drawer forever."]],
+  ["If you had to describe yourself in a single word…", [
+    "Determined.",
+    "Curious.",
+    "Patient.",
+    "Warm."]],
+  ["You find a wallet on the ground, stuffed with money.", [
+    "I hand it in somewhere so its owner can get it back.",
+    "I look for the owner myself, even if it takes all day.",
+    "I peek inside for a funny clue about whose it is.",
+    "I leave it where it was. I don't want any trouble."]],
+  ["You're dared to cross a creaky rope bridge.", [
+    "I run across. Let's see who's boss!",
+    "I cross slowly, testing every plank.",
+    "I clown around on the way to ease the tension.",
+    "I find another way. I've nothing to prove."]],
+  ["What do you like most about a journey?", [
+    "Whatever wasn't in the plan.",
+    "The people you meet along the way.",
+    "The silence of the landscapes.",
+    "Coming home and telling everyone about it."]],
+  ["Someone you care about is sad and doesn't want to talk.", [
+    "I sit beside them without saying a word.",
+    "I try to make them laugh, even just a little.",
+    "I gently ask what happened.",
+    "I give them space. They'll come to me when they're ready."]],
+  ["You're lost in a forest as night falls.", [
+    "I keep going. Some path will turn up.",
+    "I stop, think and look for signs to find my way.",
+    "I sing something so I won't be scared.",
+    "I find shelter and wait for dawn."]],
+  ["In a group, you're usually…", [
+    "The one with the wild ideas.",
+    "The one who keeps the peace when there are arguments.",
+    "The one who cheers everyone on.",
+    "The one who listens and watches."]],
+  ["You get to choose a magic power.", [
+    "Flight, to go where nobody has been.",
+    "Healing others.",
+    "Turning invisible.",
+    "Huge strength to protect my own."]],
+  ["A teammate takes the credit for something you did.", [
+    "I tell them to their face, calmly but clearly.",
+    "I take it with humour. Whoever needs to know will know.",
+    "I say nothing, even though it hurts.",
+    "I don't mind much, as long as it works out."]],
+  ["Faced with a tough problem, the first thing you do is…", [
+    "Dive in and try things.",
+    "Make a list and plan it out.",
+    "Ask for help and solve it as a team.",
+    "Let it rest and come back with a clear head."]],
+  ["Which time of day do you like best?", [
+    "Dawn, when everything begins.",
+    "Midday, with everyone up and about.",
+    "Dusk, calm and golden.",
+    "Night, when everything goes quiet."]],
+  ["Someone asks you a favour just as you were about to rest.", [
+    "I help, of course. I'll rest later.",
+    "I help, but make them promise to treat me to something.",
+    "I explain I can't right now and we agree on later.",
+    "I find it hard to say no, so I end up agreeing."]],
+  ["In a board game, you…", [
+    "Risk it all to win big.",
+    "Calculate every move.",
+    "Have fun even if I lose.",
+    "Cheat a tiny bit to see if anyone notices."]],
+  ["You hear a strange noise in the middle of the night.", [
+    "I go and see what it is.",
+    "I pull the blanket over my head and hope it stops.",
+    "I listen closely to work out what it is without moving.",
+    "I wake everyone up, just in case."]],
+  ["What makes you feel proudest?", [
+    "Having helped someone who needed it.",
+    "Having dared to do something that scared me.",
+    "Having kept calm when others couldn't.",
+    "Having made someone laugh on a bad day."]],
+  ["A rainy day comes and all the plans are called off.", [
+    "I go out anyway. Rain is an adventure too!",
+    "Perfect: a book, a blanket and a window.",
+    "I invite people over and we put something together.",
+    "I use it to tidy up and get ready for tomorrow."]],
+  ["A stranger asks for your help with an odd story.", [
+    "I help without a second thought.",
+    "I help, but with my eyes wide open.",
+    "My curiosity's piqued. Tell me more!",
+    "I politely excuse myself and leave."]],
+  ["How would your friends describe you?", [
+    "As the one who's always there.",
+    "As the life and soul of the party.",
+    "As the one who's afraid of nothing.",
+    "As the mysterious one of the group."]],
+  ["You have to give a speech in front of a lot of people.", [
+    "I love it. I make it up as I go.",
+    "I prepare it thoroughly and rehearse it a thousand times.",
+    "I start with a joke to break the ice.",
+    "I have an awful time, but I do it anyway."]],
+  ["You see an elderly person carrying very heavy bags.", [
+    "I offer to carry them.",
+    "I help and strike up a conversation while I'm at it.",
+    "I want to help, but I'm too shy to offer.",
+    "I tell them about a shortcut with fewer hills."]],
+  ["You find an old map with an X on it.", [
+    "I set off to find the treasure this very day.",
+    "I study it calmly before doing anything.",
+    "I round up my friends so we can go together.",
+    "I put it away. Someday…"]],
+  ["Something goes wrong for you for the first time.", [
+    "I try again straight away.",
+    "I work out what went wrong.",
+    "I laugh at myself and carry on.",
+    "I get a bit discouraged, to be honest."]],
+  ["What would you rather find at the end of a path?", [
+    "A summit with incredible views.",
+    "A village full of friendly folk.",
+    "An unexplored cave.",
+    "A still lake."]],
+  ["Your team loses and everyone's feeling down.", [
+    "I tell them we'll win the next one, and I believe it!",
+    "We go over together what we can do better.",
+    "I do something silly to make them laugh.",
+    "I stay with whoever's taking it hardest."]],
+  ["If you could live anywhere, it would be…", [
+    "High up on a mountain.",
+    "In a little village by the sea.",
+    "In a big city full of life.",
+    "In a cabin hidden in the forest."]],
+];
 // cada respuesta resta 1 a la naturaleza opuesta de la primera (salvo que ya se indique otra resta)
 const norm = pts => { const out = { ...pts }, first = Object.keys(pts)[0]; if (!Object.values(pts).some(v => v < 0) && !(OPPOSITE[first] in out)) out[OPPOSITE[first]] = -1; return out; };
-export const QUESTIONS = RAW.map(([q, a], id) => ({ id, q, a: a.map(([t, pts]) => ({ t, pts: norm(pts) })) }));
+export const QUESTIONS = RAW.map(([q, a], id) => ({ id, q, a: a.map(([t, pts], k) => ({ t, pts: norm(pts), en: RAW_EN[id][1][k] })), en: RAW_EN[id][0] }));
+// el texto de una pregunta (k = undefined) o de una de sus respuestas, en el idioma pedido
+export const quizText = (id, k, lang) => { const q = QUESTIONS[id], x = k == null ? q : q?.a[k]; return x && (lang === 'en' ? x.en : (k == null ? x.q : x.t)); };
 
 // Preguntas de esta partida: QUIZ_LENGTH al azar, en orden aleatorio (con las respuestas también barajadas)
 export function drawQuiz(rand = Math.random) {

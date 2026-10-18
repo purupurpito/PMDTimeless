@@ -7,12 +7,12 @@ try { if (API_URL) fetch(API_URL + '/health', { cache: 'no-store', mode: 'no-cor
 import { startGame } from './game.js';
 import './gamepad.js';   // mando (Gamepad API): sus botones pulsan las teclas del juego
 import { SPECIES } from '../../shared/data.js';
-import { publicQuiz, scoreQuiz } from '../../server/quiz.js';   // el test se hace entero en el navegador (el servidor lo recalcula al crear la cuenta)
+import { publicQuiz, scoreQuiz, quizText } from '../../server/quiz.js';   // el test se hace entero en el navegador (el servidor lo recalcula al crear la cuenta)
 import { dialog, menu, keyboard, writeText, loadManifest, portraitOf, portraitURL, asset } from './ui.js';
 import { initTouchControls } from './touch.js';
 import { playTrack, stopMusic } from './music.js';
 import { VERSION_LABEL } from '../../shared/version.js';
-import { applyDomText, t, nm } from '../../shared/i18n.js';
+import { applyDomText, t, nm, getLang } from '../../shared/i18n.js';
 
 const $ = s => document.querySelector(s);
 const show = id => { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); $(id).classList.remove('hidden'); document.body.classList.toggle('in-game', id === '#screen-game'); if (id === '#screen-auth') playTrack('menu'); }; // música del menú (suena tras la primera pulsación, como exige el navegador)
@@ -102,25 +102,20 @@ async function startQuiz() {
   const resume = savedQuiz();
   if (resume) {   // se había quedado a medias: seguir por la misma pregunta
     quiz.questions = resume.questions; quiz.answers = resume.answers || [];
-    await dialog(box, [{ text: '…Ah, has vuelto.' }, { text: 'Sigamos donde lo dejamos.' }]);
+    await dialog(box, [{ text: t('prologo.vuelto1') }, { text: t('prologo.vuelto2') }]);
   } else {
   const loading = Promise.resolve({ questions: publicQuiz() });   // las preguntas, al instante: sin esperar al servidor
-  await dialog(box, [{ text: 'Hola.' }, { text: '¿Hola…? ¿Estás ahí?' }, { text: '¡Despierta, que te estoy hablando!' },
-    // antes de las preguntas: explicar al jugador por qué se las hacemos
-    { text: '…Bien. Ya me oyes.' },
-    { text: 'Estás a punto de despertar en un mundo que no conoces. Antes, quiero saber quién eres de verdad.' },
-    { text: 'Te haré unas preguntas. No hay respuestas buenas ni malas: responde lo primero que sientas.' },
-    { text: 'Tus respuestas decidirán en qué te convertirás cuando abras los ojos.' },
-    { text: '¿Preparado? Empecemos.' }]);
+  // antes de las preguntas (de la 4.ª frase en adelante): explicar al jugador por qué se las hacemos
+  await dialog(box, [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ text: t('prologo.hola' + n) })));
   try { quiz.questions = (await loading).questions; } catch (e) { writeText(box, e.message);  return; }
   quiz.answers = []; saveQuiz();
   }
   for (let i = quiz.answers.length; i < quiz.questions.length; i++) {
     const qu = quiz.questions[i];
     // la pregunta se distingue: pestaña «Pregunta N de 12» y texto más grande; las respuestas, en su propio panel
-    box.classList.add('asking'); $('#quiz-tab').textContent = `Pregunta ${i + 1} de ${quiz.questions.length}`; $('#quiz-tab').classList.remove('hidden');
-    writeText(box, qu.q);
-    const pick = await menu($('#quiz-answers'), qu.a.map(x => x.t));
+    box.classList.add('asking'); $('#quiz-tab').textContent = t('prologo.pregunta', { n: i + 1, total: quiz.questions.length }); $('#quiz-tab').classList.remove('hidden');
+    writeText(box, quizText(qu.id, null, getLang()) || qu.q);   // por su número: así sale en el idioma del jugador (también al retomarlo)
+    const pick = await menu($('#quiz-answers'), qu.a.map(x => quizText(qu.id, x.k, getLang()) || x.t));
     quiz.answers[i] = { id: qu.id, a: qu.a[pick].k }; // la pregunta y la respuesta real (las respuestas vienen barajadas)
     saveQuiz();
   }
@@ -133,11 +128,12 @@ async function startQuiz() {
     writeText(box, e.message); await new Promise(r => setTimeout(r, 2500)); stopQuizBg();
     show('#screen-auth'); msg($('#auth-msg'), e.status === 0 ? t('inicio.sinRed') : e.message); return;
   }
+  const nat = (getLang() === 'en' && result.en) || result;   // la naturaleza, en el idioma del jugador
   await dialog(box, [
-    { text: 'Ya veo…' },
-    { text: `Pareces de naturaleza ${result.name.toLowerCase()}.` },
-    { text: result.text },
-    { text: 'Ahora, ve. Alguien te está esperando.' },
+    { text: t('prologo.yaVeo') },
+    { text: t('prologo.naturaleza', { nat: getLang() === 'en' ? nat.name : nat.name.toLowerCase() }) },
+    { text: nat.text },
+    { text: t('prologo.ve') },
   ]);
   stopQuizBg();
   stopMusic(); // la música del test termina al llegar a la escena de Diglett
@@ -157,18 +153,18 @@ async function diglettScene(result) {
   $('#scene-bg').src = below ? asset('scene_diglett', 'client/assets/hub/scene_diglett.png') : asset('scene_gate', 'client/assets/hub/scene_gate.png');
   const layer = $('#scene-layer'), box = $('#scene-box'), portraitEl = $('#scene-portrait');
   layer.innerHTML = '';
-  const name = SPECIES[result.starter].name;
+  const name = nm('species', result.starter, SPECIES[result.starter].name);
   // cada frase con su cara: [texto, emoción]
-  const say = async pages => dialog(box, await Promise.all(pages.map(async ([t, mood]) => ({ who: 'Diglett', text: t, portrait: await portraitURL('diglett', mood) }))), { portraitEl });
-  await say([['¡Alerta de intruso! ¡Alerta de intruso!', 'Shouting'], ['¿De quién es esa huella? ¿De quién es esa huella?', 'Surprised']]);
+  const say = async pages => dialog(box, await Promise.all(pages.map(async ([text, mood]) => ({ who: 'Diglett', text, portrait: await portraitURL('diglett', mood) }))), { portraitEl });
+  await say([[t('prologo.diglett1'), 'Shouting'], [t('prologo.diglett2'), 'Surprised']]);
   const src = asset('fp_' + result.starter, `client/assets/footprints/${result.starter}.png`);
   const known = FOOTPRINTS.includes(result.starter);   // sin intentar descargarla: así no hay errores 404 en la consola
   const fp = document.createElement('div'); fp.className = below ? 'footprint-on-gate from-below' : 'footprint-on-gate';
   fp.innerHTML = known ? `<img src="${src}" alt="">` : '<span>?</span>';
   layer.appendChild(fp);
   await say([
-    [known ? `¡La huella es de ${name}! ¡La huella es de ${name}!` : `… es la primera vez que veo esta huella… parece de un… ¡¡${name}!!`, known ? 'Happy' : 'Surprised'],
-    ['¡Puedes pasar! ¡Puedes pasar!', 'Joyous'],
+    [t(known ? 'prologo.huellaConocida' : 'prologo.huellaNueva', { especie: name }), known ? 'Happy' : 'Surprised'],
+    [t('prologo.pasa'), 'Joyous'],
   ]);
 }
 
@@ -179,11 +175,11 @@ async function chatotScene() {
   const box = $('#scene-box'), portraitEl = $('#scene-portrait'), kb = $('#scene-kb');
   const say = async (text, mood = 'Normal') => dialog(box, [{ who: 'Chatot', text, portrait: await portraitURL('chatot', mood) }], { portraitEl });
   const hideNext = () => box.querySelector('.pmd-next').classList.add('hidden');
-  await say('¡Hola! Te doy la bienvenida. ¿Vienes a inscribirte? Necesito un nombre para el formulario de inscripción.', 'Happy');
+  await say(t('prologo.chatot1'), 'Happy');
   for (;;) {
     hideNext();
     const name = await keyboard(kb, { label: t('inicio.nombre'), max: 20, min: 2, validate: v => /^[\p{L}\p{N} _.-]{2,20}$/u.test(v) ? null : t('teclado.caracteres') });
-    await say('Y ahora, un código que sólo tú sepas. Será un secreto.');
+    await say(t('prologo.chatot2'));
     hideNext();
     const password = await keyboard(kb, { label: t('inicio.codigo'), max: 32, min: 4, masked: true });
     try {
@@ -192,8 +188,7 @@ async function chatotScene() {
     } catch (e) {
       // ¿ya existe? Puede ser tu propia cuenta, si el registro llegó pero se perdió la respuesta: se prueba a entrar
       if (e.status === 409) { try { const r = await api('/auth/login', { name, password }); setToken(r.token); clearQuiz(); await enterGame(); return; } catch { /* es de otro */ } }
-      await say(e.status === 409 ? '¡Uy! Ese nombre ya lo tiene otro explorador. Dime otro, anda.'
-        : e.status === 0 ? '¡Uy! Tu formulario se ha perdido por el camino… No hay conexión con el gremio. Probemos otra vez.' : e.message, 'Surprised');
+      await say(e.status === 409 ? t('prologo.nombreOcupado') : e.status === 0 ? t('prologo.sinRed') : e.message, 'Surprised');
     }
   }
 }

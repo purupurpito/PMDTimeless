@@ -4,9 +4,14 @@
 // noche, cámara fija y acciones en paralelo. El jugador puede estar oculto («Mientras tanto…»). Start la salta.
 // =====================================================================
 import { drawEmote, EMOTE_LEN, EMOTE_HOLD } from './emotes.js';
+import { getLang } from '../../shared/i18n.js';
 
 const DIRS = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0], 'down-right': [1, 1], 'down-left': [-1, 1], 'up-right': [1, -1], 'up-left': [-1, -1] };
 const FORM_SPECIES = ['meowth', 'cubone', 'smoochum', 'machop', 'charmander', 'clefairy', 'magby', 'teddiursa', 'totodile'];   // la silueta cambiante
+
+// El texto de un paso en el idioma del jugador (en: el inglés; nameEn: el nombre de quien habla, si no es el de la especie)
+const stepText = step => (getLang() === 'en' && step.en) || step.text || '';
+const stepName = step => (getLang() === 'en' && step.nameEn != null) ? step.nameEn : step.name;
 
 let D = null;   // dependencias del juego (estado, render, diálogos, sprites…), las pasa game.js
 export function initScenes(deps) { D = deps; }
@@ -74,7 +79,7 @@ async function runStep(step, c) {
   const who = step.who ? c.actors[step.who] : null;
   switch (step.do) {
     case 'wait': if (step.for) await waitActor(c.actors[step.for]); else await delay(step.ms || 0); return;
-    case 'narration': return narration(c, step.text, step.ms || 2400);
+    case 'narration': return narration(c, stepText(step), step.ms || 2400);
     case 'fade': return fade(c, step.to, step.ms || 700);
     case 'set': if ('night' in step) c.night = !!step.night; if (step.cam) c.cam = { ...step.cam }; if ('fg' in step) c.noFg = !step.fg; D.render(); return;   // (fg: encender o apagar el primer plano de la zona)
     case 'show': if (who) who.hidden = false; return;
@@ -200,8 +205,8 @@ async function say(c, who, step) {
     if (diff >= 2 || step.multi || c.prevSayWho === who) { const f = dirToward(a, who); if (f) a.facing = f; }   // (si va a decir varias frases seguidas, se le mira)
   }
   c.prevSayWho = who;
-  const page = { who: step.name ?? who?.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: (step.text || '').replace(/\{jugador\}/g, D.playerName?.() || 'Novato'), think: !!step.think };
-  if (step.unknown || who?.form) { page.who = step.name ?? '???'; page.sp = null; }   // name: '' = una voz sin nombre (desde fuera de plano)
+  const page = { who: stepName(step) ?? who?.name ?? (who ? D.speciesName(who.sp) : ''), sp: step.unknown ? null : who?.sp, mood: step.mood || 'Normal', text: stepText(step).replace(/\{jugador\}/g, D.playerName?.() || 'Novato'), think: !!step.think };
+  if (step.unknown || who?.form) { page.who = stepName(step) ?? '???'; page.sp = null; }   // name: '' = una voz sin nombre (desde fuera de plano)
   // el retrato se voltea a la derecha para el segundo interlocutor (como en el original)
   page.side = c.lastSpeaker && c.lastSpeaker !== (who?.id || page.who) ? 'right' : 'left'; c.lastSpeaker = who?.id || page.who;
   if (who) { who.still = true; c.speaking = who; }
@@ -495,6 +500,14 @@ function drawBird(ctx, c, camX) {
   ctx.restore();
 }
 // ---------- el cartel de «SE BUSCA» (a pantalla completa) ----------
+const WANTED_TEXT = {
+  es: { head: '— ATENCIÓN, EXPLORADORES —', title: 'SE BUSCA', stamp: 'LADRÓN', reward: 'RECOMPENSA', money: '3.000 Pokés',
+        rows: [['Especie', ['Desconocida']], ['Visto', ['Plaza del gremio, de noche']], ['Botín', ['La bandeja de las entregas,', 'una Baya Aranja y la pluma', 'de escribir de Chatot']], ['Peligro', ['¿?']]],
+        note: ['Cualquier pista, comunicádsela a Chatot.', '¡No actuéis por vuestra cuenta!'] },
+  en: { head: '— ATTENTION, EXPLORERS —', title: 'WANTED', stamp: 'THIEF', reward: 'REWARD', money: '3,000 Poké',
+        rows: [['Species', ['Unknown']], ['Seen', ['Guild Square, at night']], ['Loot', ['The delivery tray,', 'an Oran Berry and', "Chatot's writing quill"]], ['Danger', ['??']]],
+        note: ['Report any clues to Chatot.', "Don't act on your own!"] },
+};
 function drawWantedPoster(ctx, W, H, t0) {
   const k = Math.min(1, (now() - t0) / 260), s = 0.85 + 0.15 * (1 - Math.pow(1 - k, 3));
   ctx.fillStyle = `rgba(3,5,15,${0.7 * k})`; ctx.fillRect(0, 0, W, H);
@@ -511,9 +524,10 @@ function drawWantedPoster(ctx, W, H, t0) {
   ctx.strokeStyle = 'rgba(107,74,34,.5)'; ctx.lineWidth = 1; ctx.strokeRect(-pw / 2 + 12, -ph / 2 + 22, pw - 24, ph - 34);
   // chincheta
   ctx.fillStyle = '#7a1010'; ctx.beginPath(); ctx.arc(0, -ph / 2 + 9, 8, 0, 7); ctx.fill(); ctx.fillStyle = '#d83030'; ctx.beginPath(); ctx.arc(-1, -ph / 2 + 8, 6, 0, 7); ctx.fill(); ctx.fillStyle = '#ff9090'; ctx.beginPath(); ctx.arc(-3, -ph / 2 + 6, 2, 0, 7); ctx.fill();
+  const tx = getLang() === 'en' ? WANTED_TEXT.en : WANTED_TEXT.es;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#8a2418'; ctx.font = 'bold 13px Georgia, serif'; ctx.fillText('— ATENCIÓN, EXPLORADORES —', 0, -ph / 2 + 36);
-  ctx.fillStyle = '#3a2410'; ctx.font = 'bold 44px Georgia, serif'; ctx.fillText('SE BUSCA', 0, -ph / 2 + 72);
+  ctx.fillStyle = '#8a2418'; ctx.font = 'bold 13px Georgia, serif'; ctx.fillText(tx.head, 0, -ph / 2 + 36);
+  ctx.fillStyle = '#3a2410'; ctx.font = 'bold 44px Georgia, serif'; ctx.fillText(tx.title, 0, -ph / 2 + 72);
   // retrato: una silueta que nadie ha visto bien
   const T = -ph / 2, fw = 132, fh = 84, fx = -fw / 2, fy = T + 94;
   ctx.fillStyle = '#6b4a22'; ctx.fillRect(fx - 4, fy - 4, fw + 8, fh + 8); ctx.fillStyle = '#d9c28f'; ctx.fillRect(fx, fy, fw, fh);
@@ -543,9 +557,9 @@ function drawWantedPoster(ctx, W, H, t0) {
   ctx.save(); ctx.translate(2, fy + 30); ctx.rotate(0.1); ctx.fillStyle = 'rgba(176, 34, 28, .92)'; ctx.font = 'bold 40px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', 0, 0); ctx.restore();
   // sello «LADRÓN», cruzando la esquina del retrato
   ctx.save(); ctx.translate(66, fy + 78); ctx.rotate(-0.18); ctx.strokeStyle = 'rgba(180,30,30,.85)'; ctx.lineWidth = 3; ctx.strokeRect(-44, -13, 88, 26); ctx.lineWidth = 1; ctx.strokeRect(-40, -9, 80, 18);
-  ctx.fillStyle = 'rgba(180,30,30,.9)'; ctx.font = 'bold 16px Georgia, serif'; ctx.fillText('LADRÓN', 0, 1); ctx.restore();
+  ctx.fillStyle = 'rgba(180,30,30,.9)'; ctx.font = 'bold 16px Georgia, serif'; ctx.fillText(tx.stamp, 0, 1); ctx.restore();
   // ficha: etiqueta a la izquierda, valor alineado a la derecha de todas las etiquetas
-  const L = -pw / 2 + 28, V = L + 86, rows = [['Especie', ['Desconocida']], ['Visto', ['Plaza del gremio, de noche']], ['Botín', ['La bandeja de las entregas,', 'una Baya Aranja y la pluma', 'de escribir de Chatot']], ['Peligro', ['¿?']]];
+  const L = -pw / 2 + 28, V = L + 86, rows = tx.rows;
   ctx.textAlign = 'left'; let ry = fy + fh + 22;
   for (const [a, vals] of rows) {
     ctx.fillStyle = '#5a3a18'; ctx.font = 'bold 12px Georgia, serif'; ctx.fillText(a + ':', L, ry);
@@ -555,10 +569,10 @@ function drawWantedPoster(ctx, W, H, t0) {
   // recompensa
   ctx.strokeStyle = 'rgba(107,74,34,.45)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-pw / 2 + 30, ry + 2); ctx.lineTo(pw / 2 - 30, ry + 2); ctx.stroke();
   ry += 16; ctx.textAlign = 'center';
-  ctx.fillStyle = '#8a2418'; ctx.font = 'bold 12px Georgia, serif'; ctx.fillText('RECOMPENSA', 0, ry); ry += 22;
+  ctx.fillStyle = '#8a2418'; ctx.font = 'bold 12px Georgia, serif'; ctx.fillText(tx.reward, 0, ry); ry += 22;
   ctx.fillStyle = '#b8891c'; ctx.beginPath(); ctx.arc(-78, ry, 10, 0, 7); ctx.fill(); ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(-78, ry, 7, 0, 7); ctx.fill();
-  ctx.fillStyle = '#3a2410'; ctx.font = 'bold 24px Georgia, serif'; ctx.fillText('3.000 Pokés', 6, ry + 1); ry += 24;
-  ctx.fillStyle = '#4a3014'; ctx.font = 'italic 11px Georgia, serif'; ctx.fillText('Cualquier pista, comunicádsela a Chatot.', -16, ry); ctx.fillText('¡No actuéis por vuestra cuenta!', -16, ry + 13);
+  ctx.fillStyle = '#3a2410'; ctx.font = 'bold 24px Georgia, serif'; ctx.fillText(tx.money, 6, ry + 1); ry += 24;
+  ctx.fillStyle = '#4a3014'; ctx.font = 'italic 11px Georgia, serif'; ctx.fillText(tx.note[0], -16, ry); ctx.fillText(tx.note[1], -16, ry + 13);
   // firma y sello de lacre del gremio, abajo
   const sy = ph / 2 - 30;
   ctx.textAlign = 'center';

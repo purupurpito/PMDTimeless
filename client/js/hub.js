@@ -37,26 +37,29 @@ export const HUB = {
     exits: [
       { rect: [340, 494, 470, 515], to: 'plaza', at: { x: 384, y: 228 } },                                    // la luz de la salida
       { rect: [174, 210, 228, 226], to: 'descanso', at: { x: 372, y: 288 }, label: 'salida.descanso' },   // escalón de abajo de la escalera del hueco
-      // (la puerta a la sala de los trofeos: quitada el 16 de octubre hasta que se rehagan la puerta y la sala; ver docs/TAREAS-nocturno.md)
+      { rect: [544, 240, 584, 254], to: 'trofeos', at: { x: 384, y: 478 }, label: 'salida.trofeos', when: m => (m.scenes || []).includes('exp-vuelta') },   // por la puerta del despacho de Pidgeot (abierta tras la Expedición): la sala de los trofeos es parte de su despacho
     ],
     npcs: [
       { id: 'chatot', x: 440, y: 206, facing: [0, 1], talk: 'chatot' },                                          // junto al tablón
       { id: 'machamp', x: 278, y: 370, facing: [1, 0], talk: 'machamp', afterScene: 'veteranos', fixedFacing: true, reach: 56 },      // de otro equipo: tranquilo y fuerte
       { id: 'heracross', x: 542, y: 382, facing: [-1, 0], talk: 'heracross', afterScene: 'veteranos', fixedFacing: true, reach: 56 },  // y ruidoso
       { id: 'ampharos', x: 302, y: 298, facing: [1, 0], talk: 'ampharos', afterScene: 'veteranos', fixedFacing: true, reach: 56 },     // y despistada
-      { id: 'mawile', x: 546, y: 256, facing: [-1, 1], talk: 'mawile', fixedFacing: true, reach: 44 },          // sobre el felpudo, guardando el despacho
+      { id: 'mawile', x: 546, y: 256, facing: [-1, 1], talk: 'mawile', fixedFacing: true, reach: 44, untilScene: 'exp-vuelta' },          // sobre el felpudo, guardando el despacho
+      { id: 'mawile', x: 500, y: 268, facing: [1, 0], talk: 'mawile', fixedFacing: true, reach: 44, afterScene: 'exp-vuelta' },          // tras la Expedición («lo del despacho: déjalo abierto»): a un lado, la puerta libre
     ],
     hotspots: [ { rect: [300, 190, 480, 236], action: 'board', label: 'tablon.pista' } ],
   },
-  // La sala de los trofeos del gremio (puerta de la pared izquierda). La vitrina del centro, vacía: es para la Pluma Trueno.
-  // Colisiones provisionales.
+  // La sala de los trofeos del gremio (rehecha el 17 de octubre): armarios con trofeos (iconos de objetos, puestos por
+  // tools/imagenes/salida/trofeos/componer.py) y la urna del centro, vacía: es para la Pluma Trueno. Colisiones provisionales.
+  // Aún sin puerta en el gremio: la salida lleva de momento al centro del gremio.
   trofeos: {
-    img: 'client/assets/hub/trofeos.png', mask: 'client/assets/hub/trofeos_mask.png', spawn: { x: 384, y: 470 },
-    exits: [ { rect: [330, 494, 440, 515], to: 'gremio', at: { x: 100, y: 270 } } ],
+    img: 'client/assets/hub/trofeos.png', mask: 'client/assets/hub/trofeos_mask.png', spawn: { x: 384, y: 478 },
+    exits: [ { rect: [300, 500, 470, 515], to: 'gremio', at: { x: 548, y: 270 } } ],   // (de vuelta, en el felpudo de la puerta del despacho)
     npcs: [],
     signs: [
-      { rect: [340, 150, 426, 318], text: 'letrero.vitrina' },
-      { rect: [320, 60, 446, 150], text: 'letrero.ventana' },
+      { rect: [352, 256, 424, 400], text: 'letrero.vitrina' },
+      { rect: [132, 100, 264, 264], text: 'letrero.armario' }, { rect: [504, 100, 636, 264], text: 'letrero.armario' },
+      { rect: [264, 30, 504, 238], text: 'letrero.ventana' },
     ],
   },
   // Zona de descanso: arriba, en el nido del gremio (se sube por la escalera del interior). Aquí se aparece al volver
@@ -71,9 +74,10 @@ export const HUB = {
     npcs: [ { id: 'chansey', x: 522, y: 238, facing: [0, 1], talk: 'chansey', fixedFacing: true, reach: 84, approach: [462, 300, 600, 360] },   // tras el mostrador
             // Smeargle, recuperándose en una cama (dormido hasta que llegan los veteranos)
             { id: 'smeargle', x: 146, y: 436, facing: [1, 1], talk: 'smeargle', afterScene: 'smeargle-vuelve', pose: 'Sleep', poseUntil: 'veteranos', fixedFacing: true, reach: 56 },
-            // los compañeros de Smeargle, rescatados de la Cueva Húmeda: a reposo junto a él
-            { id: 'teddiursa', x: 196, y: 420, facing: [-1, 1], talk: 'teddiursa', afterScene: 'cueva-rescate', reach: 48 },
-            { id: 'sentret', x: 204, y: 452, facing: [-1, 0], talk: 'sentret', afterScene: 'cueva-rescate', reach: 48 } ],
+            // los compañeros de Smeargle, rescatados de la Cueva Húmeda: de pie en el suelo, a la derecha de su cama (fuera de la
+            // paja y sin pisarse), mirándolo: Sentret, junto a la esquina de arriba; Teddiursa, entre la cama y la mesita del té
+            { id: 'teddiursa', x: 262, y: 416, facing: [-1, 0], talk: 'teddiursa', afterScene: 'cueva-rescate', reach: 48 },
+            { id: 'sentret', x: 236, y: 372, facing: [-1, 1], talk: 'sentret', afterScene: 'cueva-rescate', reach: 48 } ],
   },
   // Fuente de la Evolución (a la derecha de la plaza). Hecha con el tileset original de Apple Woods: tools/build-fuente.py.
   // El camino sigue hacia la derecha, pero el bosque aún no deja pasar.

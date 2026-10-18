@@ -7,36 +7,39 @@ import { asset } from './ui.js';
 
 // qué suena en cada sitio (las zonas sin pista propia usan la de la plaza)
 // loop = duración musical exacta (compases × pulsos × 60 / BPM): así el empalme cae siempre en su sitio,
-// aunque el navegador añada silencio al decodificar el MP3 (Safari lo hace)
+// aunque el navegador añada silencio al decodificar el MP3 (Safari lo hace). Los BPM y compases, los del script que genera
+// cada pista (compose-v3.py, compose-dungeons.py, compose-scenes.py, compose-music.py); el grupo `musica` los comprueba
 // Pistas propias (sintetizadas por código). Etiquetas para localizarlas si hay que quitarlas o cambiarlas:
-//   set: 'base' → menú, test y aldea (0.3–0.4) · 'B' → tanda de la 0.5.0 · 'antigua' → primer tema del menú
+//   set: 'base' → menú, test y aldea (0.3–0.4) · 'B' → tanda de la 0.5.0 · 'antigua' → primer tema del menú · 'montañas' → temas propios de la Sierra y la Gélida
 //   approved: true si ya está dada por buena; false si está pendiente de revisar
 const TRACKS = {
   menu:    { url: 'client/assets/music/menu.mp3', loop: 16 * 4 * 60 / 88, set: 'base', approved: true },        // menú principal
   quiz:    { url: 'client/assets/music/quiz.mp3', loop: 16 * 4 * 60 / 72, set: 'base', approved: true },        // test de personalidad y escenas de entrada
   village: { url: 'client/assets/music/village.mp3', loop: 32 * 4 * 60 / 113, set: 'base', approved: true },   // aldea (plaza, gremio, mercado, casas)
   rest:    { url: 'client/assets/music/rest.mp3', loop: 12 * 4 * 60 / 64, set: 'B', approved: true },         // zona de descanso (nana)
-  sad:     { url: 'client/assets/music/sad.mp3', set: 'antigua', approved: true },                            // escena triste: despertar tras caer
+  sad:     { url: 'client/assets/music/sad.mp3', loop: 16 * 4 * 60 / 66, set: 'antigua', approved: true },                            // escena triste: despertar tras caer
   // mazmorras
-  bosque:  { url: 'client/assets/music/bosque.mp3', loop: 16 * 4 * 60 / 108, set: 'B', approved: false },      // Bosque Frondoso y Campo de Entrenamiento
+  bosque:  { url: 'client/assets/music/bosque.mp3', loop: 16 * 4 * 60 / 104, set: 'B', approved: false },      // Bosque Frondoso y Campo de Entrenamiento
   cueva:   { url: 'client/assets/music/cueva.mp3', loop: 16 * 4 * 60 / 90, set: 'B', approved: false },
-  monte:   { url: 'client/assets/music/monte.mp3', loop: 16 * 4 * 60 / 120, set: 'B', approved: false },
+  monte:   { url: 'client/assets/music/monte.mp3', loop: 16 * 4 * 60 / 88, set: 'B', approved: false },
+  sierra:  { url: 'client/assets/music/sierra.mp3', loop: 16 * 4 * 60 / 104, set: 'montañas', approved: false },   // Sierra Ígnea (pendiente de aprobación)
+  gelida:  { url: 'client/assets/music/gelida.mp3', loop: 16 * 4 * 60 / 96, set: 'montañas', approved: false },    // Montaña Gélida (pendiente de aprobación)
   ruinas:  { url: 'client/assets/music/ruinas.mp3', loop: 16 * 4 * 60 / 82, set: 'B', approved: true },
-  tiempo:  { url: 'client/assets/music/tiempo.mp3', loop: 16 * 4 * 60 / 126, set: 'B', approved: false },
-  suenos:  { url: 'client/assets/music/suenos.mp3', loop: 16 * 4 * 60 / 74, set: 'B', approved: false },
-  boss:    { url: 'client/assets/music/boss.mp3', loop: 16 * 4 * 60 / 150, set: 'B', approved: false },        // jefe
-  mega:    { url: 'client/assets/music/mega.mp3', loop: 16 * 4 * 60 / 140, set: 'B', approved: false },        // guardián Mega
+  tiempo:  { url: 'client/assets/music/tiempo.mp3', loop: 8 * 4 * 60 / 132 + 4 * 4 * 60 / 146 + 4 * 4 * 60 / 160 + 2 * 4 * 60 / 84, set: 'B', approved: false },   // cambia de velocidad: la suma de sus cuatro tramos
+  suenos:  { url: 'client/assets/music/suenos.mp3', loop: 16 * 4 * 60 / 92, set: 'B', approved: false },
+  boss:    { url: 'client/assets/music/boss.mp3', loop: 16 * 4 * 60 / 152, set: 'B', approved: false },        // jefe
+  mega:    { url: 'client/assets/music/mega.mp3', loop: 16 * 4 * 60 / 126, set: 'B', approved: false },        // guardián Mega
   monster_house: { url: 'client/assets/music/monster_house.mp3', loop: 8 * 4 * 60 / 160, set: 'B', approved: false },
-  shop:    { url: 'client/assets/music/shop.mp3', loop: 8 * 4 * 60 / 112, set: 'B', approved: false },         // tienda de Kecleon (en la mazmorra)
+  shop:    { url: 'client/assets/music/shop.mp3', loop: 16 * 4 * 60 / 112, set: 'B', approved: false },         // tienda de Kecleon (en la mazmorra)
   tension: { url: 'client/assets/music/scene_tension.mp3', loop: 16 * 4 * 60 / 76, set: 'B', approved: false },     // escenas de misterio (compuesta: tools/compose-scenes.py)
-  dusk:    { url: 'client/assets/music/scene_dusk.mp3',    loop: 16 * 4 * 60 / 62, set: 'B', approved: false },     // el atardecer: melancólica y algo preocupada
+  dusk:    { url: 'client/assets/music/scene_dusk.mp3',    loop: 16 * 4 * 60 / 70, set: 'B', approved: false },     // el atardecer: melancólica y algo preocupada
   comedy:  { url: 'client/assets/music/scene_comedy.mp3',  loop: 16 * 4 * 60 / 128, set: 'B', approved: false },    // «de puntillas»: las escenas de enredos
   // fanfarrias (una sola vez, sin bucle)
   clear:   { url: 'client/assets/music/clear.mp3', once: true, set: 'B', approved: false },
   defeat:  { url: 'client/assets/music/defeat.mp3', once: true, set: 'B', approved: false },
 };
 // Lista de pistas con sus etiquetas (para consultarla desde la consola: window.__mmTracks())
-if (typeof window !== 'undefined') window.__mmTracks = () => Object.entries(TRACKS).map(([k, t]) => ({ pista: k, set: t.set, aprobada: t.approved }));
+if (typeof window !== 'undefined') window.__mmTracks = () => Object.entries(TRACKS).map(([k, t]) => ({ pista: k, set: t.set, aprobada: t.approved, url: t.url, loop: t.loop || null, once: !!t.once }));
 const ZONE_TRACK = { plaza: 'village', gremio: 'village', descanso: 'rest', mercado: 'village', aldea: 'village', fuente: 'quiz', barrio: 'village', observatorio: 'village', trofeos: 'village' };   // la fuente: el tema del test («conócete primero»)
 const FADE = 1.2; // segundos de transición
 

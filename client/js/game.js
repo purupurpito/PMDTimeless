@@ -8,8 +8,8 @@ import { WEATHER, MEGA_STONES, DREAM_DUNGEON, MEGA_DIALOG } from '../../shared/d
 import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
-import { storyLineFor, letterById, SABLEYE_LINES, pendingScene } from '../../shared/story.js';
-import { canRecruit, JUICES } from '../../shared/data.js';
+import { storyLineFor, storyPageText, letterById, letterText, sableyeLine, pendingScene } from '../../shared/story.js';
+import { canRecruit, JUICES, BOXES } from '../../shared/data.js';
 import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt, drawScreenFade, releaseBlack } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
 import { spawnMoveFx, drawMoveFx, fxEndTime, fxShake, spawnSuperEffective } from './vfx.js';
@@ -252,9 +252,9 @@ export async function startGame(me) {
   window.__mmPlayScene = id => { const sc = SCENES_ALL().find(s => s.id === id); return sc ? playScene(sc) : Promise.resolve(); };
   setupScaleSelector(); requestAnimationFrame(applyScale);
   window.__mmPause = () => pauseRun(); window.__mmResume = () => resumeRun();
-  window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmOpenMain = () => openDungeonMainMenu(); window.__mmBoard = () => openBoardMenu(); window.__mmTalk = k => talkTo(k); window.__mmSees = (e, t) => enemySees(e, t); window.__mmEnemyTurn = e => enemyTurn(e); window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
+  window.__mmHUB = HUB; window.__mmLastCam = () => lastCam; window.__mmOpenMain = () => openDungeonMainMenu(); window.__mmBoard = () => openBoardMenu(); window.__mmTalk = k => talkTo(k); window.__mmRender = () => render(); window.__mmSees = (e, t) => enemySees(e, t); window.__mmEnemyTurn = e => enemyTurn(e); window.__mmCall = (p, b) => call(p, b); window.__mmTileAt = (x, y) => tileAtScreen(x, y); window.__mmSpecies = sp => SPECIES[sp]; window.__mmKeeper = () => openKeeperMenu(); window.__mmTmFor = sp => { const ok = TM_POOL.find(m => canLearnMachine(sp, m) && MOVES[m]?.power), no = TM_POOL.find(m => !canLearnMachine(sp, m)); return ok ? { ok, no } : null; }; window.__mmCFG = CFG; window.__mmShopCfg = SHOP_IN_DUNGEON; window.__mmTryRecruit = e => tryRecruit(e, state.player); window.__mmNewFloor = () => newFloor(); window.__mmOfferMove = (m, perm) => offerMove(m, perm); window.__mmStartRun = def => startRun(def); window.__mmDungeonById = id => dungeonById(id); window.__mmTilesetOf = () => currentTileset()?.set; window.__mmAbandon = () => endRun('exit'); window.__mmSprites = () => Sprites; window.__mmOpenDialog = (p, cb) => openDialog(p, cb); window.__mmStages = (m, c) => applyStages(m, c);
   window.__mmGainExp = (m, n) => gainExp(m, n); window.__mmExpToNext = expToNext; window.__mmBag = () => openBagMenu(); window.__mmIconOf = t => itemInText(t);
-  window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmAreaName = a => areaNm(a); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y);
+  window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmAreaName = a => areaNm(a); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y); window.__mmCorner = (a, b) => cornerFree(a, b);
   window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l); window.__mmUseMove = (m, mv) => useMove(m, { ...MOVES[mv], name: mv });
   window.__mmDefeat = (e, by) => defeatEnemy(e, by); window.__mmAddItem = n => addItem(n); window.__mmMoves = MOVES; window.__mmSlot = i => useMoveSlot(i); window.__mmAct = (k, dx, dy) => playerAction(k, dx, dy); window.__mmPath = (to) => dungeonPath(state.player, to); window.__mmUseItem = i => useItem(i); window.__mmPlace = j => placeItem(j); window.__mmDescend = () => descend(); window.__mmTips = () => dungeonTips(); window.__mmAskStairs = () => askStairs(); window.__mmPassing = () => !!passTimer; window.__mmEndTurn = () => endTurn(false);
   window.__mmVisibleNpcs = () => HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden).map(n => n.id); window.__mmHubPath = hubPath; window.__mmHubFree = hubFree; window.__mmGetMeta = () => meta; window.__mmEndRun = o => endRun(o); // pruebas automáticas
@@ -310,11 +310,12 @@ function hubAssetsReady() {
 // DIÁLOGOS (cuadro de texto estilo PMD en el canvas)
 // =====================================================================
 function openDialog(pages, onDone) { state.feed = []; state.dialog = { pages, i: 0, onDone }; state.tutorialFocus = pages[0]?.focus || null; render(); }
+const megaLines = (dlg, k) => enOr(dlg.en?.[k], dlg[k]);   // lo que dice el guardián Mega, en el idioma del jugador
 // Diálogo del guardián Mega: bloquea el combate hasta cerrarlo; tras N turnos-diálogo, o al cerrarlo, empieza a atacar.
 function megaEncounter(e) {
   if (e.megaMet) return; e.megaMet = true;
   const dlg = MEGA_DIALOG[e.species]; if (!dlg) return;
-  openDialog(dlg.intro.map(t => ({ who: monNm(e), text: t, font: dlg.font, color: dlg.color })), () => { if (dlg.behavior !== 'flee') e.megaHostile = true; });
+  openDialog(megaLines(dlg, 'intro').map(t => ({ who: monNm(e), text: t, font: dlg.font, color: dlg.color })), () => { if (dlg.behavior !== 'flee') e.megaHostile = true; });
 }
 // =====================================================================
 // TUTORIAL: Chatot te lleva andando por el gremio y la aldea, parando en cada sitio, y acaba en la
@@ -674,28 +675,34 @@ function moveWanderers() {
 }
 // Interacción (A = Z): PNJ delante, carteles o zonas activas
 // Frases de los tenderos al hablar con ellos (rotan por turnos), y después su menú
-const KECLEON_GREEN_LINES = ['¡Bienvenido, bienvenido! Mira, mira: género fresco de esta misma mañana.', '¿Semillas? ¿Bayas? ¿Un orbe para salir del apuro? ¡Kecleon lo tiene todo!', 'Mi hermano compra, yo vendo. Somos un equipo… aunque yo trabajo más, no se lo digas.', '¡Un explorador prevenido vale por dos! ¿Qué te pongo?'];
-const KECLEON_PURPLE_LINES = ['¿Qué me traes hoy? Perlas, pepitas, tesoros olvidados… ¡Todo lo que brilla vale Pokés!', 'Mi hermano habla demasiado. Yo prefiero que hablen los objetos. Enséñamelos.', 'Pago bien. No tanto como me gustaría a mí, ni tanto como te gustaría a ti. Un trato justo.', 'Si encuentras algo raro en una mazmorra, no lo tires. Tráemelo.'];
-const KANGASKHAN_LINES = ['¡Hola, cielo! ¿Guardamos algo a buen recaudo?', 'Lo que dejes conmigo no se pierde ni aunque te pase algo ahí fuera. Palabra de madre.', 'Mi pequeño dice que quiere ser explorador como tú. Todavía no sabe ni abrir una semilla.', '¿Has comido bien? En las mazmorras se pasa hambre, hazme caso.'];
-const GULPIN_LINES = ['…Gulp.', '¿Eh? Ah. Movimientos. Sí, sí… ¿qué querías?', '…Ñam. …¿Decías algo?'];
+const KECLEON_GREEN_LINES = { es: ['¡Bienvenido, bienvenido! Mira, mira: género fresco de esta misma mañana.', '¿Semillas? ¿Bayas? ¿Un orbe para salir del apuro? ¡Kecleon lo tiene todo!', 'Mi hermano compra, yo vendo. Somos un equipo… aunque yo trabajo más, no se lo digas.', '¡Un explorador prevenido vale por dos! ¿Qué te pongo?'],
+  en: ["Welcome, welcome! Look, look: fresh stock from this very morning.", "Seeds? Berries? An Orb to get you out of a tight spot? Kecleon has it all!", "My brother buys, I sell. We're a team… though I do more of the work. Don't tell him.", "A prepared explorer is worth two! What can I get you?"] };
+const KECLEON_PURPLE_LINES = { es: ['¿Qué me traes hoy? Perlas, pepitas, tesoros olvidados… ¡Todo lo que brilla vale Pokés!', 'Mi hermano habla demasiado. Yo prefiero que hablen los objetos. Enséñamelos.', 'Pago bien. No tanto como me gustaría a mí, ni tanto como te gustaría a ti. Un trato justo.', 'Si encuentras algo raro en una mazmorra, no lo tires. Tráemelo.'],
+  en: ["What have you brought me today? Pearls, Nuggets, forgotten treasures… Everything that shines is worth Poké!", "My brother talks too much. I'd rather let the items do the talking. Show me.", "I pay well. Not as much as I'd like, nor as much as you'd like. A fair deal.", "If you find something odd in a dungeon, don't throw it away. Bring it to me."] };
+const KANGASKHAN_LINES = { es: ['¡Hola, cielo! ¿Guardamos algo a buen recaudo?', 'Lo que dejes conmigo no se pierde ni aunque te pase algo ahí fuera. Palabra de madre.', 'Mi pequeño dice que quiere ser explorador como tú. Todavía no sabe ni abrir una semilla.', '¿Has comido bien? En las mazmorras se pasa hambre, hazme caso.'],
+  en: ["Hello, dear! Shall we put something somewhere safe?", "Whatever you leave with me won't get lost, even if something happens to you out there. A mother's word.", "My little one says he wants to be an explorer like you. He can't even open a seed yet.", "Have you eaten properly? You go hungry in the dungeons, mark my words."] };
+const GULPIN_LINES = { es: ['…Gulp.', '¿Eh? Ah. Movimientos. Sí, sí… ¿qué querías?', '…Ñam. …¿Decías algo?'],
+  en: ["…Gulp.", "Huh? Ah. Moves. Yes, yes… what did you want?", "…Munch. …Did you say something?"] };
 // Murkrow, el cartero del gremio (junto al buzón de la plaza). También firma los anuncios del juego en Discord.
-const MURKROW_LINES = [
+const MURKROW_LINES = { es: [
   '¡Crrraaa! Soy Murkrow, el cartero del gremio. Si te llega algo, lo guardo en este buzón hasta que pases a por ello.',
   '¡Crrraaa! Cuando tengas correo, serás el primero en saberlo. ¡Palabra de cartero!',
   'Las noticias vuelan, y yo con ellas. ¡Crrraaa! Si pasa algo en el gremio, me enteraré antes que nadie.',
   '¿Sabías que llevo las novedades del gremio a todos los rincones? ¡Crrraaa! Nadie reparte como yo.',
-];
+],
+  en: ["Caaaw! I'm Murkrow, the guild's postman. If anything comes for you, I keep it in this mailbox until you come to collect it.", "Caaaw! When you've got mail, you'll be the first to know. Postman's honour!", "News flies, and so do I. Caaaw! If anything happens at the guild, I'll know before anyone else.", "Did you know I carry the guild's news to every corner? Caaaw! Nobody delivers like me."] };
 // Al completar el Bosque Frondoso se abre el camino a la Fuente: Murkrow da la noticia la primera vez que pasas por la plaza
 function fountainNews() {
   if (state.hub?.area !== 'plaza' || !meta?.cleared?.includes('bosque')) return;
   const key = `pmdt_fuente_${user?.name}`; try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { return; }
-  openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: '¡Crrraaa! ¡Noticias frescas! Han abierto un camino a la derecha de la plaza…' },
-    { who: 'Murkrow', sp: 'murkrow', mood: 'Normal', text: 'Dicen que lleva a una fuente muy antigua. Y que alguien espera allí desde hace muchísimo tiempo. ¡Crrraaa!' }]);
+  openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: t('murkrow.fuente1') },
+    { who: 'Murkrow', sp: 'murkrow', mood: 'Normal', text: t('murkrow.fuente2') }]);
 }
+const lineIn = lines => Array.isArray(lines) ? lines : lines[getLang()] || lines.es;   // { es: [...], en: [...] }: las del idioma del jugador
 function npcGreeting(who, lines, key, next, sp) {
   const c = hubCounters(); c[key] = (c[key] || 0) + 1; saveHubCounters(c);
   const portrait = sp || who.toLowerCase();   // sin retrato indicado: el de su especie
-  return openDialog([{ who, sp: portrait, text: lines[(c[key] - 1) % lines.length] }], next);
+  return openDialog([{ who, sp: portrait, text: lineIn(lines)[(c[key] - 1) % lineIn(lines).length] }], next);
 }
 function hubInteract() {
   const h = state.hub, area = HUB[h.area], fx = h.x + h.facing[0] * 22, fy = h.y + h.facing[1] * 22;
@@ -703,13 +710,14 @@ function hubInteract() {
   const talkScore = n => Math.hypot(n.x - fx, n.y - fy) + (((n.x - h.x) * h.facing[0] + (n.y - h.y) * h.facing[1]) < 0 ? 1000 : 0);   // los que tienes a la espalda, al final
   const npc = [...area.npcs].filter(npcShown).filter(n => (!n.approach || inRect(h.x, h.y, n.approach)) && (Math.hypot(n.x - fx, n.y - fy) < (n.reach ? n.reach - 20 : 24) || Math.hypot(n.x - h.x, n.y - h.y) < (n.reach || 26))).sort((a, b) => talkScore(a) - talkScore(b))[0];
   if (npc) { if (!npc.fixedFacing) npc.facing = [-Math.sign(h.facing[0]), -Math.sign(h.facing[1])]; state.talkNpc = { x: npc.x, y: npc.y, area: h.area }; return talkTo(npc.talk); }
-  const w = h.wanderers.find(n => Math.hypot(n.x - fx, n.y - fy) < 20); if (w) return openDialog([{ who: spNm(w.species), text: WANDER_LINES[(Math.random() * WANDER_LINES.length) | 0] }]);
+  const w = h.wanderers.find(n => Math.hypot(n.x - fx, n.y - fy) < 20); if (w) return openDialog([{ who: spNm(w.species), text: lineIn(WANDER_LINES)[(Math.random() * lineIn(WANDER_LINES).length) | 0] }]);
   for (const s of area.signs || []) if ((!s.when || s.when(meta || {})) && inRect(fx, fy, s.rect)) return s.action === 'telescope' ? lookTelescope() : openDialog([{ who: '', text: t(s.text) }]);   // (when: solo si se cumple, p. ej. la roca del café)
   for (const hs of area.hotspots || []) if (inRect(fx, fy, hs.rect) || inRect(h.x, h.y, hs.rect)) return hotspotAction(hs);
   for (const ex of area.exits) if (ex.action === 'dungeons' && inRect(fx, fy, ex.rect)) return openDungeonMenu();
   for (const ex of area.exits) if (ex.action === 'brumas' && inRect(fx, fy, ex.rect)) return enterBrumas();
 }
-const WANDER_LINES = ['¡Buenos días! ¿Eres nuevo en el gremio?', 'Dicen que en el Bosque Frondoso hay un Pokémon verde muy raro.', 'Kecleon sube los precios cada vez que alguien vuelve con una pepita…', 'Mi primo se unió a un equipo de exploración y ya no escribe.', 'Cuidado con las Casas Monstruo. Yo perdí ahí a mi mejor amigo. Bueno, se hizo amigo de ellos.'];
+const WANDER_LINES = { es: ['¡Buenos días! ¿Eres nuevo en el gremio?', 'Dicen que en el Bosque Frondoso hay un Pokémon verde muy raro.', 'Kecleon sube los precios cada vez que alguien vuelve con una pepita…', 'Mi primo se unió a un equipo de exploración y ya no escribe.', 'Cuidado con las Casas Monstruo. Yo perdí ahí a mi mejor amigo. Bueno, se hizo amigo de ellos.'],
+  en: ["Good morning! Are you new at the guild?", "They say there's a very strange green Pokémon in Lush Woods.", "Kecleon raises his prices every time someone comes back with a Nugget…", "My cousin joined an exploration team and doesn't write any more.", "Watch out for Monster Houses. I lost my best friend in one. Well, he made friends with them."] };
 const CHATOT_IDLE = ['Chatot: "Ser la mano derecha del maestro no es fácil, no señor."','Chatot: "El maestro Pidgeot lleva tres dias meditando. Yo creo que duerme."','Chatot: "Sabias que antes repartiamos correo? Otros tiempos."','Chatot: "No toques nada del despacho. Que no. Que no."','Chatot: "Un día me montan un número musical en condiciones."'];
 async function checkMyRescue() {
   if (state.waitingRescue) return;   // la pantalla de espera se encarga (si no, se «comería» el aviso de rescate)
@@ -741,7 +749,7 @@ function talkTo(kind) {
     const seen = storySeen(); seen.add(`${kind}:${s.chapter}`); try { localStorage.setItem(storySeenKey(), JSON.stringify([...seen])); } catch {}
     const SPK = { shop: ['Kecleon', 'kecleon'], sell: ['Kecleon', 'kecleon_purple'], storage: ['Kangaskhan', 'kangaskhan'], rowlet: ['???', 'rowlet'] };
     const [who, sp] = SPK[kind] || [kind[0].toUpperCase() + kind.slice(1), kind];
-    return openDialog(s.pages.map(p => ({ who, sp, mood: p.mood || 'Normal', text: p.text })), s.then ? () => talkToBase(kind) : undefined);
+    return openDialog(s.pages.map(p => ({ who, sp, mood: p.mood || 'Normal', text: storyPageText(p, getLang()) })), s.then ? () => talkToBase(kind) : undefined);
   }
   return talkToBase(kind);
 }
@@ -751,46 +759,49 @@ function openMailbox() {
   track('ui', { what: 'buzón' });
   const list = [...(meta.mail || [])].filter(x => letterById(x.id)).reverse();   // las más nuevas, arriba
   if (!list.length) return openDialog([{ who: 'Murkrow', sp: 'murkrow', text: t('buzon.vacio') }]);
-  openMenu({ title: t('buzon.cartas', { n: unreadMail() }), items: list.map(x => `${x.read ? '   ' : '✉ '}${letterById(x.id).title}`), onSelect: i => readLetter(list[i].id) });
+  openMenu({ title: t('buzon.cartas', { n: unreadMail() }), items: list.map(x => `${x.read ? '   ' : '✉ '}${letterText(letterById(x.id), getLang()).title}`), onSelect: i => readLetter(list[i].id) });
 }
 function readLetter(id) {
   const l = letterById(id), x = (meta.mail || []).find(y => y.id === id);
-  const pages = l.pages.map(t => ({ who: l.from, ...(l.sp ? { sp: l.sp } : {}), text: t }));
+  const who = l.sp ? nm('species', l.sp, l.from) : l.from;
+  const pages = letterText(l, getLang()).pages.map(t => ({ who, ...(l.sp ? { sp: l.sp } : {}), text: t }));
   if (l.murkrow && !x?.read) pages.push({ who: 'Murkrow', sp: 'murkrow', mood: 'Surprised', text: l.murkrow });   // su comentario, la primera vez
   if (x && !x.read) { x.read = true; api('/mail/read', { id }).then(r => { if (r?.mail) meta.mail = r.mail; }).catch(() => {}); }
   openDialog(pages, openMailbox);
 }
-const CAMP_TALK = {
-  pidgeot: ['El lago está al otro lado del bosque. Con esta niebla, quédate cerca de mí.'],
-  pidgeot_back: ['La niebla engaña a cualquiera. Descansa un poco, y lo volvemos a intentar juntos.'],
-  chatot: ['¡Recluta! Las provisiones son para todos. Coge lo que necesites… ¡con moderación!'],
-  machamp: ['La leña de la hoguera la he traído yo. Cuatro brazos tienen sus ventajas.'],
-  heracross: ['¡Yo voy delante! … Bueno, después de Pidgeot. Y de ti. ¡Pero delante del resto!'],
-  ampharos: ['Con esta niebla, mi luz ayuda poco. Pero algo ayuda.'],
-  smeargle: ['Estoy dibujando el campamento. Me falta la niebla… es muy difícil de pintar.'],
-  teddiursa: ['Sentret dice que en el bosque hay fantasmas. Yo no le creo. … ¿Tú le crees?'],
-  sentret: ['¡Hay fantasmas! ¡Los he oído! … O era Heracross roncando.'],
-  mawile: ['Si vuelves con algún rasguño, aquí estaremos. Para eso montamos el campamento.'],
-  sableye: ['Je. Alguien tiene que vigilar las provisiones.'],
+const CAMP_TALK = {   // en el campamento de la Expedición (claves de i18n.js)
+  pidgeot: ['campamento.pidgeot'],
+  pidgeot_back: ['campamento.pidgeot_back'],
+  chatot: ['campamento.chatot'],
+  machamp: ['campamento.machamp'],
+  heracross: ['campamento.heracross'],
+  ampharos: ['campamento.ampharos'],
+  smeargle: ['campamento.smeargle'],
+  teddiursa: ['campamento.teddiursa'],
+  sentret: ['campamento.sentret'],
+  mawile: ['campamento.mawile'],
+  sableye: ['campamento.sableye'],
 };
+const showerNm = s => getLang() === 'en' && s.en || s.name;   // el nombre de una lluvia de estrellas (METEOR_SHOWERS)
 function talkToBase(kind) {
   if (kind === 'clefable') {   // la astrónoma: la lluvia de estrellas de hoy, o la próxima
-    const sh = meteorShowerOn(), nx = nextMeteorShower(), MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    const pages = sh ? ['¡Esta noche hay lluvia de estrellas! Son las ' + sh.name + '.', 'Dicen que, en noches así, en las mazmorras caen trocitos del cielo. ¡Mira bien por el suelo!']
-      : ['Hola. Soy Clefable, la astrónoma de la aldea. Desde aquí se ve todo el cielo.', `La próxima lluvia de estrellas será la de las ${nx.name}, el ${nx.date.getDate()} de ${MES[nx.date.getMonth()]}. ¡No te la pierdas!`, 'Mientras tanto, mira por el telescopio. Cada noche se ve una constelación distinta.'];
+    const sh = meteorShowerOn(), nx = nextMeteorShower();
+    const pages = sh ? [t('clefable.hoy', { lluvia: showerNm(sh) }), t('clefable.hoy2')]
+      : [t('clefable.hola'), t('clefable.proxima', { lluvia: showerNm(nx), dia: nx.date.getDate(), mes: t('mes.' + nx.date.getMonth()) }), t('clefable.telescopio')];
     return openDialog(pages.map((t, i) => ({ who: 'Clefable', sp: 'clefable', mood: sh || i === 1 ? 'Joyous' : 'Happy', text: t })));
   }
   if (kind.startsWith('camp_')) {
     let sp = kind.slice(5), lines = CAMP_TALK[sp];
     if (sp === 'pidgeot' && state.lastRun?.dungeon === 'brumas' && state.lastRun?.outcome !== 'clear') lines = CAMP_TALK.pidgeot_back;
-    return openDialog(lines.map(t => ({ who: SPECIES[sp].name, sp, mood: 'Normal', text: t })));
+    return openDialog(lines.map(k => ({ who: nm('species', sp, SPECIES[sp].name), sp, mood: 'Normal', text: t(k) })));
   }
   switch (kind) {
     case 'mawile':   // guarda la puerta del despacho: solo pasan los de rango Diamante o superior
-      if (rankOf(meta.rankPts) < 4) return openDialog([{ who: 'Mawile', sp: 'mawile', mood: 'Worried', text: 'Lo siento, pero el jefe está ocupado. Por normas estipuladas del gremio, solamente gente de rango Diamante o superior pueden acceder de forma directa a su despacho.' }]);
-      return openDialog([{ who: 'Mawile', sp: 'mawile', mood: 'Happy', text: `¡Rango Diamante! Adelante, ${user.name}. El jefe te recibirá.` }], () => openPidgeotOffice());
+      if (rankOf(meta.rankPts) < 4) return (meta.scenes || []).includes('exp-vuelta') ? openDialog([{ who: 'Mawile', sp: 'mawile', mood: 'Happy', text: t('mawile.abierto') }])   // (tras la Expedición, el despacho abierto: la sala de los trofeos)
+        : openDialog([{ who: 'Mawile', sp: 'mawile', mood: 'Worried', text: t('mawile.cerrado') }]);
+      return openDialog([{ who: 'Mawile', sp: 'mawile', mood: 'Happy', text: t('mawile.pasa', { nombre: user.name }) }], () => openPidgeotOffice());
     case 'chatot_intro': return openDialog([{ who: 'Chatot', sp: 'chatot', mood: 'Happy', text: t('tutorial.cambioIdea') }], () => tutorial(true));
-    case 'sableye_gulpin': return openDialog([{ who: 'Sableye', sp: 'sableye', mood: 'Happy', text: SABLEYE_LINES.helpingGulpin }]);   // ayudando a Gulpin (hasta Bronce)
+    case 'sableye_gulpin': return openDialog([{ who: 'Sableye', sp: 'sableye', mood: 'Happy', text: sableyeLine('helpingGulpin', getLang()) }]);   // ayudando a Gulpin (hasta Bronce)
     case 'murkrow': {
       const n = unreadMail();
       return openMenu({ title: 'Murkrow', items: [n ? t('murkrow.leerN', { n }) : t('murkrow.leer'), t('murkrow.charlar'), t('npc.nada')],
@@ -798,14 +809,12 @@ function talkToBase(kind) {
     }
     case 'rowlet': {   // «???»: una Rowlet que lleva en la fuente tanto tiempo como el maestro del gremio y nunca quiso evolucionar
       const r = (text, mood = 'Normal') => ({ who: '???', sp: 'rowlet', mood, text });
-      if ((meta.stats?.deepestBy?.tiempo || 0) < 100) return openDialog([r('…'), r('Aún no sería bueno para ti evolucionar…', 'Worried'),
-        r('Conócete primero, pelea contra tus debilidades… y cuando hayas logrado eso, entonces estarás listo para tu siguiente forma…', 'Determined'),
-        r('Aunque puedas vivir sin ella.', 'Happy')]);
-      return openDialog([r('…'), r('Has llegado muy lejos. Lo noto.', 'Happy'), r('La fuente aún duerme… Cuando despierte, vuelve a verme.', 'Normal')]);
+      if ((meta.stats?.deepestBy?.tiempo || 0) < 100) return openDialog([r('…'), r(t('rowlet.aun'), 'Worried'), r(t('rowlet.conocete'), 'Determined'), r(t('rowlet.sinElla'), 'Happy')]);
+      return openDialog([r('…'), r(t('rowlet.lejos'), 'Happy'), r(t('rowlet.fuente'), 'Normal')]);
     }
-    case 'chansey': return openDialog([{ who: 'Chansey', sp: 'chansey', mood: 'Happy', text: '¡Bienvenidos a la zona de descanso! Aquí os recuperáis después de cada expedición. Descansad bien, que mañana será otro día de aventuras.' }]);
-    case 'diglett': return openDialog([{ who: 'Diglett', sp: 'diglett', mood: 'Happy', text: '¡Huella reconocida! Pasa, pasa. Y no toques la rejilla.' }]);
-    case 'chatot': return openDialog([{ who: 'Chatot', sp: 'chatot', text: `¿Dudas, ${user.name}? El tablón está justo ahí. El maestro Pidgeot está… ocupado. Siempre está ocupado.` }], () => openMenu({ title: 'Chatot', items: [t('chatot.rango'), t('chatot.diario'), t('chatot.tutorial'), t('npc.nada')], onCancel: closeHub, onSelect: i => i === 0 ? openRankMenu() : i === 1 ? openDiaryMenu() : i === 2 ? tutorial() : closeHub() }));
+    case 'chansey': return openDialog([{ who: 'Chansey', sp: 'chansey', mood: 'Happy', text: t('chansey.hola') }]);
+    case 'diglett': return openDialog([{ who: 'Diglett', sp: 'diglett', mood: 'Happy', text: t('diglett.hola') }]);
+    case 'chatot': return openDialog([{ who: 'Chatot', sp: 'chatot', text: t('chatot.dudas', { nombre: user.name }) }], () => openMenu({ title: 'Chatot', items: [t('chatot.rango'), t('chatot.diario'), t('chatot.tutorial'), t('npc.nada')], onCancel: closeHub, onSelect: i => i === 0 ? openRankMenu() : i === 1 ? openDiaryMenu() : i === 2 ? tutorial() : closeHub() }));
     case 'shop': return npcGreeting('Kecleon', KECLEON_GREEN_LINES, 'kg', openShopMenu);
     case 'sell': return npcGreeting('Kecleon', KECLEON_PURPLE_LINES, 'kp', openSellMenu, 'kecleon_purple');   // el morado, con sus propios retratos
     case 'storage': return npcGreeting('Kangaskhan', KANGASKHAN_LINES, 'kk', openStorageMenu);
@@ -824,24 +833,47 @@ function talkToBase(kind) {
         } });
       });
     }
-    case 'sableye_cafe': return npcGreeting('Sableye', ['¡Je! El tasador del café, a tu servicio. Todo tiene un valor… sobre todo lo que brilla.', 'Esa roca de la plaza… ¿Rodó? Je. Las rocas ruedan, a veces.', '¿Has visto algo de valor por las mazmorras? Enséñamelo. Solo mirar. ¡Je, je!'], 'sb');
-    case 'wobbuffet': return npcGreeting('Wobbuffet', ['¡Wobbuffet!', '¡Wobbu… ffet!', '(Wobbuffet asiente muy serio.) ¡Wobbuffet.'], 'wb');
-    case 'teddiursa': return npcGreeting('Teddiursa', ['Chansey dice que reposo. Reposo es… ¿no moverse? Es difícil.', '¿Tú también bajarás a por el agua de los Wooper? Ampharos lo prometió.', 'Gracias otra vez. Y otra. Y otra más.'], 'td');
-    case 'sentret': return npcGreeting('Sentret', ['Yo vigilaba la entrada. Y aun así nos pillaron. … Los Wooper son muy silenciosos.', 'Smeargle no ha parado de dibujar desde que llegamos. Nos ha dibujado doce veces.', 'Cuando volvamos a salir, iré de vigía otra vez. Pero mejor.'], 'st');
-    case 'smeargle': return npcGreeting('Smeargle', meta?.rescueDone
-      ? ['¡Teddiursa y Sentret, aquí! ¡Enteros! Os debo doce dibujos. Mínimo.', 'Chansey me ha prohibido dibujar. Dibujo igual. Con la otra mano.', 'El agua de los Wooper… Ampharos lo prometió, y Ampharos cumple.']
-      : (meta?.scenes || []).includes('veteranos')
-      ? ['Me han dicho que vais a la cueva. Cuando volváis, os dibujaré a todos. ¡Con orejas!', 'El camino lo tengo en la cabeza. Si Machamp me deja, os lo pinto antes de salir.', 'Los mapas se los llevó el agua… pero los colores no se me olvidan. Azul para el agua, rojo para el peligro.']
-      : ['…zzz… los mapas… el camino… zzz…', '(Smeargle duerme profundamente. Murmura algo sobre una cueva.)', '…zzz… ¿orejas?… ¿le dibujo orejas?… zzz…'], 'sm');
-    case 'machamp': return npcGreeting('Machamp', ['Hmm.', 'Los puentes se arreglan. Los exploradores perdidos, se buscan.', 'No hables con el estómago vacío. Come primero.', 'Heracross es ruidoso. Pero en la cueva nadie vigila mejor que él.'], 'ma');
-    case 'heracross': return npcGreeting('Heracross', ['¿Hay savia? … No. Bueno.', '¡Estoy entrenando! ¿Ves estos cuernos? ¡Aaah! … ¿Te asustan? ¡Pues a la cueva!', 'Te lancé por los aires y no te quejaste. ¡Respeto!', 'Machamp me da un poco de miedo. Pero no se lo digas.'], 'he');
-    case 'ampharos': return npcGreeting('Ampharos', ['¿Has visto qué flores tan bonitas hay junto al mercado?', 'Mi cola brilla más cuando estoy contenta. Ahora brilla bastante.', 'Machamp dice que me distraigo. Yo digo que me fijo en las cosas.', 'En la cueva os alumbraré. Vosotros solo tenéis que no perderos.'], 'am');
-    case 'sneasel': return npcGreeting('Sneasel', ['Algún día me dejarán entrar en el gremio. Ya verán.', 'La manzana era de casa. ¡DE CASA!', 'Mientras no me dejen entrar, entreno por mi cuenta. ¡Ja!', '¿Tú también crees que fui yo? … Ya. Nadie me cree.'], 'sn');
-    case 'wobbuffet': {
-      const c = hubCounters(); c.wob = (c.wob || 0) + 1; saveHubCounters(c);
-      if (c.wob === 50 && !c.wobPrize) { c.wobPrize = true; saveHubCounters(c); return openDialog([{ who: 'Wobbuffet', sp: 'wobbuffet', mood: 'Joyous', text: 'Wobbuffet! (Le has hablado 50 veces. Conmovido, te da algo que guardaba.)' }], async () => { const r = await call('/hub/gift', { item: 'Semilla Revivir' }); if (r) meta = r.meta; }); }
-      return openDialog([{ who: 'Wobbuffet', sp: 'wobbuffet', text: c.wob % 10 === 0 ? ('Wobbuffet! (Van ' + c.wob + '. Parece que le caes bien.)') : 'Wobbuffet!' }]);
+    case 'sableye_cafe': {   // el tasador: abre las cajas cerradas de las mazmorras a cambio de Pokés (el objeto lo tira el servidor)
+      const B = (mood, text) => ({ who: 'Sableye', sp: 'sableye', mood, text });
+      const chat = () => npcGreeting('Sableye', { es: ['¡Je! El tasador del café, a tu servicio. Todo tiene un valor… sobre todo lo que brilla.', 'Esa roca de la plaza… ¿Rodó? Je. Las rocas ruedan, a veces.', '¿Has visto algo de valor por las mazmorras? Enséñamelo. Solo mirar. ¡Je, je!', t('caja.lineaCajas')],
+        en: ["Heh! The café's appraiser, at your service. Everything has a value… especially what shines.", "That rock in the square… Rolled? Heh. Rocks roll, sometimes.", "Seen anything valuable in the dungeons? Show me. Just to look. Heh, heh!", t('caja.lineaCajas')] }, 'sb');
+      const boxes = [...new Set((meta.bag || []).filter(x => BOXES[x]))];
+      if (!boxes.length) return chat();
+      return openDialog([B('Happy', t('caja.oferta'))], () => openMenu({ title: t('caja.pregunta'), items: [...boxes.map(b => `${itemNm(b)} — ${BOXES[b].price} P`), t('caja.nada')], onCancel: () => { state.menu = null; render(); }, onSelect: async i => {
+        state.menu = null; if (i >= boxes.length) return openDialog([B('Normal', t('caja.cuandoQuieras'))]);
+        try { const r = await api('/cafe/box', { item: boxes[i] }); meta = r.meta; playSfx('coin');
+          openDialog([B('Normal', t('caja.abriendo')), { who: '', text: t('caja.ruido') }, B('Joyous', t('caja.premio', { obj: itemNm(r.prize) })), { who: '', text: t('caja.recibes', { obj: itemNm(r.prize), n: r.price }) }]); }
+        catch (e) { say(e.message); }
+      } }));
     }
+    case 'wobbuffet': {   // a las 50 veces te da una Semilla Revivir (una vez por cuenta, si cabe en la bolsa); cada 10, lleva la cuenta
+      const n = (hubCounters().wb || 0) + 1;
+      if (n >= 50 && !(meta.gifts || []).includes('wob') && meta.bag.length < bagSizeFor(meta.rankPts)) { const c = hubCounters(); c.wb = n; saveHubCounters(c);
+        return openDialog([{ who: 'Wobbuffet', sp: 'wobbuffet', mood: 'Joyous', text: t('wobbuffet.premio') }], async () => { const r = await call('/hub/gift', { item: 'Semilla Revivir' }); if (r) meta = r.meta; }); }
+      if (n % 10 === 0) { const c = hubCounters(); c.wb = n; saveHubCounters(c); return openDialog([{ who: 'Wobbuffet', sp: 'wobbuffet', text: t('wobbuffet.cuenta', { n }) }]); }
+      return npcGreeting('Wobbuffet', { es: ['¡Wobbuffet!', '¡Wobbu… ffet!', '(Wobbuffet asiente muy serio.) ¡Wobbuffet.'],
+        en: ["Wobbuffet!", "Wobbu… ffet!", "(Wobbuffet nods very seriously.) Wobbuffet."] }, 'wb');
+    }
+    case 'teddiursa': return npcGreeting('Teddiursa', { es: ['Chansey dice que reposo. Reposo es… ¿no moverse? Es difícil.', '¿Tú también bajarás a por el agua de los Wooper? Ampharos lo prometió.', 'Gracias otra vez. Y otra. Y otra más.'],
+      en: ["Chansey says rest. Rest is… not moving? It's hard.", "Are you going down for the Wooper's water too? Ampharos promised.", "Thank you again. And again. And once more."] }, 'td');
+    case 'sentret': return npcGreeting('Sentret', { es: ['Yo vigilaba la entrada. Y aun así nos pillaron. … Los Wooper son muy silenciosos.', 'Smeargle no ha parado de dibujar desde que llegamos. Nos ha dibujado doce veces.', 'Cuando volvamos a salir, iré de vigía otra vez. Pero mejor.'],
+      en: ["I was keeping watch at the entrance. And they still caught us. … Wooper are very quiet.", "Smeargle hasn't stopped drawing since we got here. Twelve drawings of us so far.", "Next time we head out, I'll be the lookout again. But better."] }, 'st');
+    case 'smeargle': return npcGreeting('Smeargle', meta?.rescueDone
+      ? { es: ['¡Teddiursa y Sentret, aquí! ¡Enteros! Os debo doce dibujos. Mínimo.', 'Chansey me ha prohibido dibujar. Dibujo igual. Con la otra mano.', 'El agua de los Wooper… Ampharos lo prometió, y Ampharos cumple.'],
+        en: ["Teddiursa and Sentret, here! In one piece! I owe you twelve drawings. At least.", "Chansey has banned me from drawing. I draw anyway. With the other hand.", "The Wooper's water… Ampharos promised, and Ampharos keeps her word."] }
+      : (meta?.scenes || []).includes('veteranos')
+      ? { es: ['Me han dicho que vais a la cueva. Cuando volváis, os dibujaré a todos. ¡Con orejas!', 'El camino lo tengo en la cabeza. Si Machamp me deja, os lo pinto antes de salir.', 'Los mapas se los llevó el agua… pero los colores no se me olvidan. Azul para el agua, rojo para el peligro.'],
+        en: ["I hear you're going to the cave. When you come back, I'll draw you all. With ears!", "I've got the way in my head. If Machamp lets me, I'll paint it for you before you set off.", "The water took the maps… but I never forget the colours. Blue for water, red for danger."] }
+      : { es: ['…zzz… los mapas… el camino… zzz…', '(Smeargle duerme profundamente. Murmura algo sobre una cueva.)', '…zzz… ¿orejas?… ¿le dibujo orejas?… zzz…'],
+        en: ["…zzz… the maps… the way… zzz…", "(Smeargle is fast asleep, mumbling something about a cave.)", "…zzz… ears?… should I draw ears?… zzz…"] }, 'sm');
+    case 'machamp': return npcGreeting('Machamp', { es: ['Hmm.', 'Los puentes se arreglan. Los exploradores perdidos, se buscan.', 'No hables con el estómago vacío. Come primero.', 'Heracross es ruidoso. Pero en la cueva nadie vigila mejor que él.'],
+      en: ["Hmm.", "Bridges get mended. Lost explorers get found.", "Don't talk on an empty stomach. Eat first.", "Heracross is loud. But in the cave, nobody keeps watch better."] }, 'ma');
+    case 'heracross': return npcGreeting('Heracross', { es: ['¿Hay savia? … No. Bueno.', '¡Estoy entrenando! ¿Ves estos cuernos? ¡Aaah! … ¿Te asustan? ¡Pues a la cueva!', 'Te lancé por los aires y no te quejaste. ¡Respeto!', 'Machamp me da un poco de miedo. Pero no se lo digas.'],
+      en: ["Any sap? … No. Fine.", "I'm TRAINING! See these horns? RAAAH! … Scared? Then to the cave!", "I threw you into the air and you didn't complain. RESPECT!", "Machamp scares me a bit. But don't tell him."] }, 'he');
+    case 'ampharos': return npcGreeting('Ampharos', { es: ['¿Has visto qué flores tan bonitas hay junto al mercado?', 'Mi cola brilla más cuando estoy contenta. Ahora brilla bastante.', 'Machamp dice que me distraigo. Yo digo que me fijo en las cosas.', 'En la cueva os alumbraré. Vosotros solo tenéis que no perderos.'],
+      en: ["Have you seen the pretty flowers by the market?", "My tail shines brighter when I'm happy. Right now it's shining quite a lot.", "Machamp says I get distracted. I say I notice things.", "In the cave, I'll light the way. You just have to not get lost."] }, 'am');
+    case 'sneasel': return npcGreeting('Sneasel', { es: ['Algún día me dejarán entrar en el gremio. Ya verán.', 'La manzana era de casa. ¡DE CASA!', 'Mientras no me dejen entrar, entreno por mi cuenta. ¡Ja!', '¿Tú también crees que fui yo? … Ya. Nadie me cree.'],
+      en: ["Someday they'll let me into the guild. You'll see.", "The apple was from home. FROM HOME!", "Until they let me in, I'm training on my own. Hah!", "You think it was me too? … Right. Nobody believes me."] }, 'sn');
   }
 }
 function hotspotAction(hs) {
@@ -912,8 +944,8 @@ function openStorageMenu() {
   } });
 }
 function openStarterMenu() {
-  if (!canLeaderChoice()) { say(`Chatot: "Hasta rango ${RANKS[CFG.leaderChoiceRank].name} sales con tu Pokémon. Tienes ${meta.starters.length} iniciales desbloqueados, guárdalos."`); return closeHub(); }
-  openMenu({ title: 'Líder de la exploración', items: meta.starters.map(s => spNm(s)), onCancel: closeHub, onSelect: i => { state.player = createPlayer(meta.starters[i]); say(`${spNm(state.player.species)} será tu líder.`); closeHub(); } });
+  if (!canLeaderChoice()) { say(t('lider.rango', { rango: rankNm(CFG.leaderChoiceRank), n: meta.starters.length })); return closeHub(); }
+  openMenu({ title: t('lider.titulo'), items: meta.starters.map(s => spNm(s)), onCancel: closeHub, onSelect: i => { state.player = createPlayer(meta.starters[i]); say(t('lider.elegido', { nombre: spNm(state.player.species) })); closeHub(); } });
 }
 function openGulpinMenu() {
   const p = state.player, pool = knownPool(p);
@@ -952,13 +984,13 @@ function addCaveGuests(def) {
     const gst = createMon(sp, Math.max(state.player.level + 2, def.lvl + 4), { x: state.player.x, y: state.player.y, tactic: 'seguir', floors: 0, held: null });
     gst.guest = true; gst.noRecruit = true; gst.runStartLevel = gst.level; state.team.push(gst);
   }
-  say('Machamp, Heracross y Ampharos te acompañan en la Cueva Húmeda.');
+  say(t('invitados.cueva', { a: spNm('machamp'), b: spNm('heracross'), c: spNm('ampharos') }));
 }
 const expeditionGuests = def => def?.id === 'brumas' && meta?.expedition === 'bosque';   // en la Expedición, Pidgeot va contigo
 function addExpeditionGuests(def) {
   const gst = createMon('pidgeot', Math.max(state.player.level + 4, def.lvl + 8), { x: state.player.x, y: state.player.y, tactic: 'seguir', floors: 0, held: null });
   gst.guest = true; gst.noRecruit = true; gst.runStartLevel = gst.level; state.team.push(gst);
-  say('Pidgeot va contigo por el Bosque de las Brumas.');
+  say(t('invitados.brumas', { nombre: spNm('pidgeot') }));
 }
 async function startRun(def) {
   // la primera vez que vas a la cueva con los veteranos: te recogen antes de salir
@@ -1160,15 +1192,16 @@ async function openPidgeotOffice() {
   const done = r.stones.length, total = r.allStones.length;
   if (r.story === 'none') {
     return openDialog([
-      { who: 'Pidgeot', text: `Así que tú eres ${user.name}. Yo antes repartía el correo para el gremio de Pelipper… hasta que encontré una Pidgeotita y megaevolucioné. Una sola vez. Me cambió la vida.` },
-      { who: 'Pidgeot', text: 'Desde entonces investigo esas piedras. Hay cuatro fragmentos escondidos en las mazmorras. Tráemelos y te mostraré algo que nadie ha visto.' },
+      ...(getLang() === 'en' ? [{ who: 'Pidgeot', text: `So you're ${user.name}. I used to deliver the mail for Pelipper's guild… until I found a Pidgeotite and Mega Evolved.` }, { who: 'Pidgeot', text: 'Just once. It changed my life.' }]
+        : [{ who: 'Pidgeot', text: `Así que tú eres ${user.name}. Yo antes repartía el correo para el gremio de Pelipper… hasta que encontré una Pidgeotita y megaevolucioné. Una sola vez. Me cambió la vida.` }]),
+      { who: 'Pidgeot', text: enOr('Ever since, I have studied those stones. There are four fragments hidden in the dungeons. Bring them to me and I will show you something no one has ever seen.', 'Desde entonces investigo esas piedras. Hay cuatro fragmentos escondidos en las mazmorras. Tráemelos y te mostraré algo que nadie ha visto.') },
     ], async () => { const a = await call('/pidgeot/advance', {}); if (a) { meta = a.meta; say(t('pidgeot.mision')); } });
   }
   if (r.story === 'quest' && !r.dreamUnlocked) {
     const lines = r.allStones.map(s => `${r.stones.includes(s.id) ? '✔' : '✖'} ${itemNm(s.name)} — ${dnNmId(s.dungeonId)} B${s.floor}F`);
     return openMenu({ title: t('pidgeot.megapiedras', { n: done, total }), items: [...lines, t('menu.volver')], onCancel: closeHub, onSelect: closeHub });
   }
-  return openDialog([{ who: 'Pidgeot', text: 'Las cuatro piedras juntas abren una grieta en el tiempo: la Mazmorra de los Sueños. Solo un legendario puede cruzarla. Ve cuando estés listo.' }], () => say(t('pidgeot.suenos', { d: dnNmId('suenos') })));
+  return openDialog([{ who: 'Pidgeot', text: enOr('Together, the four stones open a rift in time: the Dungeon of Dreams. Only a legendary can cross it. Go when you are ready.', 'Las cuatro piedras juntas abren una grieta en el tiempo: la Mazmorra de los Sueños. Solo un legendario puede cruzarla. Ve cuando estés listo.') }], () => say(t('pidgeot.suenos', { d: dnNmId('suenos') })));
 }
 
 // Pantalla de mazmorra completada: botín, equipo y logros (mismo estilo que el informe al caer)
@@ -1290,7 +1323,7 @@ async function endRun(outcome) {
   // (el rescate se ofrece al caer, antes de volver al gremio: ver deathChoice)
   state.lastRun = { dungeon: dungeonIdForStory, outcome };
   whenIdle().then(() => whenIdle()).then(() => playPendingScenes(true));   // las escenas, cuando ya se ha leído todo lo demás (también las de «a la vuelta»)
-  if (lost.length) openDialog([{ who: lost.map(s => spNm(s)).join(', '), text: `${lost.length > 1 ? '(Al unísono) ' : ''}Me había equivocado, pensaba que eras más fuerte…`, portraits: lost }]);
+  if (lost.length) openDialog([{ who: lost.map(s => spNm(s)).join(', '), text: (lost.length > 1 ? t('recluta.unisono') : '') + t('recluta.equivocado'), portraits: lost }]);
 }
 
 // =====================================================================
@@ -1340,7 +1373,7 @@ function drawFlash() {
   ctx.fillStyle = `rgba(255,255,255,${k < 0.3 ? k / 0.3 : 1 - (k - 0.3) / 0.7})`; ctx.fillRect(0, 0, LOG.w, LOG.h); scheduleRender();
 }
 const flash = ms => { state.flash = { t0: performance.now(), ms }; scheduleRender(); return dwait(ms * 0.35); };
-const C = (mood, text) => ({ who: 'Chatot', sp: 'chatot', mood, text });
+const C = (mood, text, en) => ({ who: 'Chatot', sp: 'chatot', mood, text: (getLang() === 'en' && en) || text });   // en: la frase en inglés
 // Antes de la pelea: Chatot, de espaldas, canta para sí mismo… hasta que te ve
 async function chatotBossIntro(boss) {
   const p = state.player, first = !(meta.scenes || []).includes('chatot-jefe');
@@ -1349,18 +1382,18 @@ async function chatotBossIntro(boss) {
     // colocarte a unos pasos de él, mirándole
     for (const dy of [3, 2, 4]) if (walkableFor(p, boss.x, boss.y + dy) && !occupied(boss.x, boss.y + dy)) { p.x = boss.x; p.y = boss.y + dy; break; }
     p.facing = [0, -1]; updateVisibility();
-    if (!first) { boss.facing = [0, 1]; poseOn(boss, 'Charge'); await talk([C('Determined', '¡Otra vez tú! ¡Esta vez no me dejaré ganar! Digo… ¡no te dejaré ganar!')]); return; }
+    if (!first) { boss.facing = [0, 1]; poseOn(boss, 'Charge'); await talk([C('Determined', '¡Otra vez tú! ¡Esta vez no me dejaré ganar! Digo… ¡no te dejaré ganar!', "YOU again! This time I won't let myself win! I mean… I won't let YOU win!")]); return; }
     boss.facing = [0, -1]; render(); await dwait(600);
-    await talk([C('Joyous', '♪ Chatot, el más apuesto del gremio… ♪ Chatot, el que mejor canta… ♪')]);
+    await talk([C('Joyous', '♪ Chatot, el más apuesto del gremio… ♪ Chatot, el que mejor canta… ♪', '♪ Chatot, the handsomest in the guild… ♪ Chatot, the finest singer… ♪')]);
     emoteOn(p, 'dots'); await dwait(1400);
     boss.facing = [0, 1]; poseOn(boss, 'Hop'); emoteOn(boss, 'shock'); playSfx('menu'); await dwait(500); poseOn(boss, null);
-    await talk([C('Surprised', '¡¿Q-qué?! ¡¿Recluta?! ¿Tú aquí? ¡Qué… qué casualidad!')]);
+    await talk([C('Surprised', '¡¿Q-qué?! ¡¿Recluta?! ¿Tú aquí? ¡Qué… qué casualidad!', 'Wh-what?! RECRUIT?! You, here? What… what a coincidence!')]);
     boss.facing = [1, 0]; emoteOn(boss, 'sweat'); render(); await dwait(500);
-    await talk([C('Worried', 'Yo estaba… de paso. Inspeccionando la sala. Sí, eso.')]);
+    await talk([C('Worried', 'Yo estaba… de paso. Inspeccionando la sala. Sí, eso.', 'I was just… passing through. Inspecting the room. Yes, that.')]);
     boss.facing = [0, 1]; poseOn(boss, 'Pose');
-    await talk([C('Inspired', '¡Pues bien! Para superar el Campo de Entrenamiento, tendrás que derrotar a su jefe…'), C('Joyous', '¡El más poderoso, carismático y apuesto del gremio!')]);
+    await talk([C('Inspired', '¡Pues bien! Para superar el Campo de Entrenamiento, tendrás que derrotar a su jefe…', 'Very well! To complete the Training Grounds, you must defeat its boss…'), C('Joyous', '¡El más poderoso, carismático y apuesto del gremio!', 'The mightiest, most charismatic and most handsome member of the guild!')]);
     poseOn(boss, 'Charge');
-    await talk([C('Determined', '¡Yo! ¡En guardia, Recluta!')]);
+    await talk([C('Determined', '¡Yo! ¡En guardia, Recluta!', 'ME! En garde, Recruit!')]);
     (meta.scenes ||= []).push('chatot-jefe'); api('/scene/seen', { id: 'chatot-jefe' }).catch(() => {});
   } finally { poseOn(boss, null); state.dcut = false; render(); }
 }
@@ -1372,18 +1405,18 @@ async function chatotBowsOut(e, by) {
     await dwait(400);
     if (first) {
       poseOn(e, 'LostBalance'); emoteOn(e, 'sweat');
-      await talk([C('Pain', '¡Aaay! ¡Mis plumas! ¡Mis preciosas plumas!')]);
+      await talk([C('Pain', '¡Aaay! ¡Mis plumas! ¡Mis preciosas plumas!', 'Owww! My feathers! My PRECIOUS feathers!')]);
       poseOn(e, null); e.facing = [0, 1];
-      await talk([C('Sigh', '… Bien. Muy bien, Recluta. Has superado la prueba.')]);
+      await talk([C('Sigh', '… Bien. Muy bien, Recluta. Has superado la prueba.', '… Fine. Very well, Recruit. You have passed the test.')]);
       poseOn(e, 'Pose'); emoteOn(e, 'anger');
-      await talk([C('Angry', '¡Pero que conste que me he dejado ganar! ¡Por… por pedagogía!')]);
+      await talk([C('Angry', '¡Pero que conste que me he dejado ganar! ¡Por… por pedagogía!', 'But let it be known that I LET you win! For… for educational purposes!')]);
       poseOn(e, null);
-      await talk([C('Worried', 'Y ahora, si me disculpas, tengo asuntos muy importantes que atender. ¡Muy importantes!')]);
+      await talk([C('Worried', 'Y ahora, si me disculpas, tengo asuntos muy importantes que atender. ¡Muy importantes!', 'And now, if you will excuse me, I have very important matters to attend to. VERY important!')]);
       (meta.scenes ||= []).push('chatot-jefe-fin'); api('/scene/seen', { id: 'chatot-jefe-fin' }).catch(() => {});
     } else {
-      poseOn(e, 'LostBalance'); await talk([C('Angry', '¡Otra vez! ¡Esto no quedará así, Recluta!')]); poseOn(e, null);
+      poseOn(e, 'LostBalance'); await talk([C('Angry', '¡Otra vez! ¡Esto no quedará así, Recluta!', 'AGAIN! This is not over, Recruit!')]); poseOn(e, null);
     }
-    say('¡Chatot usa un Orbe Escape!'); await flash(900);
+    say(t('jefe.chatotOrbe')); await flash(900);
     e.escaped = true; e.hp = 0;
   } finally { state.dcut = false; }
   defeatEnemy(e, by);   // la derrota de siempre: Pokés, experiencia, la MT… y la mazmorra se completa
@@ -1405,12 +1438,13 @@ function placeSleepyGuard(boss) {
   const s = createMon('slaking', Math.max(5, boss.level - 2), { x: best.x, y: best.y, asleep: true, noRecruit: true });
   s.neutral = true; s.dozes = true; s.status = { kind: 'sleep', turns: 9999 }; state.enemies.push(s);
 }
+const SLAKING_WAKE = { es: ['¡¿Uaaah?! ¿Quién me…? … Un momento. ¿Ese está comiéndose MI huerto?', 'Eso no estaba en el trato. Ni hablar.'],
+  en: ['Yaaawn?! Who…? … Hold on. Is that one eating MY orchard?', 'That was not the deal. No way.'] };
 function wakeGuard(s) {
   state.enemies = state.enemies.filter(e => e !== s);
   s.neutral = false; s.status = null; s.asleep = false; s.guest = true; s.noRecruit = true; s.runStartLevel = s.level; s.dozeIn = 3; state.team.push(s);
-  openDialog([{ who: 'Slaking', sp: 'slaking', mood: 'Normal', text: '¡¿Uaaah?! ¿Quién me…? … Un momento. ¿Ese está comiéndose MI huerto?' },
-              { who: 'Slaking', sp: 'slaking', mood: 'Normal', text: 'Eso no estaba en el trato. Ni hablar.' }]);
-  say('¡Slaking se une a la pelea… contra el intruso!'); render();
+  openDialog(lineIn(SLAKING_WAKE).map(text => ({ who: 'Slaking', sp: 'slaking', mood: 'Normal', text })));
+  say(t('jefe.slakingUne')); render();
 }
 // La sala del lago. La sombra (Dialga a medias) se alza gigante del fondo de la sala y no se le puede golpear: de ella se desprenden
 // los «ecos», sombras pequeñas con la forma de los miedos del grupo (los reflejos del lago), con tus movimientos. Cada eco vencido
@@ -1506,24 +1540,24 @@ async function lookTelescope() {
   state.telescope = { ...r, t0: performance.now() }; render();
 }
 function drawTelescope(W, H) {   // el cielo por el telescopio: un círculo de cielo nocturno, estrellas de fondo y la constelación de esta noche
-  const T = state.telescope; if (!T) return; const t = performance.now() - T.t0, k = Math.min(1, t / 900);
+  const T = state.telescope; if (!T) return; const ms = performance.now() - T.t0, k = Math.min(1, ms / 900);
   ctx.save(); ctx.fillStyle = `rgba(0,0,0,${0.85 * k})`; ctx.fillRect(0, 0, W, H);
   const R = Math.min(W, H) * 0.34, cx = W / 2, cy = H * 0.41;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
   const g = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R); g.addColorStop(0, '#1a2650'); g.addColorStop(1, '#070a1c'); ctx.fillStyle = g; ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-  for (let i = 0; i < 110; i++) { const a = Math.sin(i * 127.1) * 43758.5453 % 1, b = Math.sin(i * 311.7) * 43758.5453 % 1, x = cx - R + Math.abs(a) * R * 2, y = cy - R + Math.abs(b) * R * 2, tw = 0.4 + 0.6 * Math.abs(Math.sin(t / 600 + i)); ctx.fillStyle = `rgba(255,255,255,${0.5 * tw * k})`; ctx.fillRect(x, y, 1.5, 1.5); }
-  const P = T.stars.map(([x, y]) => [cx - R * 0.75 + x * R * 1.5, cy - R * 0.75 + y * R * 1.5]), lk = Math.max(0, Math.min(1, (t - 700) / 1400));
+  for (let i = 0; i < 110; i++) { const a = Math.sin(i * 127.1) * 43758.5453 % 1, b = Math.sin(i * 311.7) * 43758.5453 % 1, x = cx - R + Math.abs(a) * R * 2, y = cy - R + Math.abs(b) * R * 2, tw = 0.4 + 0.6 * Math.abs(Math.sin(ms / 600 + i)); ctx.fillStyle = `rgba(255,255,255,${0.5 * tw * k})`; ctx.fillRect(x, y, 1.5, 1.5); }
+  const P = T.stars.map(([x, y]) => [cx - R * 0.75 + x * R * 1.5, cy - R * 0.75 + y * R * 1.5]), lk = Math.max(0, Math.min(1, (ms - 700) / 1400));
   ctx.strokeStyle = T.rare ? `rgba(255,220,120,${0.75 * lk})` : `rgba(160,200,255,${0.6 * lk})`; ctx.lineWidth = 1.5;
   for (const [a, b] of T.lines) { ctx.beginPath(); ctx.moveTo(...P[a]); ctx.lineTo(...P[b]); ctx.stroke(); }
   for (const [x, y] of P) { ctx.fillStyle = T.rare ? '#ffe9a8' : '#ffffff'; ctx.shadowColor = T.rare ? '#ffd27a' : '#9cc4ff'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(x, y, 3.2 * k, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
   ctx.save(); ctx.strokeStyle = 'rgba(180,160,120,.9)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke(); ctx.restore();   // el borde del telescopio
   ctx.save(); ctx.textAlign = 'center'; ctx.globalAlpha = lk; ctx.fillStyle = T.rare ? '#ffe08a' : '#e8eeff'; ctx.font = `bold ${Math.round(R * 0.11)}px ${DIALOG_FONT()}`;
-  ctx.fillText(T.name, cx, cy + R + R * 0.16);
+  ctx.fillText(getLang() === 'en' && T.en || T.name, cx, cy + R + R * 0.16);
   ctx.font = `${Math.round(R * 0.075)}px ${DIALOG_FONT()}`; ctx.fillStyle = '#c8d2ee';
-  ctx.fillText(T.rare ? (T.reward ? `¡Una constelación rara! Clefable te regala: ${T.reward}${T.reward.endsWith('P') ? '' : ' (al almacén)'}.` : '¡Una constelación rara! (Ya te llevaste el regalo de hoy.)') : 'Cada noche se ve una constelación distinta.', cx, cy + R + R * 0.28);
-  ctx.globalAlpha = lk * 0.7; ctx.fillText('(Pulsa cualquier tecla o toca para dejar de mirar)', cx, cy + R + R * 0.38); ctx.restore();
-  if (t < 2400) requestAnimationFrame(() => render());
+  ctx.fillText(T.rare ? (T.reward ? (T.reward.endsWith(' P') ? t('telescopio.regaloP', { premio: T.reward }) : t('telescopio.regalo', { premio: itemNm(T.reward) })) : t('telescopio.yaRegalo')) : t('telescopio.distinta'), cx, cy + R + R * 0.28);
+  ctx.globalAlpha = lk * 0.7; ctx.fillText(t('telescopio.salir'), cx, cy + R + R * 0.38); ctx.restore();
+  if (ms < 2400) requestAnimationFrame(() => render());
 }
 function arenaCleared() {
   if (!state.dungeon?.arena || state.arenaDone || state.enemies.some(e => e.isBoss && e.hp > 0)) return;
@@ -1532,7 +1566,7 @@ function arenaCleared() {
     if (state.dialog || state.menu || state.busy) return setTimeout(go, 200);
     const def = state.dungeonDef;
     if (def.floors !== Infinity && state.floor >= def.floors) { playOnce('clear'); endRun('clear'); }
-    else { const c = state.dungeon.stairs; state.dungeon.tiles[c.y][c.x] = T.STAIRS; say('Aparece una escalera en el centro de la sala.'); render(); }
+    else { const c = state.dungeon.stairs; state.dungeon.tiles[c.y][c.x] = T.STAIRS; say(t('jefe.escalera')); render(); }
   };
   setTimeout(go, 700);
 }
@@ -1559,6 +1593,30 @@ const BOSS_LINES = {
   mew: ['Hihi… ¿Vienes a jugar? ¡Me encanta jugar!'],
   jirachi: ['Una luz suave llena la sala…', 'Si quieres mi deseo, demuestra que lo mereces.'],
 };
+// Las mismas en inglés (mismo orden y número de frases que en castellano)
+const BIRD_AFTER_EN = {
+  moltres: ["Grr…! … Wait. You don't have my feather.", 'That Scyther climbed all the way up here and tore it off me.', 'If you want the thief, look for a Scyther. Now get OFF my summit!'],
+  articuno: ['… You were not with him. I can tell.', 'That Scyther took my feather. He says that with all three he will open a portal.', 'If he truly opens it, it will not be our concern alone.'],
+};
+const SHADOW_LINES_EN = ['… … …', '(From the back of the room rises an enormous shadow. Pieces of it are missing, like a half-remembered memory.)', '(Smaller shadows break away from it… in shapes you know. And they move just like you.)'];
+const BOSS_LINES_EN = {
+  chatot: ['Halt, Recruit!', 'Before I let you loose in real dungeons, you must pass my exam.', "En garde! And no crying afterwards, understood?"],
+  celebi: ['The forest has watched you grow, floor by floor…', 'Show me that you deserve to have come this far.'],
+  suicune: ['The water in this cave does not lie. Let us see if your heart is just as clear.'],
+  slaking: ["Yaaawn… Who's come to bother me?", 'This orchard is mine. And so is the nap.'],
+  snorlax: ['Munch… munch… Is this fruit yours? Not anymore.', '(In a corner at the back, Slaking snores away as if nothing were happening.)'],
+  munchlax: ['Munch! Munch! All of this is for us!', '(In a corner at the back, Slaking snores away as if nothing were happening.)'],
+  swalot: ['Gulp… A whole orchard, all to myself!', '(In a corner at the back, Slaking snores away as if nothing were happening.)'],
+  greedent: ["Mine! All the Berries are mine! Not one for you!", '(In a corner at the back, Slaking snores away as if nothing were happening.)'],
+  skwovet: ["Don't even think about it! We're not leaving until our cheeks are full!", '(In a corner at the back, Slaking snores away as if nothing were happening.)'],
+  lickilicky: ['Slurp… This fruit tastes heavenly. And you… what do YOU taste like?', '(In a corner at the back, Slaking snores away as if nothing were happening.)'],
+  zapdos: ['You have climbed to the summit of the storm! Here, I rule.'],
+  moltres: ['AGAIN?! You already took my feather, you bug! What more do you want?!', "… No. You're not him. I don't care: if he sent you… you'll burn all the same!"],
+  articuno: ['Another one? How many of you will climb my summit?', 'You come up smelling of ash, like that Scyther. Your answer does not interest me: no one else sets foot on this summit.'],
+  mew: ['Hee-hee… Did you come to play? I LOVE playing!'],
+  jirachi: ['A soft light fills the room…', 'If you want my wish, prove that you deserve it.'],
+};
+const enOr = (en, es) => (getLang() === 'en' && en) || es;   // la versión en inglés, si la hay
 // Sala de descanso de la mazmorra (como las de Exploradores del Cielo): sala cerrada con la estatua de Kangaskhan
 // arriba y la escalera a la derecha. Sin enemigos, sin viento. La estatua ofrece guardar, volver o seguir.
 function newRestArea() {
@@ -1653,11 +1711,11 @@ function newFloor() {
   // el equipo aparece alrededor del líder
   for (const a of state.team) { const spot = DIRS8.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).find(s => walkableFor(a, s.x, s.y) && !occupied(s.x, s.y)); Object.assign(a, spot || { x: p.x, y: p.y }); a.facing = [0, -1]; }
   floorEvent(def);   // ¿piso especial? (dorado, huerto, tranquilo o multitud)
-  const shower = window.__mmForceShower ? { name: 'de prueba' } : meteorShowerOn();   // en noches de lluvia de estrellas (__mmForceShower: para las pruebas), caen trocitos del cielo en las mazmorras
+  const shower = window.__mmForceShower ? { name: 'de prueba', en: 'a test one' } : meteorShowerOn();   // en noches de lluvia de estrellas (__mmForceShower: para las pruebas), caen trocitos del cielo en las mazmorras
   if (shower && !state.dungeon.arena && !state.dungeon.restArea) {
     const n = 1 + (state.rng.random() < 0.5 ? 1 : 0) + (state.rng.random() < 0.2 ? 1 : 0);
     for (let i = 0; i < n; i++) { const p = randomFreeTile(); if (p) state.groundItems.push({ name: state.rng.random() < 0.15 ? 'Trozo Estrella' : 'Polvo Estelar', x: p.x, y: p.y }); }
-    if (state.floor === 1) say(t('piso.estrellas', { s: shower.name }));
+    if (state.floor === 1) say(t('piso.estrellas', { s: showerNm(shower) }));
   }
   if (huertoRepeat && built.boss && glutton.group > 1) {   // los flojos, en grupo: dos más como él, junto al primero
     const T = state.dungeon.tiles, b = built.boss; let n = glutton.group - 1;
@@ -1684,7 +1742,7 @@ function newFloor() {
       setTimeout(() => dungeonScene('zapdos-cima'), 300);
     }
     else {
-    const boss = built.boss, lines = (boss?.shadowForm && meta?.expedition === 'bosque' && !(meta?.scenes || []).includes('exp-lago')) ? [] : (boss?.shadowForm && SHADOW_LINES) || BOSS_LINES[boss?.species] || [t(boss?.big ? 'piso.jefeSubditos' : 'piso.jefe', { t: monNm(boss) })];
+    const boss = built.boss, lines = (boss?.shadowForm && meta?.expedition === 'bosque' && !(meta?.scenes || []).includes('exp-lago')) ? [] : (boss?.shadowForm && enOr(SHADOW_LINES_EN, SHADOW_LINES)) || (BOSS_LINES[boss?.species] && enOr(BOSS_LINES_EN[boss.species], BOSS_LINES[boss.species])) || [t(boss?.big ? 'piso.jefeSubditos' : 'piso.jefe', { t: monNm(boss) })];
     if (lines.length) openDialog(lines.map(t => ({ who: boss?.shadowForm ? (t.startsWith('(') ? undefined : '???') : BOSS_LINES[boss?.species] ? monNm(boss) : undefined, sp: boss?.shadowForm ? undefined : BOSS_LINES[boss?.species] ? boss.species : undefined, mood: 'Determined', text: t })));
     }
   } else if (built.kind === 'miniboss') say(t('piso.guardian', { n: state.floor }));
@@ -1855,6 +1913,7 @@ function useMove(userMon, move) {
 }
 
 // ---------- música de la mazmorra: tema de la mazmorra (según la era), jefe, guardián Mega, Casa Monstruo o tienda ----------
+// (la Sierra y la Gélida: sus temas propios, rechazados por Ferran el 18 de octubre; suena el del Monte hasta que se rehagan)
 const DUNGEON_TRACK = { entrenamiento: 'bosque', bosque: 'bosque', cueva: 'cueva', monte: 'monte', sierra: 'monte', gelida: 'monte', ruinas: 'ruinas', tiempo: 'tiempo', suenos: 'suenos', huerto: 'shop', brumas: 'bosque' };   // (el huerto, con el bazar de swing: fruta y buen humor)
 function updateDungeonMusic() {
   if (state.scene !== 'dungeon' || !state.player) return;
@@ -1928,18 +1987,18 @@ function defeatEnemy(e, by) {
   } else if (e.dropsStone) {
     (state.stonesFound ||= []).push(e.dropsStone.id);
     const dlg = MEGA_DIALOG[e.species];
-    if (dlg) openDialog(dlg.defeat.map(x => ({ who: monNm(e), text: x, font: dlg.font, color: dlg.color })), () => say(t('derrota.recogePiedra', { obj: itemNm(e.dropsStone.name) })));
+    if (dlg) openDialog(megaLines(dlg, 'defeat').map(x => ({ who: monNm(e), text: x, font: dlg.font, color: dlg.color })), () => say(t('derrota.recogePiedra', { obj: itemNm(e.dropsStone.name) })));
     else say(t('derrota.suelta', { t: monNm(e), obj: itemNm(e.dropsStone.name) }));
   }
   else if (e.isBoss && !e.shopkeeper) { const move = state.rng.pick(TM_POOL); addItem(`MT: ${move}`); say(t('derrota.mt', { t: monNm(e), mv: nm('move', move) })); }
   // Moltres y Articuno, vencidos: se dan cuenta de que no ibas con Scyther (el final de la mazmorra espera a que cierres el diálogo)
   const birdScene = { moltres: 'moltres-vencido', articuno: 'articuno-vencida', zapdos: 'zapdos-pluma' }[e.species];
-  if (e.isBoss && BIRD_AFTER[e.species] && state.dungeonDef?.finalBoss === e.species && !(birdScene && !(meta?.scenes || []).includes(birdScene))) openDialog(BIRD_AFTER[e.species].map(t => ({ who: monNm(e), sp: e.species, mood: 'Normal', text: t })));   // (la primera vez, en su lugar, la escena)
+  if (e.isBoss && BIRD_AFTER[e.species] && state.dungeonDef?.finalBoss === e.species && !(birdScene && !(meta?.scenes || []).includes(birdScene))) openDialog(enOr(BIRD_AFTER_EN[e.species], BIRD_AFTER[e.species]).map(t => ({ who: monNm(e), sp: e.species, mood: 'Normal', text: t })));   // (la primera vez, en su lugar, la escena)
   dropCarried(e);   // solo suelta lo que hubiera recogido, y al suelo (no a tu bolsa)
   tryRecruit(e, by);
   if (e.shadowForm && state.lakeShadow && e.isBoss) lakeShadowEchoDown();   // un eco de la sombra del lago
   arenaCleared();   // ¿era el jefe de la sala?
-  if (e.rescueGroup && !state.enemies.some(x => x !== e && x.rescueGroup && x.hp > 0)) setTimeout(rescueDone, 900);   // han caído Quagsire y los dos Wooper
+  if (e.rescueGroup && !state.enemies.some(x => x !== e && x.rescueGroup && x.hp > 0)) { if (state.run) state.run.rescuing = true; setTimeout(rescueDone, 900); }   // han caído Quagsire y los dos Wooper (y ya no se baja: el rescate se cierra en este piso)
 }
 // Los compañeros de Smeargle, rescatados: la escena, y a casa (cuenta como misión cumplida, no como Cueva superada)
 async function rescueDone() {
@@ -2430,7 +2489,7 @@ function useItem(index) {
     case 'held':
       playSfx('pickup'); if (p.held) state.inventory.push(p.held);
       p.held = name; consume(); say(t('uso.equipa', { t: monNm(p), obj: itemNm(name) })); refreshBagEffects(); return false;
-    case 'exclusive': say(`${itemNm(name)}: ${it.desc}`); return false;
+    case 'exclusive': say(`${itemNm(name)}: ${nm('itemDesc', name, it.desc)}`); return false;
     case 'gummi': { playSfx('eat'); consume(); p.belly = Math.min(p.maxBelly, p.belly + 10); eatGummi(p, it); return true; }
     case 'berry': playSfx('eat'); consume(); p.belly = Math.min(p.maxBelly, p.belly + 5);
       if (p.status?.kind === it.cure) { p.status = null; say(t('uso.bayaCura', { obj: itemNm(name) })); } else say(t('uso.bayaNada', { obj: itemNm(name) })); return true;
@@ -2464,7 +2523,7 @@ function playerAction(kind, dx = 0, dy = 0, extra) {
     p.facing = [dx, dy];
     const npc = npcAt(p.x + dx, p.y + dy);
     if (npc?.fallen) { tryRescueComplete(); return; }
-    if (npc?.captive) { say(npc.line); render(); return; }   // los rehenes de la Cueva: te hablan, pero siguen acorralados hasta que caiga el grupo
+    if (npc?.captive) { say(t(`piso.rehen.${npc.species}`)); render(); return; }   // los rehenes de la Cueva: te hablan, pero siguen acorralados hasta que caiga el grupo (en el idioma de ahora, también al retomar una partida guardada)
     if (npc?.keeper) { openKeeperMenu(); return; }
     if (npc?.wants) {   // misión de entrega: si llevas lo que pide, se lo das
       const m = state.missions.find(m => m.id === npc.missionId), i = state.inventory.indexOf(npc.wants);
@@ -2573,6 +2632,7 @@ function checkShopExit() {
   state.effects.push({ x: p.x, y: p.y, text: '!!!', t: performance.now(), color: '#c95c5c' });
 }
 function descend() {
+  if (state.run?.rescuing) return;   // (un menú de la escalera abierto justo antes de vencer al grupo del rescate)
   playSfx('stairs');
   const def = state.dungeonDef;
   if (state.dungeon?.restArea) return newFloor();   // desde la sala de descanso se sigue al piso que tocaba (no es un piso nuevo)
@@ -2585,7 +2645,7 @@ function descend() {
   if (((state.floor - 1) % CFG.checkpointEvery === 0 && kindNext === 'normal') || ['legendary', 'bigLegendary', 'jirachi'].includes(kindNext)) return newRestArea();   // antes de cualquier jefe legendario
   newFloor();
 }
-const stairsSealed = () => state.enemies.some(e => e.hp > 0 && (e.isLegendary || e.sealsStairs));
+const stairsSealed = () => !!state.run?.rescuing || state.enemies.some(e => e.hp > 0 && (e.isLegendary || e.sealsStairs));
 function askStairs() {
   if (stairsSealed()) { say(t('escalera.sellada')); return; }
   openMenu({ title: t('escalera.titulo'), items: [t('escalera.bajar'), t('escalera.quedarse')], onSelect: i => { if (i === 0) descend(); } });
@@ -2702,9 +2762,9 @@ function fleeTurn(e) {
   fleeStep(e, threats) || stepAway(e, state.player.x, state.player.y);
   return true;
 }
-function stepAway(mon, tx, ty) {
+function stepAway(mon, tx, ty, keep) {   // (keep: solo casillas que cumplan esto)
   const dx = Math.sign(mon.x - tx) || (Math.random() < 0.5 ? 1 : -1), dy = Math.sign(mon.y - ty) || (Math.random() < 0.5 ? 1 : -1);
-  for (const [a, b] of [[dx, dy], [dx, 0], [0, dy]]) if ((a || b) && canMove(mon, a, b)) { mon.x += a; mon.y += b; mon.facing = [a, b]; mon.movedAt = performance.now(); return true; }
+  for (const [a, b] of [[dx, dy], [dx, 0], [0, dy]]) if ((a || b) && canMove(mon, a, b) && (!keep || keep(mon.x + a, mon.y + b))) { mon.x += a; mon.y += b; mon.facing = [a, b]; mon.movedAt = performance.now(); return true; }
   return false;
 }
 // Movimiento codicioso hacia un punto (con rodeo por un eje)
@@ -2784,15 +2844,19 @@ function enemyTurn(e) {
   }
   if (fleeTurn(e)) return;   // asustado, con Fuga o forajido que huye
   if (e.mega && MEGA_DIALOG[e.species]) {
-    const dlg = MEGA_DIALOG[e.species], dist = cheb(state.player, e), room = roomOf(e), playerInRoom = room && roomOf(state.player) === room;
+    const rooms = state.dungeon.rooms; if (e.megaRoom == null && roomOf(e)) e.megaRoom = rooms.indexOf(roomOf(e));   // su sala (aunque luego se asome a un pasillo)
+    const dlg = MEGA_DIALOG[e.species], dist = cheb(state.player, e), room = rooms[e.megaRoom] || roomOf(e), playerInRoom = room && roomOf(state.player) === room;
     if (!e.megaMet && playerInRoom) { megaEncounter(e); return; }   // al entrar en su sala, como una Casa Monstruo
     if (!e.megaHostile) {
       if (dlg.behavior === 'flee') {
         if (!playerInRoom) return;
         e.megaPress = (e.megaPress || 0) + 1;
-        if (e.megaPress === 1 && dlg.flee) openDialog(dlg.flee.map(t => ({ who: monNm(e), text: t, font: dlg.font, color: dlg.color })));
-        const away = stepAway(e, state.player.x, state.player.y);
-        if (e.megaPress >= 4 || !away) { if (dlg.yield) openDialog(dlg.yield.map(t => ({ who: monNm(e), text: t, font: dlg.font, color: dlg.color })), () => { e.megaHostile = true; }); else e.megaHostile = true; }
+        const lines = k => megaLines(dlg, k).map(t => ({ who: monNm(e), text: t, font: dlg.font, color: dlg.color }));
+        const plea = e.megaPress === 1 && dlg.flee ? lines('flee') : [];   // la primera vez te pide que te alejes
+        const away = stepAway(e, state.player.x, state.player.y, (x, y) => roomOf({ x, y }) === room);   // sin salir de su sala
+        if (e.megaPress >= 4 || !away) {   // acorralado o cansado de huir: se rinde (si aún no te lo había pedido, primero lo pide)
+          if (dlg.yield) openDialog([...plea, ...lines('yield')], () => { e.megaHostile = true; }); else e.megaHostile = true;
+        } else if (plea.length) openDialog(plea);
         return;
       }
       e.megaHostile = true;
@@ -2921,9 +2985,12 @@ function openDungeonMainMenu() {
 const itemVerb = name => { const k = ITEMS[name]?.kind; return isMachine(name) ? 'ensenar' : k === 'belly' || k === 'heal' || k === 'berry' || k === 'seed' ? 'comer' : k === 'held' ? 'equipar' : k === 'sell' ? null : 'usar'; };
 function itemInfo(name) {
   const it = ITEMS[name] || {};
-  if (isMachine(name)) { const mv = MOVES[name.slice(4)]; return `${name.startsWith('MD: ') ? 'Máquina Definitiva' : 'Máquina Técnica'}: enseña ${name.slice(4)}${mv ? ` (${mv.type}, ${mv.cat === 'status' ? 'estado' : 'potencia ' + (mv.pmdPower ?? '?')})` : ''}. Solo la aprenden los Pokémon compatibles.`; }
-  const parts = { belly: `Llena ${it.value} de barriga.`, heal: `Recupera ${it.value} PS.`, held: 'Objeto para equipar.', sell: 'Objeto de valor: se puede vender.', orb: 'Orbe de un solo uso.' };
-  return `${name}: ${it.desc || parts[it.kind] || 'Objeto.'}${it.sell ? ` (se vende por ${it.sell} P)` : ''}`;
+  if (isMachine(name)) { const mv = MOVES[name.slice(4)]; const tp = mv && nm('type', mv.type);
+    return t('objeto.maquina', { tipo: t(name.startsWith('MD: ') ? 'objeto.md' : 'objeto.mt'), mv: nm('move', name.slice(4)),
+      datos: !mv ? '' : mv.cat === 'status' ? t('objeto.maquinaEstado', { t: tp }) : t('objeto.maquinaPotencia', { t: tp, n: mv.pmdPower ?? '?' }) }); }
+  const parts = { belly: 'objeto.descBarriga', heal: 'objeto.descPS', held: 'objeto.descEquipar', sell: 'objeto.descValor', orb: 'objeto.descOrbe' };
+  const desc = it.desc ? nm('itemDesc', name, it.desc) : t(parts[it.kind] || 'objeto.desc', { n: it.value });
+  return `${itemNm(name)}: ${desc}${it.sell ? t('objeto.seVende', { n: it.sell }) : ''}`;
 }
 function openBagMenu() {
   const items = [...state.inventory.map(itemNm), state.player.held ? t('mazmorra.equipado', { obj: itemNm(state.player.held) }) : t('mazmorra.nadaEquipado')];   // las máquinas, con su disco
@@ -3511,31 +3578,35 @@ function renderMenu() {
   const m = state.menu; if (!m) return;
   const s = UIS(), font = DIALOG_FONT();
   let fs = pmdPx(18 * s);
-  { ctx.font = `${fs}px ${font}`; const need = Math.max(0, ...m.items.map((it, i) => ctx.measureText(it).width + Math.round(12 * s) * 2 + Math.round(18 * s) + 6 * s + (m.icons?.[i] ? 20 * s : 0)));
+  { ctx.font = `${fs}px ${font}`; const need = Math.max(0, ...m.items.map((it, i) => ctx.measureText(it).width + Math.round(12 * s) * 2 + Math.round(18 * s) + 6 * s + (m.icons?.[i] || (m.noItemIcons !== true && itemInText(it)) ? 20 * s : 0)));
     if (need > LOG.w - 24) { const fs2 = Sprites.fontName === 'PMDFont' ? Math.max(1, Math.floor(fs * (LOG.w - 24) / need * RK / 12)) * 12 / RK : fs * (LOG.w - 24) / need; if (fs2 < fs) fs = fs2; } }   // (no cabe: un punto menos, nítido)
   const rh = Math.round(fs + 7 * s);
   ctx.font = `${fs}px ${font}`; ctx.textBaseline = 'middle';
   const title = m.title + (state.busy ? '  …' : '');
   const tabH = Math.round(fs + 10 * s), pad = Math.round(12 * s), cur = Math.round(18 * s);   // (la pestaña, a la medida de la letra)
-  let w = Math.min(LOG.w - 24, Math.max(200, ...m.items.map((it, i) => ctx.measureText(it).width + pad * 2 + cur + 6 * s + (m.icons?.[i] ? 20 * s : 0))));
+  let w = Math.min(LOG.w - 24, Math.max(200, ...m.items.map((it, i) => ctx.measureText(it).width + pad * 2 + cur + 6 * s + (m.icons?.[i] || (m.noItemIcons !== true && itemInText(it)) ? 20 * s : 0))));
   if (m.money !== undefined) { ctx.font = `${fs}px ${font}`; const need = ctx.measureText(title).width + pad * 2 + ctx.measureText(`${m.money}`).width + Math.round(16 * s) + pad * 2 + 6 * s + 8; w = Math.min(LOG.w - 24, Math.max(w, need)); }   // (que quepan la pestaña del título y la de los Pokés sin pisarse)
+  const mw = m.money !== undefined ? ctx.measureText(`${m.money}`).width + Math.round(16 * s) + pad * 2 + 6 * s : 0;   // (la pestaña de los Pokés)
+  w = Math.min(LOG.w - 24, Math.max(w, ctx.measureText(title).width + pad * 2 + (mw ? mw + 4 : 0)));   // (el menú, al menos tan ancho como su título)
+  const tLines = ctx.measureText(title).width + pad * 2 > w - (mw ? mw + 4 : 0) ? wrapText(title, w - (mw ? mw + 4 : 0) - pad * 2) : [title];   // (y si ni así cabe, el título en varias líneas)
+  const lineH = Math.round(fs + 4 * s), tabHH = tabH + (tLines.length - 1) * lineH;
   const x = state.scene === 'hub' ? (LOG.w - w) / 2 : 12, y = 12;
-  const maxRows = Math.max(3, Math.floor((LOG.h - y - tabH - 10 - pad * 2) / rh));
+  const maxRows = Math.max(3, Math.floor((LOG.h - y - tabHH - 10 - pad * 2) / rh));
   const rows = Math.min(m.items.length, maxRows);
   const top = Math.min(Math.max(0, m.index - Math.floor(rows / 2)), m.items.length - rows);
   const h = rows * rh + pad * 2;
   // pestaña del título
   ctx.font = `${fs}px ${font}`;
-  const tw = Math.min(w, ctx.measureText(title).width + pad * 2);
-  pmdBox(x, y, tw, tabH + 6, 5);
-  ctx.fillStyle = '#f8d848'; ctx.fillText(title, x + pad, y + tabH / 2 + 2, tw - pad * 2);
+  const tw = Math.min(w - (mw ? mw + 4 : 0), Math.max(...tLines.map(l => ctx.measureText(l).width)) + pad * 2);
+  pmdBox(x, y, tw, tabHH + 6, 5);
+  ctx.fillStyle = '#f8d848'; tLines.forEach((l, i) => ctx.fillText(l, x + pad, y + tabH / 2 + 2 + i * lineH, tw - pad * 2));
   if (m.money !== undefined) {   // los Pokés, con su moneda, en una pestaña a la derecha
-    const mt = `${m.money}`, isz = Math.round(16 * s), mw = ctx.measureText(mt).width + isz + pad * 2 + 6 * s, mx = x + w - mw;
+    const mt = `${m.money}`, isz = Math.round(16 * s), mx = x + w - mw;
     pmdBox(mx, y, mw, tabH + 6, 5); if (MONEY_IMG.complete) { ctx.imageSmoothingEnabled = false; ctx.drawImage(MONEY_IMG, mx + pad, y + tabH / 2 + 2 - isz / 2, isz, isz); }
     ctx.fillStyle = '#ffffff'; ctx.fillText(mt, mx + pad + isz + 6 * s, y + tabH / 2 + 2);
   }
   // caja de opciones
-  const by = y + tabH + 2;
+  const by = y + tabHH + 2;
   pmdBox(x, by, w, h);
   ctx.font = `${fs}px ${font}`;
   const blink = Math.floor(performance.now() / 350) % 2 === 0;

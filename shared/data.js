@@ -114,7 +114,7 @@ const megaGuardian = (name, types, megaBase, buffs = {}) => ({ name: 'Mega ' + n
 SPECIES.mega_absol     = { ...megaGuardian('Absol', ['Siniestro'], [65, 150, 60, 115, 115], { atk: 2 }), learnset: { 1: 'Cuchillada', 5: 'Mordisco', 10: 'Avalancha', 15: 'Golpe Cuerpo' } };          // dos Danza Espada
 SPECIES.mega_steelix   = { ...megaGuardian('Steelix', ['Acero', 'Tierra'], [75, 125, 230, 55, 95], { def: 1, spd: 1 }), learnset: { 1: 'Placaje', 5: 'Lanzarrocas', 10: 'Terremoto', 15: 'Ala de Acero' } };   // +1 a cada defensa
 SPECIES.mega_camerupt  = { ...megaGuardian('Camerupt', ['Fuego', 'Tierra'], [70, 120, 100, 145, 105], { spa: 2 }), learnset: { 1: 'Ascuas', 5: 'Terremoto', 10: 'Lanzallamas', 15: 'Avalancha' } };        // dos Maquinación
-SPECIES.mega_manectric = { ...megaGuardian('Manectric', ['Eléctrico'], [70, 75, 80, 135, 135], { spe: 2 }), learnset: { 1: 'Impactrueno', 5: 'Rayo', 10: 'Descarga', 15: 'Mordisco' } };                  // dos Agilidad
+SPECIES.mega_manectric = { ...megaGuardian('Manectric', ['Eléctrico'], [70, 75, 80, 135, 135], { spe: 2 }), learnset: { 1: 'Impactrueno', 5: 'Rayo', 10: 'Chispazo', 15: 'Mordisco' } };                  // dos Agilidad
 export const MINIBOSS_POOL = Object.keys(SPECIES).filter(id => SPECIES[id].boss && !SPECIES[id].mega);
 export const SHOP_IN_DUNGEON = { chance: 0.12, minFloor: 2, items: [3, 6], level: 80, statMult: 1.0, guards: 2 };   // robar: casi imposible (nivel 80), pero no imposible // tienda de Kecleon en la mazmorra
 export const KECLEON_DISCOUNT = 0.8; // siendo Kecleon, los Kecleon te hacen un 20 % en todas sus tiendas
@@ -230,31 +230,38 @@ export const MEGA_STONES = [
   { id: 'stone-ruinas', name: 'Manectricita', dungeonId: 'ruinas', floor: 31, guardian: 'mega_manectric' },
 ];
 // Carácter y voz de cada guardián Mega. intro: al toparte con él. defeat: al caer. attackAfter: turnos hasta que ataca solo.
+// en: lo mismo en inglés (las claves que tengan texto).
 export const MEGA_DIALOG = {
   mega_absol: {
     font: "'Georgia', 'Times New Roman', serif", color: '#cfd6e6',
     intro: ['No he venido a luchar. Percibo una desgracia en tu futuro… y aun así avanzas.'],
-    flee: ['No quiero hacerte dano. Aléjate, por favor.'],   // mientras huye/se protege
+    flee: ['No quiero hacerte daño. Aléjate, por favor.'],   // mientras huye/se protege
     yield: ['Que así sea…'],                                  // justo antes de rendirse y atacar
-    defeat: ['Has vencido. Toma la piedra… y ojala te proteja de lo que se avecina.'],
+    defeat: ['Has vencido. Toma la piedra… y ojalá te proteja de lo que se avecina.'],
+    en: { intro: ['I have not come to fight. I sense misfortune in your future… and still you press on.'], flee: ['I do not wish to hurt you. Stay back, please.'],
+          yield: ['So be it…'], defeat: ['You have won. Take the stone… and may it protect you from what is coming.'] },
     behavior: 'flee',
   },
   mega_steelix: {
     font: "'Impact', 'Arial Black', sans-serif", color: '#b8c4d0',
-    intro: ['Alto.', 'Este suelo es mio.', 'Demuestralo. O vete.'],
+    intro: ['Alto.', 'Este suelo es mío.', 'Demuéstralo. O vete.'],
     defeat: ['Eres fuerte. La piedra es tuya. Punto.'],
+    en: { intro: ['Halt.', 'This ground is mine.', 'Prove it. Or leave.'], defeat: ['You are strong. The stone is yours. Full stop.'] },
     attackAfter: 1,
   },
   mega_camerupt: {
     font: "'Comic Sans MS', 'Chalkboard', cursive", color: '#ff9a4a',
-    intro: ['¡¡¡RAAAAAAAAAAAAH!!! ¡¿QUIEN OSA ENTRAR AQUI?!', '¡¡VAIS A SUFRIR LAS CONSECUENCIAS DE VENIR!!'],
+    intro: ['¡¡¡RAAAAAAAAAAAAH!!! ¡¿QUIÉN OSA ENTRAR AQUÍ?!', '¡¡VAIS A SUFRIR LAS CONSECUENCIAS DE VENIR!!'],
     defeat: ['…', '…', '… *ronquidos*'],
+    en: { intro: ['RAAAAAAAAAAAAH!!! WHO DARES ENTER HERE?!', 'YOU WILL ALL SUFFER THE CONSEQUENCES OF COMING HERE!!'], defeat: ['…', '…', '… *snore*'] },
     behavior: 'mad',
   },
   mega_manectric: {
     font: "'Courier New', monospace", color: '#f2d24a',
-    intro: ['…¿Quien anda ahi? No, no te acerques. No confio en ti.', 'Pero que quede claro: soy más rápido que tú. Mucho más. No tienes nada que hacer.'],
+    intro: ['…¿Quién anda ahí? No, no te acerques. No confío en ti.', 'Pero que quede claro: soy más rápido que tú. Mucho más. No tienes nada que hacer.'],
     defeat: ['Imposible… ¿más rápido que yo? Bah. Coge la piedra y desaparece.'],
+    en: { intro: ["…Who goes there? No, don't come any closer. I don't trust you.", "But let's be clear: I'm faster than you. Much faster. You don't stand a chance."],
+          defeat: ['Impossible… faster than me? Bah. Take the stone and get lost.'] },
     attackAfter: 2,
   },
 };
@@ -272,6 +279,24 @@ export const JUICES = {
   'Baya Aranja':    { id: 'aranja', name: 'Zumo de Aranja', hp: 10, text: '+10 PS máximos durante la próxima exploración.' },
   'Baya Zidra':     { id: 'zidra', name: 'Zumo de Zidra', hp: 20, text: '+20 PS máximos durante la próxima exploración.' },
 };
+// Las cajas de Sableye: las cajas cerradas que caen en las mazmorras, Sableye las abre en el café a cambio de Pokés
+// (precio según la caja) y dentro hay un objeto al azar de su tabla (nombre, peso). Lo tira el servidor.
+const BOX_TIERS = {
+  sencilla: { price: 300, prizes: [['Baya Aranja', 3], ['Manzana Grande', 3], ['Baya Zidra', 2], ['Orbe Cura', 2], ['Semilla Dormir', 2], ['Perla', 2],
+    ['Gominola Roja', 1], ['Gominola Azul', 1], ['Gominola Hierba', 1], ['Gominola Amarilla', 1], ['Semilla Revivir', 1]] },
+  bonita:   { price: 800, prizes: [['Semilla Revivir', 3], ['Elixir Máximo', 2], ['Perla Grande', 2], ['Manzana Enorme', 2], ['Gominola Real', 2],
+    ['Pañuelo Poder', 1], ['Bufanda Defensa', 1], ['Pañuelo Especial', 1], ['Bufanda Zen', 1]] },
+  lujo:     { price: 2000, prizes: [['Manzana Dorada', 2], ['Pepita', 2], ['Semilla Dorada', 2], ['Gominola Maravilla', 2], ['Semilla Vida', 1],
+    ['Lazo Amigo', 1], ['Trozo Estrella', 1], ['Proteína', 1]] },
+};
+export const BOXES = Object.fromEntries([
+  ...['Caja Ligera', 'Caja Pesada', 'Caja Dura', 'Caja Estilosa', 'Caja Mona', 'Caja Delicada'].map(n => [n, BOX_TIERS.sencilla]),
+  ...['Caja Bonita', 'Caja Brillante', 'Caja Reluciente', 'Caja Siniestra'].map(n => [n, BOX_TIERS.bonita]),
+  ...['Caja de Lujo', 'Caja Preciosa'].map(n => [n, BOX_TIERS.lujo]),
+]);
+// El premio de una caja: r es un número en [0, peso total) (el servidor lo saca con crypto)
+export const boxPrizeWeight = box => BOXES[box].prizes.reduce((s, [, w]) => s + w, 0);
+export function boxPrize(box, r) { for (const [n, w] of BOXES[box].prizes) { r -= w; if (r < 0) return n; } return BOXES[box].prizes[0][0]; }
 // Recompensas al alcanzar cada rango (van al almacén de Kangaskhan; si no caben, en Pokés)
 export const RANK_REWARDS = {
   1: { pokes: 500, items: ['Baya Aranja', 'Baya Aranja', 'Semilla Revivir'] },
@@ -350,8 +375,8 @@ if (ITEMS['Orbe Lento']) Object.assign(ITEMS['Orbe Lento'], { stat: 'spe', n: -1
 
 // ── El observatorio: lluvias de estrellas (fechas reales; un día de margen a cada lado) y constelaciones del telescopio ──
 export const METEOR_SHOWERS = [
-  { name: 'Cuadrántidas', m: 1, d: 3 }, { name: 'Líridas', m: 4, d: 22 }, { name: 'Eta Acuáridas', m: 5, d: 6 }, { name: 'Perseidas', m: 8, d: 12 },
-  { name: 'Oriónidas', m: 10, d: 21 }, { name: 'Leónidas', m: 11, d: 17 }, { name: 'Gemínidas', m: 12, d: 14 },
+  { name: 'Cuadrántidas', en: 'Quadrantids', m: 1, d: 3 }, { name: 'Líridas', en: 'Lyrids', m: 4, d: 22 }, { name: 'Eta Acuáridas', en: 'Eta Aquariids', m: 5, d: 6 }, { name: 'Perseidas', en: 'Perseids', m: 8, d: 12 },
+  { name: 'Oriónidas', en: 'Orionids', m: 10, d: 21 }, { name: 'Leónidas', en: 'Leonids', m: 11, d: 17 }, { name: 'Gemínidas', en: 'Geminids', m: 12, d: 14 },
 ];
 const dayOfYear = dt => Math.floor((Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()) - Date.UTC(dt.getFullYear(), 0, 0)) / 86400000);
 export function meteorShowerOn(dt = new Date()) {   // ¿hay lluvia de estrellas hoy (o ayer, o mañana)?
@@ -364,14 +389,14 @@ export function nextMeteorShower(dt = new Date()) {   // la próxima (a partir d
 }
 // Constelaciones con formas de Pokémon (estrellas en un cuadro de 0 a 1, y las líneas que las unen). Las raras dan un premio, una vez al día.
 export const CONSTELLATIONS = [
-  { name: 'El Gran Ursaring', stars: [[.15,.6],[.25,.45],[.4,.4],[.55,.45],[.62,.62],[.48,.72],[.3,.72],[.7,.3],[.8,.22]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0],[3,7],[7,8]] },
-  { name: 'Las Alas de Pidgeot', stars: [[.5,.5],[.35,.4],[.2,.28],[.08,.35],[.65,.4],[.8,.28],[.92,.35],[.5,.32],[.5,.7]], lines: [[0,1],[1,2],[2,3],[0,4],[4,5],[5,6],[0,7],[0,8]] },
-  { name: 'La Cola de Mareep', stars: [[.2,.5],[.35,.42],[.5,.45],[.62,.55],[.72,.48],[.8,.35],[.88,.25]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },
-  { name: 'El Caparazón de Lapras', stars: [[.2,.65],[.35,.5],[.55,.45],[.75,.52],[.82,.68],[.5,.75],[.25,.35],[.22,.2]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[1,6],[6,7]] },
-  { name: 'La Corona de Slowking', stars: [[.3,.6],[.35,.4],[.45,.55],[.5,.32],[.55,.55],[.65,.4],[.7,.6]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0]] },
-  { name: 'La Llama de Ponyta', stars: [[.3,.7],[.4,.55],[.55,.5],[.7,.55],[.75,.7],[.45,.35],[.55,.22],[.62,.32]], lines: [[0,1],[1,2],[2,3],[3,4],[2,5],[5,6],[6,7],[7,2]] },
-  { name: 'El Danzarín Clefairy', rare: true, stars: [[.5,.25],[.42,.4],[.58,.4],[.3,.48],[.7,.48],[.45,.62],[.55,.62],[.4,.8],[.6,.8]], lines: [[0,1],[0,2],[1,3],[2,4],[1,5],[2,6],[5,6],[5,7],[6,8]] },
-  { name: 'La Estrella de los Deseos', rare: true, stars: [[.5,.15],[.6,.4],[.88,.42],[.66,.58],[.75,.85],[.5,.7],[.25,.85],[.34,.58],[.12,.42],[.4,.4]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,0]] },
+  { name: 'El Gran Ursaring', en: "The Great Ursaring", stars: [[.15,.6],[.25,.45],[.4,.4],[.55,.45],[.62,.62],[.48,.72],[.3,.72],[.7,.3],[.8,.22]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0],[3,7],[7,8]] },
+  { name: 'Las Alas de Pidgeot', en: "Pidgeot's Wings", stars: [[.5,.5],[.35,.4],[.2,.28],[.08,.35],[.65,.4],[.8,.28],[.92,.35],[.5,.32],[.5,.7]], lines: [[0,1],[1,2],[2,3],[0,4],[4,5],[5,6],[0,7],[0,8]] },
+  { name: 'La Cola de Mareep', en: "Mareep's Tail", stars: [[.2,.5],[.35,.42],[.5,.45],[.62,.55],[.72,.48],[.8,.35],[.88,.25]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },
+  { name: 'El Caparazón de Lapras', en: "Lapras's Shell", stars: [[.2,.65],[.35,.5],[.55,.45],[.75,.52],[.82,.68],[.5,.75],[.25,.35],[.22,.2]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[1,6],[6,7]] },
+  { name: 'La Corona de Slowking', en: "Slowking's Crown", stars: [[.3,.6],[.35,.4],[.45,.55],[.5,.32],[.55,.55],[.65,.4],[.7,.6]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0]] },
+  { name: 'La Llama de Ponyta', en: "Ponyta's Flame", stars: [[.3,.7],[.4,.55],[.55,.5],[.7,.55],[.75,.7],[.45,.35],[.55,.22],[.62,.32]], lines: [[0,1],[1,2],[2,3],[3,4],[2,5],[5,6],[6,7],[7,2]] },
+  { name: 'El Danzarín Clefairy', en: "The Dancing Clefairy", rare: true, stars: [[.5,.25],[.42,.4],[.58,.4],[.3,.48],[.7,.48],[.45,.62],[.55,.62],[.4,.8],[.6,.8]], lines: [[0,1],[0,2],[1,3],[2,4],[1,5],[2,6],[5,6],[5,7],[6,8]] },
+  { name: 'La Estrella de los Deseos', en: "The Wishing Star", rare: true, stars: [[.5,.15],[.6,.4],[.88,.42],[.66,.58],[.75,.85],[.5,.7],[.25,.85],[.34,.58],[.12,.42],[.4,.4]], lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,0]] },
 ];
 export function constellationOn(dt = new Date()) {   // la de esta noche (fija para cada día; las raras, uno de cada ~8 días)
   const n = dayOfYear(dt) + dt.getFullYear() * 7, h = Math.imul(n ^ 0x5bd1e995, 0x9E3779B1) >>> 0, common = CONSTELLATIONS.filter(c => !c.rare), rare = CONSTELLATIONS.filter(c => c.rare);
