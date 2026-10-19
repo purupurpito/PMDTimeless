@@ -280,7 +280,8 @@ export function drawSceneActor(ctx, e, sx, sy, scale, drawMon) {
     const size = scale * 24 * sc;
     if (a.shadowForm && D.shadow) D.shadow(ctx, { species: a.sp, facing: a.facing, movedAt: a.movedAt, anim, still: true }, sx - size / 2, sy - size - lift, size, a.shadowZoom ?? 4);   // (la sombra del lago)
     else drawMon(ctx, { species: a.sp, facing: a.facing, movedAt: a.movedAt, anim, still: a.still || (!a.idle && !anim) }, sx - size / 2, sy - size - lift, size);
-    if (a.item && D.drawItem) { const is = 26 * (a.itemScale ?? 1), right = (a.facing?.[0] ?? 0) >= 0; D.drawItem(ctx, a.item, Math.round(sx + (right ? 8 : -8 - is)), Math.round(sy - 34 - lift), Math.round(is)); }
+    if (a.item && D.drawItem) { const is = 26 * (a.itemScale ?? 1), right = (a.facing?.[0] ?? 0) >= 0, sh = a.itemShake ? [Math.sin(t0 / 38) * 3, Math.abs(Math.sin(t0 / 52)) * -2] : [0, 0];   // (itemShake: lo agita, p. ej. Sableye con una caja)
+      D.drawItem(ctx, a.item, Math.round(sx + (right ? 8 : -8 - is) + sh[0]), Math.round(sy - 34 - lift + sh[1]), Math.round(is)); }
   }
   ctx.restore();
   // efectos sobre la cabeza

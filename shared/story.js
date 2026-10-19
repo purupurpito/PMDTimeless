@@ -198,7 +198,7 @@ export const SCENES = [
       { do: 'say', who: 'chatot', mood: 'Inspired', text: 'Bueno, mucha suerte ahí dentro.', en: 'Well, the best of luck in there.' },
       { do: 'say', who: 'chatot', mood: 'Inspired', text: 'Espero que no te encuentres ningún jefe demasiado poderoso, carismático, apuesto, que cante bien…', en: "I do hope you don't run into a boss who's too powerful, charismatic, handsome, a fine singer…" },
       { do: 'anim', who: 'chatot', anim: 'Appeal', hold: true },   // y sigue, y sigue…
-      { do: 'say', who: 'chatot', mood: 'Joyous', auto: 900, text: '…que baile de maravilla, con un plumaje precioso, una voz privilegiada, un porte elegantísimo… bla, bla, bla…', en: '…a marvellous dancer, with gorgeous plumage, a gifted voice, the most elegant bearing… blah, blah, blah…' },
+      { do: 'say', who: 'chatot', mood: 'Joyous', auto: 900, text: '…que baile de maravilla, con un plumaje precioso, una voz privilegiada, un porte elegantísimo… bla, bla, bla…', en: '…a marvellous dancer, gorgeous plumage, a gifted voice, such elegance… blah, blah, blah…' },
       { do: 'wait', ms: 300 },
       { do: 'emote', who: 'player', fx: 'dots' },
       { do: 'wait', ms: 1300 },
@@ -2204,7 +2204,7 @@ export const SCENES = [
       { do: 'say', who: 'machamp', mood: 'Normal', text: '… No hay lección dos.', en: '… There is no lesson two.' },
       { do: 'turn', who: 'ampharos', toward: 'player' },
       { do: 'turn', who: 'player', toward: 'ampharos' },
-      { do: 'say', who: 'ampharos', mood: 'Happy', text: 'La lección dos es que nunca exploras solo, aunque no lleves compañeros: el gremio siempre te espera de vuelta.', en: 'Lesson two is that you never explore alone, even without partners: the guild is always waiting for you to come back.' },
+      { do: 'say', who: 'ampharos', mood: 'Happy', text: 'La lección dos es que nunca exploras solo, aunque no lleves compañeros: el gremio siempre te espera de vuelta.', en: 'Lesson two: you never explore alone, even without partners. The guild is always waiting for you to come back.' },
       { do: 'say', who: 'heracross', mood: 'Sad', text: '… La mía era mejor.', en: '… Mine was better.' },
       { do: 'turn', who: 'player', toward: 'machamp' },
       { do: 'turn', who: 'machamp', toward: 'player' },

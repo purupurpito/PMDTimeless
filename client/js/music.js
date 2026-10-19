@@ -22,8 +22,8 @@ const TRACKS = {
   bosque:  { url: 'client/assets/music/bosque.mp3', loop: 16 * 4 * 60 / 104, set: 'B', approved: false },      // Bosque Frondoso y Campo de Entrenamiento
   cueva:   { url: 'client/assets/music/cueva.mp3', loop: 16 * 4 * 60 / 90, set: 'B', approved: false },
   monte:   { url: 'client/assets/music/monte.mp3', loop: 16 * 4 * 60 / 88, set: 'B', approved: false },
-  sierra:  { url: 'client/assets/music/sierra.mp3', loop: 16 * 4 * 60 / 104, set: 'montañas', approved: false },   // Sierra Ígnea (pendiente de aprobación)
-  gelida:  { url: 'client/assets/music/gelida.mp3', loop: 16 * 4 * 60 / 96, set: 'montañas', approved: false },    // Montaña Gélida (pendiente de aprobación)
+  sierra:  { url: 'client/assets/music/sierra.mp3', loop: 16 * 4 * 60 / 108, set: 'montañas', approved: false },   // Sierra Ígnea (pendiente de aprobación)
+  gelida:  { url: 'client/assets/music/gelida.mp3', loop: 16 * 4 * 60 / 84, set: 'montañas', approved: false },    // Montaña Gélida (pendiente de aprobación)
   ruinas:  { url: 'client/assets/music/ruinas.mp3', loop: 16 * 4 * 60 / 82, set: 'B', approved: true },
   tiempo:  { url: 'client/assets/music/tiempo.mp3', loop: 8 * 4 * 60 / 132 + 4 * 4 * 60 / 146 + 4 * 4 * 60 / 160 + 2 * 4 * 60 / 84, set: 'B', approved: false },   // cambia de velocidad: la suma de sus cuatro tramos
   suenos:  { url: 'client/assets/music/suenos.mp3', loop: 16 * 4 * 60 / 92, set: 'B', approved: false },

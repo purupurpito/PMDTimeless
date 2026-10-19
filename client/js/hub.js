@@ -50,8 +50,8 @@ export const HUB = {
     hotspots: [ { rect: [300, 190, 480, 236], action: 'board', label: 'tablon.pista' } ],
   },
   // La sala de los trofeos del gremio (rehecha el 17 de octubre): armarios con trofeos (iconos de objetos, puestos por
-  // tools/imagenes/salida/trofeos/componer.py) y la urna del centro, vacía: es para la Pluma Trueno. Colisiones provisionales.
-  // Aún sin puerta en el gremio: la salida lleva de momento al centro del gremio.
+  // tools/imagenes/salida/trofeos/componer.py) y la urna del centro, vacía: es para la Pluma Trueno. Es parte del despacho de
+  // Pidgeot (se entra por su puerta): a la derecha, su escritorio (18 de octubre). Colisiones provisionales.
   trofeos: {
     img: 'client/assets/hub/trofeos.png', mask: 'client/assets/hub/trofeos_mask.png', spawn: { x: 384, y: 478 },
     exits: [ { rect: [300, 500, 470, 515], to: 'gremio', at: { x: 548, y: 270 } } ],   // (de vuelta, en el felpudo de la puerta del despacho)
@@ -60,6 +60,7 @@ export const HUB = {
       { rect: [352, 256, 424, 400], text: 'letrero.vitrina' },
       { rect: [132, 100, 264, 264], text: 'letrero.armario' }, { rect: [504, 100, 636, 264], text: 'letrero.armario' },
       { rect: [264, 30, 504, 238], text: 'letrero.ventana' },
+      { rect: [544, 372, 692, 454], text: 'letrero.escritorio' },
     ],
   },
   // Zona de descanso: arriba, en el nido del gremio (se sube por la escalera del interior). Aquí se aparece al volver
@@ -182,3 +183,40 @@ export const HUB = {
   },
 };
 export const VIEW = { w: 600, h: 408 };
+
+// ---------------------------------------------------------------------
+// LAS ZONAS AMPLIAS (en pruebas, sin aprobar): la plaza a 1536 × 1024 (tools/mapas/plaza-amplia.py, docs/ALDEA-amplia.md).
+// Solo con window.__mmZonasAmplias = true antes de cargar el juego; sin él, todo sigue como ahora. Las escenas aún no están movidas.
+// ---------------------------------------------------------------------
+const AMPLIA = 'client/assets/hub/amplia/';
+export const PLAZA_AMPLIA = {
+  img: AMPLIA + 'plaza_amplia.png', mask: AMPLIA + 'plaza_amplia_mask.png', spawn: { x: 768, y: 540 },
+  variants: [
+    { img: AMPLIA + 'plaza_amplia_fuente_roca.png', mask: AMPLIA + 'plaza_amplia_fuente_roca_mask.png', when: m => (m.cleared || []).includes('bosque') && !cafeOpen(m) },
+    { img: AMPLIA + 'plaza_amplia_roca.png', mask: AMPLIA + 'plaza_amplia_roca_mask.png', when: m => !cafeOpen(m) },
+    { img: AMPLIA + 'plaza_amplia_fuente.png', mask: AMPLIA + 'plaza_amplia_fuente_mask.png', when: m => (m.cleared || []).includes('bosque') },
+  ],
+  exits: [
+    { rect: [0, 506, 22, 574], to: 'mercado', at: { x: 722, y: 288 } },
+    { rect: [1514, 506, 1536, 574], to: 'fuente', at: { x: 50, y: 290 } },
+    { rect: [729, 1002, 809, 1024], to: 'aldea', at: { x: 384, y: 48 } },
+    { rect: [729, 150, 809, 200], to: 'gremio', at: { x: 405, y: 466 }, label: 'salida.gremio' },
+    { rect: [906, 632, 942, 684], to: 'cafe', at: { x: 300, y: 196 }, label: 'salida.cafe', when: m => cafeOpen(m) },
+  ],
+  npcs: [
+    { id: 'chatot', x: 830, y: 260, facing: [-1, 1], talk: 'chatot_intro', intro: true },
+    { id: 'murkrow', x: 699, y: 152, facing: [0, 1], talk: 'murkrow', fixedFacing: true, still: true, reach: 92 },
+  ],
+  signs: [ { rect: [130, 428, 190, 488], text: 'letrero.mercado' }, { rect: [650, 912, 710, 972], text: 'letrero.aldea' },
+    { rect: [1006, 616, 1048, 678], when: m => cafeOpen(m), text: 'letrero.cafe' },
+    { rect: [914, 623, 1004, 682], when: m => !cafeOpen(m), text: 'letrero.roca' },
+    { rect: [942, 636, 1004, 678], when: m => !cafeOpen(m), text: 'letrero.escaleras' } ],
+};
+// el primer plano de la plaza amplia (plaza_amplia_objects.json): los árboles que no tocan el borde, que tapan al pasar por detrás
+export const PLAZA_AMPLIA_OBJECTS = { img: AMPLIA + 'plaza_amplia_objects.png', list: [{"x": 492, "y": 63, "w": 112, "h": 136, "base": 197, "ax": 0, "ay": 0}, {"x": 1079, "y": 80, "w": 112, "h": 136, "base": 214, "ax": 112, "ay": 0}, {"x": 262, "y": 206, "w": 112, "h": 136, "base": 340, "ax": 224, "ay": 0}, {"x": 1374, "y": 638, "w": 112, "h": 136, "base": 772, "ax": 336, "ay": 0}, {"x": 340, "y": 37, "w": 94, "h": 135, "base": 170, "ax": 448, "ay": 0}, {"x": 1260, "y": 59, "w": 94, "h": 135, "base": 192, "ax": 542, "ay": 0}, {"x": 1380, "y": 207, "w": 94, "h": 135, "base": 340, "ax": 636, "ay": 0}, {"x": 95, "y": 269, "w": 94, "h": 135, "base": 402, "ax": 0, "ay": 136}, {"x": 468, "y": 653, "w": 139, "h": 123, "base": 774, "ax": 94, "ay": 136}] };
+// pone la plaza amplia en lugar de la de ahora y lleva a ella las llegadas desde las zonas vecinas (por el destino de cada salida)
+const LLEGADAS_AMPLIA = { mercado: { x: 48, y: 540 }, fuente: { x: 1488, y: 540 }, aldea: { x: 768, y: 976 }, gremio: { x: 768, y: 228 }, cafe: { x: 900, y: 662 } };
+export function zonasAmplias(objects) {
+  HUB.plaza = PLAZA_AMPLIA; objects.plaza = PLAZA_AMPLIA_OBJECTS;
+  for (const [id, at] of Object.entries(LLEGADAS_AMPLIA)) for (const e of HUB[id].exits) if (e.to === 'plaza') e.at = { ...at };
+}

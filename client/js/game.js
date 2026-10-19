@@ -9,13 +9,13 @@ import { makeRng, floorSeed } from '../../shared/rng.js';
 import { api, newRequestId } from './api.js';
 import { track, flushTelemetry, setTelemetryContext, deviceInfo, telemetryOn, setTelemetry } from './telemetry.js';
 import { storyLineFor, storyPageText, letterById, letterText, sableyeLine, pendingScene } from '../../shared/story.js';
-import { canRecruit, JUICES, BOXES } from '../../shared/data.js';
+import { canRecruit, JUICES, BOXES, PAGE_ITEM, SMEARGLE_PAGES } from '../../shared/data.js';
 import { initScenes, playScene, skipScene, tickScenes, sceneEntities, drawSceneActor, drawSceneOverlay, sceneTap, sceneShake, drawSceneObjectAt, drawScreenFade, releaseBlack } from './scenes.js';
 import { drawEmote, EMOTE_LEN } from './emotes.js';
 import { spawnMoveFx, drawMoveFx, fxEndTime, fxShake, spawnSuperEffective } from './vfx.js';
 import { SCENES } from '../../shared/story.js';
 const SCENES_ALL = () => SCENES;
-import { HUB, VIEW } from './hub.js';
+import { HUB, VIEW, zonasAmplias } from './hub.js';
 import { HUB_OBJECTS } from './hub-objects.js';
 import { typeIconHTML, typeIconImg } from './typeicons.js';
 import { playZone, playTrack, playOnce, stopMusic, setVolume, getVolume, preload as preloadMusic, playSfx, setSfxVolume, getSfxVolume } from './music.js';
@@ -126,6 +126,7 @@ const Sprites = {
 const Hub = {
   areas: {},
   async load() {
+    if (window.__mmZonasAmplias && !this.amplias) { zonasAmplias(HUB_OBJECTS); this.amplias = true; }   // (pruebas: las zonas amplias, sin aprobar)
     const loadImg = src => new Promise(res => { const img = new Image(); img.onload = () => res(img); img.onerror = () => res(null); img.src = src; });
     for (const [id, a] of Object.entries(HUB)) {
       const img = await loadImg(a.img), mask = await loadImg(a.mask);
@@ -257,7 +258,7 @@ export async function startGame(me) {
   window.__mmItems = ITEMS; window.__mmRefreshBag = () => refreshBagEffects(); window.__mmApplyStatus = (m, k) => applyStatus(state.rng, m, k, 1); window.__mmSummary = m => openSummary(m); window.__mmAreaName = a => areaNm(a); window.__mmWalk = (x, y) => walkableFor(state.player, x, y) && !occupied(x, y); window.__mmCorner = (a, b) => cornerFree(a, b);
   window.__mmLegFloor = () => CFG.legendaryEvery; window.__mmPickUp = gi => pickUp(gi); window.__mmCheckShop = () => checkShopExit(); window.__mmUpdateVis = () => updateVisibility(); window.__mmIsVisible = (x, y) => isVisibleNow(x, y); window.__mmCreate = (s, l) => createMon(s, l); window.__mmUseMove = (m, mv) => useMove(m, { ...MOVES[mv], name: mv });
   window.__mmDefeat = (e, by) => defeatEnemy(e, by); window.__mmAddItem = n => addItem(n); window.__mmMoves = MOVES; window.__mmSlot = i => useMoveSlot(i); window.__mmAct = (k, dx, dy) => playerAction(k, dx, dy); window.__mmPath = (to) => dungeonPath(state.player, to); window.__mmUseItem = i => useItem(i); window.__mmPlace = j => placeItem(j); window.__mmDescend = () => descend(); window.__mmTips = () => dungeonTips(); window.__mmAskStairs = () => askStairs(); window.__mmPassing = () => !!passTimer; window.__mmEndTurn = () => endTurn(false);
-  window.__mmVisibleNpcs = () => HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden).map(n => n.id); window.__mmHubPath = hubPath; window.__mmHubFree = hubFree; window.__mmGetMeta = () => meta; window.__mmEndRun = o => endRun(o); // pruebas automáticas
+  window.__mmVisibleNpcs = () => HUB[state.hub.area].npcs.filter(n => npcShown(n) && !n.hidden).map(n => n.id); window.__mmHubPath = hubPath; window.__mmHubFree = hubFree; window.__mmGetMeta = () => meta; window.__mmEndRun = o => endRun(o); window.__mmOpenHubStats = () => openHubStats(); // pruebas automáticas
   window.__mmPending = t => pendingScene(meta, t)?.id || null;   // (pruebas: qué escena toca)
   window.__mmDebug = { defeat: () => downed(state.player), dungeons: () => openDungeonMenu(), brumas: () => enterBrumas(), diary: () => openDiaryMenu(), mailbox: () => openMailbox(), hub: () => enterHub({ noScenes: true }), pidgeot: () => openPidgeotOffice(), shop: () => openShopMenu(), storage: () => openStorageMenu(), board: () => openBoardMenu(), rescueBoard: () => openRescueBoard(), startRescue: m => startRescue(m), rescueComplete: () => tryRescueComplete(), myRescue: () => checkMyRescue(), turn: { speedTick: () => speedTick(), fleeTurn: e => fleeTurn(e), enemyPickup: e => enemyPickup(e), dropCarried: e => dropCarried(e), pass: () => startPassing() },
     // tienda de prueba: alfombra 3×3 alrededor del jugador y una Semilla Revivir a su derecha
@@ -277,7 +278,6 @@ export async function startGame(me) {
   } catch {}
   sessionStart = Date.now(); track('session_start', { ...deviceInfo(), mode: 'servidor', rank: rankOf(meta.rankPts || 0), starter: meta.starters?.[0] }); flushTelemetry();
   state.waitingRescue = !!me.rescue;
-  if (me.mailNews && !me.rescue) { const news = (tries = 0) => { if (state.scene === 'hub' && state.hub.area === 'campamento') return; if (state.scene === 'hub' && !state.dialog && !state.menu) openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: t('buzon.aviso') }]); else if (tries < 10) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1200); }
   if (me.rescue) setTimeout(() => showRescueWait(me.rescue), 300);   // tu equipo sigue esperando un rescate
   if (pendingEnd()) flushPendingEnd();   // un resultado que no llegó la última vez (se envía solo)
   document.getElementById('hud-user').textContent = user.name;
@@ -289,7 +289,11 @@ export async function startGame(me) {
   enterHub({ noScenes: true }); window.__mmReady = Date.now();   // (listo: la partida ha terminado de cargar; lo esperan las pruebas)
   if (!meta.tutorialDone) tutorial(); else say(t('piso.bienvenida', { n: user.name }));
   await hubAssetsReady();   // la pantalla de carga se quita cuando la aldea y los sprites de la zona están descargados
-  setTimeout(() => playPendingScenes(), 250);   // las escenas que toquen, ya con la aldea a la vista
+  setTimeout(async () => {   // las escenas que toquen, ya con la aldea a la vista, y después «¡Tienes correo!»
+    await playPendingScenes();
+    if (me.mailNews && !me.rescue) await murkrowNews('buzon.aviso');
+    window.__mmSettled = Date.now();   // (pruebas: el arranque ha terminado, escenas y avisos incluidos)
+  }, 250);
 }
 // Lo que enseña la tarjeta de la pantalla de inicio (nombre, Pokémon, nivel y Pokés), guardado en el navegador
 function saveLastSeen() {
@@ -551,6 +555,17 @@ async function playPendingScenes(fromRun = false) {
   try { while (next && state.scene === 'hub' && !state.cut && !state.dcut) { await runScene(next); if (next.trigger === 'return') usedReturn = true; next = nextOne(); } }   // (si entras en una mazmorra, se queda para la próxima vez)
   finally { state.sceneChain = false; await releaseBlack(); }
 }
+// el aviso de Murkrow: en cuanto la aldea esté libre (sin diálogos, menús, escenas ni el recorrido de Chatot); si te vas antes, no sale
+function murkrowNews(key, onShow) {
+  return new Promise(res => {
+    const news = () => {
+      if (state.scene !== 'hub' || state.hub.area === 'campamento') return res();
+      if (state.dialog || state.menu || state.cut || state.dcut || state.sceneChain || state.tour || state.busy || document.querySelector('.penalty-report')) return setTimeout(news, 1500);
+      onShow?.(); openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: t(key) }]); res();
+    };
+    setTimeout(news, 1500);
+  });
+}
 const whenIdle = () => new Promise(res => { const t = () => (!state.dialog && !state.menu && !state.busy ? res() : setTimeout(t, 150)); t(); });
 // escena de historia: se reproduce, se marca como vista en el servidor y se enseña una sola vez
 async function runScene(sc) {
@@ -564,7 +579,7 @@ async function runScene(sc) {
 function hubExtras() {
   checkSpecialDay(); checkMyRescue();
   setTimeout(() => { if (!state.dialog && !state.menu) fountainNews(); }, 700);
-  if (state.mailArrived) { const news = (tries = 0) => { if (state.scene !== 'hub' || state.hub.area === 'campamento') return; if (!state.dialog && !state.menu && !document.querySelector('.penalty-report')) { state.mailArrived = false; openDialog([{ who: 'Murkrow', sp: 'murkrow', mood: 'Joyous', text: t('buzon.avisoFuera') }]); } else if (tries < 20) setTimeout(() => news(tries + 1), 1500); }; setTimeout(news, 1500); }
+  if (state.mailArrived) murkrowNews('buzon.avisoFuera', () => { state.mailArrived = false; });
   if (state.pausedRun) openMenu({ title: t('pendiente.titulo', { lugar: dnNmId(state.pausedRun.dungeonId) }), items: [t('pendiente.ahora'), t('pendiente.luego')], onSelect: i => { if (i === 0) resumeRun(); } });
 }
 
@@ -617,7 +632,8 @@ function openHubPokemon() {
 function openHubStats() {
   const s = meta.stats || {}, L = ['runs', 'floors', 'deepest', 'deaths', 'monsterHouses', 'recruited', 'itemsSold', 'kecleonRobs'], who = t('menu.estadisticas');
   const lines = L.filter(k => s[k] != null).map(k => `${t(`stats.${k}`)}: ${s[k]}`).concat([`${t('stats.superadas')}: ${(meta.cleared || []).length}`, `${t('stats.pokes')}: ${meta.pokes || 0} P`]);
-  openDialog([{ who, text: lines.slice(0, 5).join(' · ') }, { who, text: lines.slice(5).join(' · ') }], openHubMenu);
+  const notebook = (meta.pages || []).length ? [{ who, text: `${t('stats.cuaderno')}: ${meta.pages.length}/${SMEARGLE_PAGES.length}` }] : [];   // el cuaderno de Smeargle, en su página
+  openDialog([{ who, text: lines.slice(0, 5).join(' · ') }, { who, text: lines.slice(5).join(' · ') }, ...notebook], openHubMenu);
 }
 // ---- movimiento libre por la aldea
 let hubRaf = null;
@@ -782,6 +798,67 @@ const CAMP_TALK = {   // en el campamento de la Expedición (claves de i18n.js)
   mawile: ['campamento.mawile'],
   sableye: ['campamento.sableye'],
 };
+// El cuaderno de Smeargle: al hablarle con páginas que aún no ha visto, una escena corta por página (se la das, la mira,
+// reacciona y cuenta su secreto); cada una se marca como vista en el servidor («pagina-<mazmorra>»)
+const PAGE_MOODS = { bosque: ['Happy', 'Inspired'], cueva: ['Sad', 'Worried'], huerto: ['Joyous', 'Happy'], brumas: ['Stunned', 'Worried'], sierra: ['Happy', 'Sigh'],
+  gelida: ['Normal', 'Determined'], monte: ['Joyous', 'Inspired'], ruinas: ['Inspired', 'Normal'], tiempo: ['Worried', 'Stunned'] };   // [al verla, al contar el secreto]
+const pagesForSmeargle = () => (meta?.scenes || []).includes('veteranos') ? (meta.pages || []).filter(p => SMEARGLE_PAGES.includes(p) && !meta.scenes.includes('pagina-' + p)) : [];   // (dormido, no)
+function smearglePageScene(id, first, last) {
+  const npc = HUB.descanso.npcs.find(n => n.id === 'smeargle'), [m1, m2] = PAGE_MOODS[id] || ['Happy', 'Normal'];
+  const S = (mood, text, x = {}) => ({ do: 'say', who: 'smeargle', mood, text, ...x });
+  const n = (meta.pages || []).filter(p => SMEARGLE_PAGES.includes(p) && (p === id || meta.scenes.includes('pagina-' + p))).length;
+  return { id: 'pagina-' + id, startDark: false, keepPlayer: true, area: 'descanso', hideNpcIds: ['smeargle'],
+    actors: { smeargle: { sp: 'smeargle', x: npc.x, y: npc.y, dir: 'down-right' } },
+    steps: [
+      ...(first ? [{ do: 'turn', who: 'smeargle', toward: 'player' }, { do: 'turn', who: 'player', toward: 'smeargle' }, { do: 'wait', ms: 300 }, S('Normal', t('pagina.hola'))] : []),
+      { do: 'say', text: t(first ? 'pagina.das' : 'pagina.otra', { mazmorra: dnNmId(id) }) },
+      { do: 'prop', who: 'smeargle', set: { item: PAGE_ITEM, itemScale: 0.8 } },
+      { do: 'emote', who: 'smeargle', fx: 'exclaim' },
+      { do: 'jump', who: 'smeargle', to: [npc.x, npc.y], ms: 260, h: 8 },
+      { do: 'wait', ms: 500 },
+      S(m1, t(`pagina.${id}.dibujo`)),
+      { do: 'emote', who: 'smeargle', fx: 'dots' },
+      { do: 'wait', ms: 1300 },
+      S(m2, t(`pagina.${id}.secreto`)),
+      { do: 'say', text: t('pagina.guarda') },
+      { do: 'prop', who: 'smeargle', set: { item: null } },
+      { do: 'wait', ms: 400 },
+      ...(last ? [n >= SMEARGLE_PAGES.length ? S('Joyous', t('pagina.todas', { total: SMEARGLE_PAGES.length })) : S('Happy', t('pagina.cuenta', { n, total: SMEARGLE_PAGES.length }))] : []),
+    ] };
+}
+// Sableye abre una caja (el premio ya lo ha tirado el servidor): la coge, la agita, ¡clac!, y enseña lo que había; a veces, el guiño
+function boxScene(box, r, wink) {
+  const npc = HUB.cafe.npcs.find(n => n.id === 'sableye'), at = [npc.x, npc.y];
+  const B = (mood, text) => ({ do: 'say', who: 'sableye', mood, text });
+  return { id: 'caja-sableye', repeat: true, startDark: false, keepPlayer: true, area: 'cafe', hideNpcIds: ['sableye'],
+    actors: { sableye: { sp: 'sableye', x: npc.x, y: npc.y, dir: 'right' } },
+    steps: [
+      { do: 'turn', who: 'sableye', toward: 'player' }, { do: 'turn', who: 'player', toward: 'sableye' }, { do: 'wait', ms: 250 },
+      { do: 'say', text: t('caja.das', { caja: itemNm(box) }) },
+      { do: 'prop', who: 'sableye', set: { item: box, itemScale: 0.9 } }, { do: 'se', name: 'pickup' },
+      { do: 'jump', who: 'sableye', to: at, ms: 240, h: 6 }, { do: 'wait', ms: 300 },
+      B('Normal', t('caja.abriendo')),
+      { do: 'prop', who: 'sableye', set: { itemShake: true } }, { do: 'anim', who: 'sableye', anim: 'Double', hold: true },
+      { do: 'se', name: 'bump' }, { do: 'wait', ms: 330 }, { do: 'se', name: 'bump' }, { do: 'wait', ms: 330 }, { do: 'se', name: 'bump' }, { do: 'wait', ms: 420 },
+      { do: 'prop', who: 'sableye', set: { itemShake: false } }, { do: 'anim', who: 'sableye', anim: 'Idle' }, { do: 'wait', ms: 250 },
+      { do: 'se', name: 'drop' }, { do: 'say', text: t('caja.ruido') },
+      { do: 'prop', who: 'sableye', set: { item: r.prize, itemScale: 1 } }, { do: 'emote', who: 'sableye', fx: 'exclaim' },
+      { do: 'jump', who: 'sableye', to: at, ms: 280, h: 9 }, { do: 'wait', ms: 300 },
+      B('Happy', t('caja.premio', { obj: itemNm(r.prize) })),
+      ...(wink ? [
+        { do: 'turn', who: 'sableye', dir: 'left' }, { do: 'wait', ms: 700 },   // se vuelve hacia sus cofres, con el objeto en la mano…
+        B('Normal', t('caja.guino')),
+        { do: 'emote', who: 'player', fx: 'exclaim' }, { do: 'wait', ms: 300 },
+        { do: 'turn', who: 'sableye', toward: 'player' }, { do: 'jump', who: 'sableye', to: at, ms: 260, h: 8 },
+        B('Happy', t('caja.broma')),
+      ] : []),
+      { do: 'prop', who: 'sableye', set: { item: null } }, { do: 'se', name: 'coin' },
+      { do: 'say', text: t('caja.recibes', { obj: itemNm(r.prize), n: r.price }) },
+    ] };
+}
+async function giveSmearglePages(list) {
+  for (let i = 0; i < list.length && state.scene === 'hub' && !state.cut; i++) await runScene(smearglePageScene(list[i], i === 0, i === list.length - 1));
+}
 const showerNm = s => getLang() === 'en' && s.en || s.name;   // el nombre de una lluvia de estrellas (METEOR_SHOWERS)
 function talkToBase(kind) {
   if (kind === 'clefable') {   // la astrónoma: la lluvia de estrellas de hoy, o la próxima
@@ -841,8 +918,9 @@ function talkToBase(kind) {
       if (!boxes.length) return chat();
       return openDialog([B('Happy', t('caja.oferta'))], () => openMenu({ title: t('caja.pregunta'), items: [...boxes.map(b => `${itemNm(b)} — ${BOXES[b].price} P`), t('caja.nada')], onCancel: () => { state.menu = null; render(); }, onSelect: async i => {
         state.menu = null; if (i >= boxes.length) return openDialog([B('Normal', t('caja.cuandoQuieras'))]);
-        try { const r = await api('/cafe/box', { item: boxes[i] }); meta = r.meta; playSfx('coin');
-          openDialog([B('Normal', t('caja.abriendo')), { who: '', text: t('caja.ruido') }, B('Joyous', t('caja.premio', { obj: itemNm(r.prize) })), { who: '', text: t('caja.recibes', { obj: itemNm(r.prize), n: r.price }) }]); }
+        try { const r = await api('/cafe/box', { item: boxes[i] }); meta = r.meta;
+          const c = hubCounters(); c.cj = (c.cj || 0) + 1; saveHubCounters(c);
+          await runScene(boxScene(boxes[i], r, c.cj % 4 === 1)); }   // (el guiño, la primera vez y luego de cada cuatro, una)
         catch (e) { say(e.message); }
       } }));
     }
@@ -858,7 +936,8 @@ function talkToBase(kind) {
       en: ["Chansey says rest. Rest is… not moving? It's hard.", "Are you going down for the Wooper's water too? Ampharos promised.", "Thank you again. And again. And once more."] }, 'td');
     case 'sentret': return npcGreeting('Sentret', { es: ['Yo vigilaba la entrada. Y aun así nos pillaron. … Los Wooper son muy silenciosos.', 'Smeargle no ha parado de dibujar desde que llegamos. Nos ha dibujado doce veces.', 'Cuando volvamos a salir, iré de vigía otra vez. Pero mejor.'],
       en: ["I was keeping watch at the entrance. And they still caught us. … Wooper are very quiet.", "Smeargle hasn't stopped drawing since we got here. Twelve drawings of us so far.", "Next time we head out, I'll be the lookout again. But better."] }, 'st');
-    case 'smeargle': return npcGreeting('Smeargle', meta?.rescueDone
+    case 'smeargle': if (pagesForSmeargle().length) return giveSmearglePages(pagesForSmeargle());
+      return npcGreeting('Smeargle', meta?.rescueDone
       ? { es: ['¡Teddiursa y Sentret, aquí! ¡Enteros! Os debo doce dibujos. Mínimo.', 'Chansey me ha prohibido dibujar. Dibujo igual. Con la otra mano.', 'El agua de los Wooper… Ampharos lo prometió, y Ampharos cumple.'],
         en: ["Teddiursa and Sentret, here! In one piece! I owe you twelve drawings. At least.", "Chansey has banned me from drawing. I draw anyway. With the other hand.", "The Wooper's water… Ampharos promised, and Ampharos keeps her word."] }
       : (meta?.scenes || []).includes('veteranos')
@@ -1006,7 +1085,7 @@ async function startRun(def) {
   meta = r.meta;
   const moves = state.player.moves;
   state.player = createPlayer(r.run.starter); state.player.moves = moves;
-  Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: def, inventory: [...r.bag], runPokes: 0, missions: r.missions.map(m => ({ ...m, done: false })), earnedMD: [], recruitedLegendaries: [], lostRecruits: [], bondedLost: [], team: [], floor: 1, turn: 0, dead: false, log: [], scene: 'dungeon', diary: { monsterHouses: 0, recruited: 0, kecleonRobs: 0, itemsSold: 0 }, stonesFound: [] });
+  Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: def, inventory: [...r.bag], runPokes: 0, missions: r.missions.map(m => ({ ...m, done: false })), earnedMD: [], recruitedLegendaries: [], lostRecruits: [], bondedLost: [], team: [], floor: 1, turn: 0, dead: false, log: [], scene: 'dungeon', diary: { monsterHouses: 0, recruited: 0, kecleonRobs: 0, itemsSold: 0 }, stonesFound: [], pagesFound: [] });
   if (caveGuests(def)) addCaveGuests(def);
   if (expeditionGuests(def)) addExpeditionGuests(def);
   // el zumo de Spinda: Barriga y PS extra solo para esta exploración
@@ -1045,7 +1124,7 @@ async function resumeRun() {
   for (const mon of [s?.player, ...(s?.team || [])]) if (mon?.moves) mon.moves.forEach(mv => { mv.name = fixMoveName(mv.name); });
   const local = localBackup(r.run.id);   // si la copia del navegador es más nueva (se cortó la conexión al guardar), manda ella
   if (local && local.rev > (r.run.rev || 0)) { s = local.state; r.run.rev = local.rev; api('/run/save', { state: s, rev: local.rev }).catch(() => {}); }
-  Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: dungeonById(r.run.dungeonId), player: s.player, team: s.team || [], inventory: s.inventory, runPokes: s.runPokes, missions: s.missions, earnedMD: s.earnedMD || [], recruitedLegendaries: s.recruitedLegendaries || [], lostRecruits: s.lostRecruits || [], bondedLost: s.bondedLost || [], floor: s.floor, turn: s.turn, dead: false, log: [], scene: 'dungeon', pausedRun: null });
+  Object.assign(state, { run: r.run, flags: r.run.flags || {}, dungeonDef: dungeonById(r.run.dungeonId), player: s.player, team: s.team || [], inventory: s.inventory, runPokes: s.runPokes, missions: s.missions, earnedMD: s.earnedMD || [], recruitedLegendaries: s.recruitedLegendaries || [], lostRecruits: s.lostRecruits || [], bondedLost: s.bondedLost || [], pagesFound: s.pagesFound || [], floor: s.floor, turn: s.turn, dead: false, log: [], scene: 'dungeon', pausedRun: null });
   state.scene = 'dungeon'; state.run.playMs = s.playMs || 0;   // el tiempo jugado sigue contando desde donde iba
   if (s.where?.dungeon?.tiles) restoreFloor(s.where); else newFloor();   // el mismo piso, tal como estaba (las fotos antiguas no lo traen)
 }
@@ -1068,7 +1147,7 @@ function restoreFloor(w) {
   showCard(dnNm(def), `B${state.floor}F`); setTimeout(updateDungeonMusic, 0); setTimeout(() => dungeonTips(), 1200);   // (tras el cartel del piso)
   updateVisibility(); render(); say(t('pendiente.continuas'));
 }
-const runSnapshot = () => ({ where: floorSnapshot(), playMs: state.run?.playMs || 0, floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, turn: state.turn });
+const runSnapshot = () => ({ where: floorSnapshot(), playMs: state.run?.playMs || 0, floor: state.floor, player: state.player, team: state.team, inventory: state.inventory, runPokes: state.runPokes, missions: state.missions, earnedMD: state.earnedMD, recruitedLegendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, bondedLost: state.bondedLost, pagesFound: state.pagesFound || [], turn: state.turn });
 // ---------- telemetría: contexto de cada evento y estadísticas de la exploración ----------
 setTelemetryContext(() => state.scene === 'dungeon' && state.dungeonDef ? { at: 'mazmorra', dungeon: state.dungeonDef.id, floor: state.floor, sp: state.player?.species, lv: state.player?.level } : { at: state.hub?.area || state.scene });
 const runStats = () => (state.run ? (state.run.tstats ||= { dealt: 0, taken: 0, kills: 0, moves: {}, items: 0 }) : { dealt: 0, taken: 0, kills: 0, moves: {}, items: 0 });
@@ -1276,7 +1355,7 @@ async function endRun(outcome) {
   if (outcome === 'clear' && state.dungeonDef?.id === 'gelida' && !(meta?.scenes || []).includes('articuno-vencida')) await dungeonScene('articuno-vencida', { keepDark: true });
   if (state.run) state.run.ending = true;   // ya no se autoguarda
   { const st = runStats(), top = Object.entries(st.moves).sort((a, b) => b[1] - a[1]).slice(0, 8); track('run_summary', { outcome, floor: state.floor, dealt: st.dealt, taken: st.taken, kills: st.kills, items: st.items, moves: Object.fromEntries(top), min: Math.round((state.run?.playMs || 0) / 60000) }); }
-  const endBody = { playMs: Math.round(state.run?.playMs || 0), outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [] };
+  const endBody = { playMs: Math.round(state.run?.playMs || 0), outcome, floor: state.floor, runPokes: state.runPokes, inventory: state.inventory, mdToStorage: state.mdToStorage || [], held: state.player.held, player: state.player, team: state.team.map(a => ({ species: a.species, level: a.level, exp: a.exp })), earnedMD: state.earnedMD, missionsDone: state.missions.filter(m => m.done).map(m => m.id), bonds, legendaries: state.recruitedLegendaries, lostRecruits: state.lostRecruits, diary: state.diary, stonesFound: state.stonesFound || [], pagesFound: state.pagesFound || [] };
   const rid = state.run?.endRid || (state.run ? (state.run.endRid = newRequestId()) : newRequestId());
   try { localStorage.setItem(PENDING_KEY, JSON.stringify({ user: user?.name, rid, body: endBody, where: dnNm(state.dungeonDef) })); } catch {}
   let r = null, offline = false;
@@ -2281,6 +2360,7 @@ function itemIconIndex(name) {
   if (!name) return null;
   if (name.startsWith('MT: ')) return MACHINE_ICON[MOVES[name.slice(4)]?.type] ?? MACHINE_ICON.Normal;
   if (name.startsWith('MD: ')) return MD_ICON;
+  if (name === PAGE_ITEM) return ITEM_ICON['Carta de Chikorita'] ?? null;   // la página del cuaderno: el mismo papel que las cartas
   return ITEM_ICON[name] ?? null;
 }
 function drawItemIcon(c, name, x, y, size) {
@@ -2389,7 +2469,7 @@ function orbEffect(name, it) {
     case 'escape': say(t('orbe.escapa')); state.inventory.splice(state.inventory.indexOf(name), 1); setTimeout(() => endRun('exit'), 400); return 'consumed';
     case 'reveal': revealFloor(); say(t('orbe.ilumina')); break;
     case 'rollcall': for (const a of state.team) { const s = DIRS8.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy })).find(s => walkableFor(a, s.x, s.y) && !occupied(s.x, s.y)); if (s) Object.assign(a, s); } say(t('orbe.reune')); break;
-    case 'trawl': { let n = 0; for (const gi of [...state.groundItems]) if (!gi.shop && !gi.missionId && state.inventory.length < bagSizeFor(meta?.rankPts)) { state.groundItems.splice(state.groundItems.indexOf(gi), 1); state.inventory.push(gi.name); n++; } say(n ? t(n > 1 ? 'orbe.atraeN' : 'orbe.atrae1', { n }) : t('orbe.atraeNada')); break; }
+    case 'trawl': { let n = 0; for (const gi of [...state.groundItems]) if (!gi.shop && !gi.missionId && !gi.page && !gi.megaStone && state.inventory.length < bagSizeFor(meta?.rankPts)) { state.groundItems.splice(state.groundItems.indexOf(gi), 1); state.inventory.push(gi.name); n++; } say(n ? t(n > 1 ? 'orbe.atraeN' : 'orbe.atrae1', { n }) : t('orbe.atraeNada')); break; }
     case 'roomStatus': { let n = 0; for (const e of foes) if (applyStatus(state.rng, e, it.status, 1)) { if (it.turns && e.status) e.status.turns = it.turns; n++; } say(n ? t(n > 1 ? 'orbe.estadoN' : 'orbe.estado1', { n, st: stNm(it.status) }) : t('orbe.nadie')); break; }
     case 'roomWarp': foes.forEach(e => warpTo(e, randomFreeTile())); say(t(foes.length ? 'orbe.desaparecen' : 'orbe.sinEnemigos')); break;
     case 'terrify': { let n = 0; foes.forEach(e => { if (terrify(e, 10, '')) n++; }); say(t(n ? 'orbe.asustan' : 'orbe.sinEnemigos')); break; }
@@ -2545,7 +2625,7 @@ function playerAction(kind, dx = 0, dy = 0, extra) {
     thunderTrap(p);   // Monte Eléctrico: ¿había un rayo oculto aquí?
     const gi = state.groundItems.findIndex(g => g.x === p.x && g.y === p.y);
     if (gi >= 0 && state.groundItems[gi].shop) { const g = state.groundItems[gi]; say(t('kecleon.precio', { obj: itemNm(g.name), p: shopPriceFor(g) })); }
-    else if (gi >= 0) { const g = state.groundItems[gi]; if (g.megaStone) { state.groundItems.splice(gi, 1); (state.stonesFound ||= []).push(g.megaStone); say(t('suelo.megapiedra', { obj: itemNm(g.name) })); } else if (addItem(g.name, false)) { playSfx('pickup'); state.groundItems.splice(gi, 1); say(t('suelo.recoges', { obj: itemNm(g.name) })); if (g.missionId) { const m = state.missions.find(m => m.id === g.missionId); if (m) { m.done = true; say(t('suelo.objetoMision')); } } } }
+    else if (gi >= 0) { const g = state.groundItems[gi]; if (g.megaStone) { state.groundItems.splice(gi, 1); (state.stonesFound ||= []).push(g.megaStone); say(t('suelo.megapiedra', { obj: itemNm(g.name) })); } else if (g.page) { playSfx('pickup'); state.groundItems.splice(gi, 1); (state.pagesFound ||= []).push(g.page); say(t('suelo.pagina')); autosave('pagina'); } else if (addItem(g.name, false)) { playSfx('pickup'); state.groundItems.splice(gi, 1); say(t('suelo.recoges', { obj: itemNm(g.name) })); if (g.missionId) { const m = state.missions.find(m => m.id === g.missionId); if (m) { m.done = true; say(t('suelo.objetoMision')); } } } }
     checkShopExit();
     if (tileAt(p.x, p.y) === T.STAIRS) { endTurn(true); askStairs(); return; }
   } else if (kind === 'face') { p.facing = [dx, dy]; render(); return; } // girar no gasta turno
@@ -3048,6 +3128,7 @@ function openGroundMenu() {
   } });
 }
 function pickUp(g, swapping = false) {
+  if (g.page) { state.groundItems.splice(state.groundItems.indexOf(g), 1); (state.pagesFound ||= []).push(g.page); say(t('suelo.pagina')); endTurn(true); return false; }   // la página del cuaderno no va a la bolsa
   if (!swapping && state.inventory.length >= bagSizeFor(meta?.rankPts)) { say(t('suelo.bolsaLlena')); return false; }
   state.groundItems.splice(state.groundItems.indexOf(g), 1);
   state.inventory.push(g.name);
@@ -3577,9 +3658,7 @@ function drawMoveHints() {
 function renderMenu() {
   const m = state.menu; if (!m) return;
   const s = UIS(), font = DIALOG_FONT();
-  let fs = pmdPx(18 * s);
-  { ctx.font = `${fs}px ${font}`; const need = Math.max(0, ...m.items.map((it, i) => ctx.measureText(it).width + Math.round(12 * s) * 2 + Math.round(18 * s) + 6 * s + (m.icons?.[i] || (m.noItemIcons !== true && itemInText(it)) ? 20 * s : 0)));
-    if (need > LOG.w - 24) { const fs2 = Sprites.fontName === 'PMDFont' ? Math.max(1, Math.floor(fs * (LOG.w - 24) / need * RK / 12)) * 12 / RK : fs * (LOG.w - 24) / need; if (fs2 < fs) fs = fs2; } }   // (no cabe: un punto menos, nítido)
+  const fs = pmdPx(18 * s), fs0 = fs;   // (la letra no encoge: la opción que no cabe va en dos líneas)
   const rh = Math.round(fs + 7 * s);
   ctx.font = `${fs}px ${font}`; ctx.textBaseline = 'middle';
   const title = m.title + (state.busy ? '  …' : '');
@@ -3591,10 +3670,18 @@ function renderMenu() {
   const tLines = ctx.measureText(title).width + pad * 2 > w - (mw ? mw + 4 : 0) ? wrapText(title, w - (mw ? mw + 4 : 0) - pad * 2) : [title];   // (y si ni así cabe, el título en varias líneas)
   const lineH = Math.round(fs + 4 * s), tabHH = tabH + (tLines.length - 1) * lineH;
   const x = state.scene === 'hub' ? (LOG.w - w) / 2 : 12, y = 12;
-  const maxRows = Math.max(3, Math.floor((LOG.h - y - tabHH - 10 - pad * 2) / rh));
-  const rows = Math.min(m.items.length, maxRows);
-  const top = Math.min(Math.max(0, m.index - Math.floor(rows / 2)), m.items.length - rows);
-  const h = rows * rh + pad * 2;
+  const isz = Math.round(15 * s), iconOf = i => m.icons?.[i] || (m.noItemIcons !== true && itemInText(m.items[i])) ? isz + 5 : 0;
+  const room = i => w - pad * 2 - cur - iconOf(i) - 6 * s;   // (un poco de aire antes del marco)
+  const fits = (t, i) => ctx.measureText(t).width <= room(i) + 0.5;
+  const split = (it, i) => { for (const sep of [' — ', '  (', ' (']) { const k = it.lastIndexOf(sep); if (k > 0 && fits(it.slice(0, k), i)) return [it.slice(0, k), ...wrapText(it.slice(k).trimStart(), room(i))]; } return wrapText(it, room(i)); };   // (mejor por la raya o antes del paréntesis: «Novato (Pikachu)» / «— Bosque Frondoso B1F»; la misión / «(160 P · +20 rango)»)
+  const iLines = m.items.map((it, i) => fits(it, i) ? [it] : split(it, i)), rowH = iLines.map(l => rh + (l.length - 1) * lineH);
+  // las filas que se ven: la elegida y, por turnos, una encima y otra debajo mientras quepan (al menos tres)
+  const maxH = LOG.h - y - tabHH - 10 - pad * 2, idx = Math.min(m.index, m.items.length - 1);
+  let top = Math.max(0, idx), bot = Math.min(top + 1, m.items.length), used = rowH[top] || 0;
+  for (let grew = true; grew;) { grew = false;
+    if (top > 0 && (used + rowH[top - 1] <= maxH || bot - top < 3)) { used += rowH[--top]; grew = true; }
+    if (bot < m.items.length && (used + rowH[bot] <= maxH || bot - top < 3)) { used += rowH[bot++]; grew = true; } }
+  const h = used + pad * 2;
   // pestaña del título
   ctx.font = `${fs}px ${font}`;
   const tw = Math.min(w - (mw ? mw + 4 : 0), Math.max(...tLines.map(l => ctx.measureText(l).width)) + pad * 2);
@@ -3609,24 +3696,27 @@ function renderMenu() {
   const by = y + tabHH + 2;
   pmdBox(x, by, w, h);
   ctx.font = `${fs}px ${font}`;
+  window.__mmMenuFit = { title, fs0, fs, titleLines: tLines.length, shown: [top, bot], bottom: by + h, index: m.index, wrapped: iLines.filter(l => l.length > 1).map(l => l.join(' / ')), lost: m.items.filter((it, i) => iLines[i].join(' ').replace(/ +/g, ' ') !== it.replace(/ +/g, ' ')), squashed: iLines.flatMap((l, i) => l.filter(t => !fits(t, i))) };   // (pruebas: lo que va en dos líneas, lo que se pierde, lo que se aprieta)
   const blink = Math.floor(performance.now() / 350) % 2 === 0;
-  for (let r = 0; r < rows; r++) {
-    const i = top + r, ty = by + pad + r * rh + rh / 2;
+  for (let i = top, ry = by + pad; i < bot; ry += rowH[i++]) {
+    const ty = ry + rh / 2;
     ctx.fillStyle = '#f8f8f8';
-    let ic = m.icons?.[i]; const isz = Math.round(15 * s);
+    let ic = m.icons?.[i];
     const itemName = !ic && m.noItemIcons !== true ? itemInText(m.items[i]) : null;
     if (itemName && drawItemIcon(ctx, itemName, x + pad + cur, ty - isz / 2 - 1, isz + 2)) ic = true;
     else if (ic) { const im = typeIconImg(ic); if (im.complete) ctx.drawImage(im, x + pad + cur, ty - isz / 2, isz, isz); else im.onload = () => scheduleRender(); }
-    ctx.fillText(m.items[i], x + pad + cur + (ic ? isz + 5 : 0), ty, w - pad * 2 - cur - (ic ? isz + 5 : 0) - 6 * s);   // (un poco de aire antes del marco)
+    iLines[i].forEach((l, j) => ctx.fillText(l, x + pad + cur + iconOf(i), ty + j * lineH, room(i)));
     if (i === m.index && blink) { ctx.fillStyle = '#f8f8f8'; ctx.beginPath(); ctx.moveTo(x + pad, ty - 5 * s); ctx.lineTo(x + pad + 8 * s, ty); ctx.lineTo(x + pad, ty + 5 * s); ctx.fill(); }
   }
   // flechas de desplazamiento
   ctx.fillStyle = '#f8d848'; ctx.textAlign = 'center'; ctx.font = `${Math.round(10 * s)}px ${font}`;
   if (top > 0) ctx.fillText('▲', x + w - pad, by + pad);
-  if (top + rows < m.items.length) ctx.fillText('▼', x + w - pad, by + h - pad);
+  if (bot < m.items.length) ctx.fillText('▼', x + w - pad, by + h - pad);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   scheduleRender(); // para el parpadeo del cursor
 }
+// Dónde cortar una página que no cabe: tras la última frase que acabe antes de «max» caracteres (y después de «min», para no dejar una página casi vacía); -1 si no hay
+const sentenceCut = (text, max, min) => { let at = -1; for (const m of text.slice(0, max + 1).matchAll(/[.!?…»)](?=\s+[¡¿«"'…(A-ZÁÉÍÓÚÑ0-9])/g)) if (m.index + 1 > min) at = m.index + 1; return at; };
 function wrapText(text, maxW) { const words = text.split(' '), lines = []; let cur = ''; for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; } if (cur) lines.push(cur); return lines; }
 // Cuadro de diálogo estilo Equipo de Rescate: caja azul marino, marco claro redondeado, texto blanco que se escribe
 // letra a letra, nombre del que habla en amarillo y flecha parpadeante al acabar. Fuente: la del manifest si existe.
@@ -3691,8 +3781,9 @@ function renderDialog() {
   d.done = shown >= page.text.length;
   const body = page.who ? `${page.who}: ` : '';
   let lines = wrapText(body + page.text, w - 34);
-  if (lines.length > 3 && !page.font) {   // no cabe: lo que sobra, a una página nueva (con la flecha de continuar), sin cortar palabras
-    const keep = lines.slice(0, 3).join(' ').length - body.length, rest = page.text.slice(keep).trimStart();
+  if (lines.length > 3) {   // no cabe: lo que sobra, a una página nueva (con la flecha de continuar), sin cortar palabras (también con la letra propia de los Mega, que es del sistema y cambia de un equipo a otro)
+    let keep = lines.slice(0, 3).join(' ').length - body.length; const cut = sentenceCut(page.text, keep, (lines[0].length - body.length) / 2); if (cut > 0) keep = cut;   // (mejor por el final de una frase, como en el original, que dejar una palabra sola en la página siguiente)
+    const rest = page.text.slice(keep).trimStart();
     if (rest) { d.pages.splice(d.i + 1, 0, { ...page, text: rest }); page.text = page.text.slice(0, keep).trimEnd(); lines = wrapText(body + page.text, w - 34); }
   }
   let count = 0, ly = y + 12;

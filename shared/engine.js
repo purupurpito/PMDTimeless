@@ -3,7 +3,7 @@
 // =====================================================================
 import { EOS_GROWTH, EOS_GROWTH_OF, EOS_ASLEEP } from './eos.js';
 import { learnEntries } from './data.js';
-import { rollLoot, CFG, SPECIES, MOVES, ITEMS, STATUS, MINIBOSS_POOL, MD_POOL, MD_RARE_POOL, SHOP_IN_DUNGEON, SHOP_FIXED, SHOP_ROTATING, SHOP_HELD, WEATHER, weatherFor, shopPrice, megaStoneFor, effectiveness, floorKind, canCrossTerrain, eraFor } from './data.js';
+import { PAGE_ITEM, rollLoot, CFG, SPECIES, MOVES, ITEMS, STATUS, MINIBOSS_POOL, MD_POOL, MD_RARE_POOL, SHOP_IN_DUNGEON, SHOP_FIXED, SHOP_ROTATING, SHOP_HELD, WEATHER, weatherFor, shopPrice, megaStoneFor, effectiveness, floorKind, canCrossTerrain, eraFor } from './data.js';
 
 export const T = { WALL: 0, FLOOR: 1, STAIRS: 2, WATER: 3, LAVA: 4 };
 export const isSolid = t => t === T.WALL;
@@ -352,6 +352,10 @@ export function buildFloor(rng, def, floor, missions = [], flags = {}, runSeed =
     const roll = rng.random();
     const name = roll < 0.25 ? rng.pick(sellable) : rollLoot(rng, floor);   // botín completo por rareza y piso
     if (tiles[p.y][p.x] === T.FLOOR) groundItems.push({ ...p, name });
+  }
+  if (flags.page && flags.page.floor === floor) for (let k = 0; k < 40; k++) {   // una página del cuaderno de Smeargle, tirada en el suelo
+    const p = randomFloorIn(rng, rng.pick(rooms), tiles);
+    if (tiles[p.y][p.x] === T.FLOOR && !(p.x === stairs.x && p.y === stairs.y) && !occupied(p.x, p.y) && !groundItems.some(g => g.x === p.x && g.y === p.y)) { groundItems.push({ ...p, name: PAGE_ITEM, page: flags.page.id }); break; }
   }
   // Guardián Mega: si la misión está activa y aún no tienes la piedra, sustituye al jefe/minijefe de este piso.
   const stone = megaStoneFor(def.id, floor);

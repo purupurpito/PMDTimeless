@@ -266,6 +266,18 @@ export const MEGA_DIALOG = {
   },
 };
 export const megaStoneFor = (dungeonId, floor) => MEGA_STONES.find(s => s.dungeonId === dungeonId && s.floor === floor);
+// Cuaderno de Smeargle: una página perdida por mazmorra. En cada exploración hay pocas posibilidades de que esté en algún piso
+// normal (ni jefes ni minijefes); lo decide la semilla de la exploración, así el servidor puede comprobarlo al volver.
+export const SMEARGLE_PAGES = ['bosque', 'cueva', 'huerto', 'brumas', 'sierra', 'gelida', 'monte', 'ruinas', 'tiempo'];
+export const PAGE_CHANCE = 0.12, PAGE_ITEM = 'Página del cuaderno';
+export function pageFloorFor(def, seed) {
+  if (!def || !SMEARGLE_PAGES.includes(def.id)) return null;
+  const h = Math.imul((seed ^ 0x5bd1e995) >>> 0, 2654435761) >>> 0, h2 = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+  if (h2 % 1000 >= PAGE_CHANCE * 1000) return null;
+  const top = Math.min(def.floors - 1, 29), floors = [];
+  for (let f = 2; f <= top; f++) if (f % CFG.minibossEvery !== 0) floors.push(f);
+  return floors.length ? floors[(h2 >>> 10) % floors.length] : null;
+}
 export const DREAM_DUNGEON = { id: 'suenos', name: 'Mazmorra de los Sueños', floors: Infinity, rank: 5, lvl: 30,
   pool: ['pidgey', 'rattata', 'zubat', 'geodude', 'machop', 'oddish', 'pikachu'],
   legendaries: ['dialga', 'mew', 'zapdos', 'suicune', 'entei', 'raikou', 'celebi', 'jirachi'],

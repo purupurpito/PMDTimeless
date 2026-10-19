@@ -430,3 +430,45 @@ body.in-game.touch-on:not(.info-fuera) #screen-game { min-height: 100dvh; box-si
 .settings-panel select { flex: none; width: 112px; max-width: 112px; }
 .set-btn { font-size: 13px; line-height: 1.3; }
 body:not(.info-fuera) .settings-panel .set-log { display: none; }
+
+/* Opciones y el buzón, con la letra de Mundo Misterioso como el registro de mensajes: al doble (24 px, nítida) y con su sombra;
+   la versión, a su tamaño (12 px). La ventana crece para que todo quepa; en el móvil ocupa el ancho y, si hace falta, se desplaza */
+.settings-panel, .fb-box { font: 24px/1.15 'PMDFont', ui-monospace, monospace; text-shadow: 2px 0 0 #000, 0 2px 0 #000; -webkit-font-smoothing: none; }
+.settings-panel { width: 480px; max-height: calc(100vh - 64px); max-height: calc(100dvh - 64px); overflow-y: auto; padding: 12px 16px; }
+.set-title { font-size: 24px; letter-spacing: 0; text-transform: none; margin-bottom: 6px; }
+.set-row { font-size: 24px; gap: 12px; padding: 6px 0; }
+.set-row select, .fb-box select { font: 24px/1.1 'PMDFont', ui-monospace, monospace; text-shadow: inherit; padding: 2px 6px; }
+.settings-panel select { width: 168px; max-width: 168px; }
+#music-val, #sfx-val { font-size: 24px; min-width: 72px; text-align: right; color: #f8f8f8; }
+.set-btn { font-size: 24px; line-height: 1.15; padding: 6px 8px; margin: 8px 0 4px; }
+.set-foot { font-size: 12px; text-shadow: none; }
+.fb-box { width: min(620px, 94vw); }
+.fb-title { font-weight: normal; }
+.fb-box textarea { font: inherit; text-shadow: none; }
+.fb-row { font-size: 24px; color: #f8f8f8; flex-direction: row; }
+.fb-msg { font-size: 24px; }
+.fb-actions button { font: inherit; padding: 6px 16px; }
+@media (max-width: 600px) {
+  .settings-panel { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
+  .settings-panel select { width: 150px; max-width: 150px; }
+  #music-vol, #sfx-vol { width: 100%; min-width: 90px; }
+}
+
+/* el informe tras caer o terminar y la espera de rescate, con la misma letra (24 px y su sombra; el pie, a 12 px). Si no caben
+   en la pantalla (la bolsa llena, el móvil), se desplazan */
+.penalty-report { display: flex; overflow-y: auto; padding: 24px 8px 12px; box-sizing: border-box; }
+.penalty-report .rep-inner { margin: auto; width: min(900px, 100%); box-sizing: border-box; padding: 28px 16px 12px;
+  font: 24px/1.15 'PMDFont', ui-monospace, monospace; text-shadow: 2px 0 0 #000, 0 2px 0 #000; -webkit-font-smoothing: none; }
+.penalty-report .pmd-tab { font-size: 24px; font-weight: normal; letter-spacing: 0; top: -17px; padding: 1px 10px; text-shadow: none; }
+.rep-where, .rep-col h3, .rep-col ul, .rep-held { font-size: 24px; line-height: 1.15; }
+.rep-col h3 { font-weight: normal; letter-spacing: 0; text-transform: none; }
+.rep-pokes { font-weight: normal; }
+.rep-col ul b { font-weight: normal; color: var(--pmd-gold); }
+.rep-foot { font-size: 12px; text-shadow: none; }
+.rescue-wait { overflow-y: auto; }
+.rescue-wait .rw-box { margin: auto; max-width: 620px; font: 24px/1.2 'PMDFont', ui-monospace, monospace; text-shadow: 2px 0 0 #000, 0 2px 0 #000; -webkit-font-smoothing: none; }
+.rescue-wait h2 { font-size: 24px; font-weight: normal; letter-spacing: 0; }
+.rescue-wait .rw-label { font-size: 24px; text-transform: none; letter-spacing: 0; }
+.rescue-wait .rw-code { font: 48px/1.1 'PMDFont', ui-monospace, monospace; letter-spacing: .08em; }
+.rescue-wait .rw-status { font-size: 24px; }
+.rescue-wait .rw-giveup { font: inherit; text-align: center; }
