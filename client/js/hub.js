@@ -51,7 +51,7 @@ export const HUB = {
   },
   // La sala de los trofeos del gremio (rehecha el 17 de octubre): armarios con trofeos (iconos de objetos, puestos por
   // tools/imagenes/salida/trofeos/componer.py) y la urna del centro, vacía: es para la Pluma Trueno. Es parte del despacho de
-  // Pidgeot (se entra por su puerta): a la derecha, su escritorio (18 de octubre). Colisiones provisionales.
+  // Pidgeot (se entra por su puerta). (El escritorio de Pidgeot, quitado el 19 de octubre: Ferran no lo aprobó; va bajo la ventana.) Colisiones provisionales.
   trofeos: {
     img: 'client/assets/hub/trofeos.png', mask: 'client/assets/hub/trofeos_mask.png', spawn: { x: 384, y: 478 },
     exits: [ { rect: [300, 500, 470, 515], to: 'gremio', at: { x: 548, y: 270 } } ],   // (de vuelta, en el felpudo de la puerta del despacho)
@@ -60,7 +60,6 @@ export const HUB = {
       { rect: [352, 256, 424, 400], text: 'letrero.vitrina' },
       { rect: [132, 100, 264, 264], text: 'letrero.armario' }, { rect: [504, 100, 636, 264], text: 'letrero.armario' },
       { rect: [264, 30, 504, 238], text: 'letrero.ventana' },
-      { rect: [544, 372, 692, 454], text: 'letrero.escritorio' },
     ],
   },
   // Zona de descanso: arriba, en el nido del gremio (se sube por la escalera del interior). Aquí se aparece al volver
